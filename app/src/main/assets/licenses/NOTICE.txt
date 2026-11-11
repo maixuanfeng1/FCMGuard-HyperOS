@@ -1,0 +1,13 @@
+FCM Guard contains code from:
+
+FCMGuard-HyperOS (MIT): Copyright (c) 2026 Yijie Gao.
+See FCMGuard-MIT.txt and https://github.com/ReedGAOOO/FCMGuard-HyperOS
+
+Shizuku API / provider / shared / aidl 13.1.5 (MIT).
+See Shizuku-API-MIT.txt and https://github.com/RikkaApps/Shizuku-API
+
+AndroidX annotations (Apache License 2.0): The Android Open Source Project.
+See Apache-2.0.txt and https://developer.android.com/jetpack/androidx
+
+Kotlin standard library (Apache License 2.0): JetBrains s.r.o. and Kotlin contributors.
+See Apache-2.0.txt, Kotlin-COPYRIGHT.txt and https://github.com/JetBrains/kotlin
