@@ -57,9 +57,9 @@
                     android:id="@+id/languageButton"
                     android:layout_width="@dimen/language_button_width"
                     android:layout_height="@dimen/language_button_height"
-                    android:layout_marginLeft="@dimen/language_button_margin_start"
+                    android:layout_marginStart="@dimen/language_button_margin_start"
                     android:background="@drawable/hero_pill_bg"
-                    android:text="Language"
+                    android:text="@string/language"
                     android:textAllCaps="false"
                     android:textColor="@color/blue"
                     android:textSize="14sp"
@@ -111,7 +111,7 @@
                 android:orientation="vertical"
                 android:background="@drawable/tonal_bg"
                 android:layout_marginTop="13dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/current_value_title" android:textColor="@color/text_secondary" android:textSize="10sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/current_value_title" android:textColor="@color/text_secondary" android:textSize="11sp" android:textStyle="bold" />
                 <TextView android:id="@+id/currentValueText" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" android:textSize="12sp" android:fontFamily="monospace" android:textIsSelectable="true" android:paddingTop="4dp" />
             </LinearLayout>
         </com.reed.fcmguard.CollapsingStatusCard>

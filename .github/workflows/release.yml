@@ -1,0 +1,64 @@
+name: Signed APK release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require private release signing secrets
+        env:
+          KEYSTORE: ${{ secrets.FCMGUARD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.FCMGUARD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.FCMGUARD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.FCMGUARD_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || {
+            echo 'Configure the four FCMGUARD signing secrets; see docs/BUILDING.md.' >&2
+            exit 1
+          }
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/fcmguard-release.jks"
+          chmod 600 "$RUNNER_TEMP/fcmguard-release.jks"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-37.2' 'build-tools;37.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and verify release
+        env:
+          FCMGUARD_KEYSTORE: ${{ runner.temp }}/fcmguard-release.jks
+          FCMGUARD_STORE_PASSWORD: ${{ secrets.FCMGUARD_STORE_PASSWORD }}
+          FCMGUARD_KEY_ALIAS: ${{ secrets.FCMGUARD_KEY_ALIAS }}
+          FCMGUARD_KEY_PASSWORD: ${{ secrets.FCMGUARD_KEY_PASSWORD }}
+        run: |
+          python3 tools/check_layout_profiles.py
+          ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --stacktrace
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+      - name: Publish immutable versioned release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle | head -n 1)
+          test -n "$VERSION"
+          TAG="v${VERSION}"
+          # Never replace an existing release with a different APK or signing key.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Bump versionCode and versionName first." >&2
+            exit 1
+          fi
+          cp app/build/outputs/apk/release/app-release.apk FCMGuard-HyperOS.apk
+          cp FCMGuard-HyperOS.apk "FCMGuard-HyperOS-${TAG}.apk"
+          sha256sum FCMGuard-HyperOS*.apk > SHA256SUMS.txt
+          gh release create "$TAG" FCMGuard-HyperOS*.apk SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "FCM Guard ${TAG}" --generate-notes
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/fcmguard-release.jks"

@@ -14,8 +14,9 @@ import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
+import android.content.pm.ServiceInfo;
 import android.os.IBinder;
-import android.os.Looper;
 import android.provider.Settings;
 
 public class GuardService extends Service {
@@ -24,48 +25,79 @@ public class GuardService extends Service {
     private static final String CHANNEL_ID = "fcm_guard_persistent_v2";
     private static final int NOTIFICATION_ID = 426;
     private static final long FALLBACK_INTERVAL_MS = 30L * 60L * 1000L;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private HandlerThread workerThread;
+    private Handler handler;
+    private static volatile boolean running;
+    private static volatile boolean repairSucceeded;
+    private static final java.util.concurrent.CopyOnWriteArraySet<Runnable> STATE_LISTENERS =
+            new java.util.concurrent.CopyOnWriteArraySet<>();
+    private static final Handler MAIN = new Handler(android.os.Looper.getMainLooper());
+
+    public static void addStateListener(Runnable listener) { STATE_LISTENERS.add(listener); }
+    public static void removeStateListener(Runnable listener) { STATE_LISTENERS.remove(listener); }
+    private static void stateChanged() {
+        MAIN.post(() -> { for (Runnable listener : STATE_LISTENERS) listener.run(); });
+    }
+    private final Runnable bridgeListener = () -> {
+        if (handler != null) {
+            repairSucceeded = false;
+            handler.removeCallbacks(this.repairDebounced);
+            handler.post(this.repairDebounced);
+        }
+    };
+
+    public static boolean isProtecting() {
+        return running && repairSucceeded && ShizukuBridge.isReady();
+    }
     private ContentObserver observer;
     private boolean foreground;
 
     private final Runnable fallbackCheck = new Runnable() {
         @Override public void run() {
-            repair(false);
+            repair();
             handler.postDelayed(this, FALLBACK_INTERVAL_MS);
         }
     };
 
     private final Runnable repairDebounced = new Runnable() {
         @Override public void run() {
-            repair(true);
+            repair();
         }
     };
 
     @Override public void onCreate() {
         super.onCreate();
+        workerThread = new HandlerThread("whitelist-guard");
+        workerThread.start();
+        handler = new Handler(workerThread.getLooper());
         applyExecutionMode();
-        registerObserver();
-        SettingsGuard.rememberIfUseful(this);
-        handler.post(fallbackCheck);
+        running = true;
+        ShizukuBridge.addListener(bridgeListener);
+        ShizukuBridge.connect();
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        SettingsGuard.setProtectionEnabled(this, true);
-        registerObserver();
-        applyExecutionMode();
-        handler.removeCallbacks(fallbackCheck);
-        handler.post(fallbackCheck);
+        if ((intent != null && "com.reed.fcmguard.STOP".equals(intent.getAction()))
+                || !SettingsGuard.isProtectionEnabled(this)) {
+            SettingsGuard.setProtectionEnabled(this, false);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        handler.post(() -> {
+            registerObserver();
+            handler.removeCallbacks(fallbackCheck);
+            handler.post(fallbackCheck);
+        });
         return START_STICKY;
     }
 
-    private void repair(boolean notifyFailure) {
+    private void repair() {
         SettingsGuard.Result result = SettingsGuard.repair(this);
-        if (result.changed) {
-            FcmReconnect.kick(this);
-            if (foreground) refreshNotification(getString(R.string.notification_repaired));
-        } else if (!result.success && notifyFailure && foreground) {
-            refreshNotification(result.message);
-        }
+        repairSucceeded = result.success;
+        stateChanged();
+        if (result.changed) FcmReconnect.kick(this);
+        if (foreground) refreshNotification(result.success
+                ? getString(R.string.notification_active) : result.message);
     }
 
     private void registerObserver() {
@@ -80,24 +112,24 @@ public class GuardService extends Service {
                 handler.postDelayed(repairDebounced, 400L);
             }
         };
-        resolver.registerContentObserver(
-                Settings.System.getUriFor(SettingsGuard.getConfiguredKey(this)),
-                false,
-                observer
-        );
+        try {
+            resolver.registerContentObserver(
+                    Settings.System.getUriFor(SettingsGuard.getConfiguredKey(this)), false, observer);
+        } catch (RuntimeException e) {
+            // Some ROMs restrict observers. The non-waking fallback remains available.
+            android.util.Log.w("FCMGuard", "Whitelist observer unavailable", e);
+        }
     }
 
     private void applyExecutionMode() {
-        if (SettingsGuard.usePersistentNotification(this)) {
-            ensureNotificationChannel(this);
-            startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.notification_active)));
-            foreground = true;
+        ensureNotificationChannel(this);
+        Notification notification = buildNotification(getString(R.string.notification_waiting));
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         } else {
-            if (foreground) stopForeground(true);
-            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            if (nm != null) nm.cancel(NOTIFICATION_ID);
-            foreground = false;
+            startForeground(NOTIFICATION_ID, notification);
         }
+        foreground = true;
     }
 
     /**
@@ -130,7 +162,7 @@ public class GuardService extends Service {
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return false;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && !nm.areNotificationsEnabled()) {
+        if (!nm.areNotificationsEnabled()) {
             return false;
         }
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -145,10 +177,17 @@ public class GuardService extends Service {
     }
 
     @Override public void onDestroy() {
+        running = false;
+        repairSucceeded = false;
+        stateChanged();
+        ShizukuBridge.removeListener(bridgeListener);
         handler.removeCallbacksAndMessages(null);
         try {
             if (observer != null) getContentResolver().unregisterContentObserver(observer);
         } catch (Throwable ignored) {}
+        workerThread.quitSafely();
+        foreground = false;
+        stopForeground(true);
         super.onDestroy();
     }
 
@@ -172,6 +211,11 @@ public class GuardService extends Service {
             builder = new Notification.Builder(this).setPriority(Notification.PRIORITY_LOW);
         }
 
+        PendingIntent stop = PendingIntent.getService(this, 1,
+                new Intent(this, GuardService.class).setAction("com.reed.fcmguard.STOP"),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.addAction(new Notification.Action.Builder(
+                android.R.drawable.ic_media_pause, getString(R.string.stop_protection), stop).build());
         return builder
                 .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
                 .setContentTitle(getString(R.string.app_name))

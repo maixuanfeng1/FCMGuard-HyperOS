@@ -4,36 +4,54 @@ plugins {
 
 android {
     namespace 'com.reed.fcmguard'
-    compileSdk 35
+    compileSdk {
+        version = release(37) { minorApiLevel = 2 }
+    }
+    buildToolsVersion '37.0.0'
 
     defaultConfig {
         applicationId "com.reed.fcmguard"
-        minSdk 21
-        targetSdk 22
-        versionCode 30
-        versionName "1.5.9"
+        minSdk 24
+        targetSdk 37
+        versionCode 31
+        versionName "2.0.0"
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
     signingConfigs {
-        debug {
-            storeFile rootProject.file('ci-signing/fcmguard-debug.keystore')
-            storePassword ('and' + 'roid')
-            keyAlias 'fcmguarddebug'
-            keyPassword ('and' + 'roid')
+        release {
+            if (System.getenv('FCMGUARD_KEYSTORE')) {
+                storeFile file(System.getenv('FCMGUARD_KEYSTORE'))
+                storePassword System.getenv('FCMGUARD_STORE_PASSWORD')
+                keyAlias System.getenv('FCMGUARD_KEY_ALIAS')
+                keyPassword System.getenv('FCMGUARD_KEY_PASSWORD')
+            }
         }
     }
 
     buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
         release {
             minifyEnabled false
+            if (System.getenv('FCMGUARD_KEYSTORE')) signingConfig signingConfigs.release
         }
+    }
+
+    buildFeatures {
+        aidl true
+        buildConfig true
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    compileOnly 'androidx.annotation:annotation:1.9.1'
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
 }

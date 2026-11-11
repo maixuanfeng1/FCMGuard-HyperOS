@@ -57,12 +57,10 @@ public class MainActivity extends Activity {
     private Button languageButton;
     private Button scanFcmAppsBtn;
     private Switch protectionSwitch;
-    private Switch notificationSwitch;
     private Button permissionBtn;
     private RadioGroup appearanceGroup;
     private boolean suppressSwitchCallbacks = false;
     private boolean suppressAppearanceCallbacks = false;
-    private boolean notificationAccessPending = false;
     private boolean fcmListExpanded = false;
     private List<FcmAppScanner.AppEntry> scannedFcmApps;
 
@@ -76,17 +74,17 @@ public class MainActivity extends Activity {
             languageAnimationHandler.postDelayed(this, LANGUAGE_LABEL_INTERVAL_MS);
         }
     };
-    private final Runnable notificationAccessFollowUp = new Runnable() {
-        @Override public void run() {
-            if (!notificationAccessPending || !hasWindowFocus()) return;
-            if (SettingsGuard.usePersistentNotification(MainActivity.this) &&
-                    !GuardService.canShowPersistentNotification(MainActivity.this)) {
-                notificationAccessPending = false;
-                openNotificationSettings();
-            } else {
-                notificationAccessPending = false;
-            }
+    private final java.util.concurrent.ExecutorService worker =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
+    private boolean resumed;
+    private boolean repairInProgress;
+    private final Runnable serviceListener = () -> refreshStatus(null);
+    private final Runnable bridgeListener = () -> {
+        if (isDestroyed()) return;
+        if (resumed && ShizukuBridge.isReady() && SettingsGuard.isProtectionEnabled(this)) {
+            startProtectionService();
         }
+        refreshStatus(null);
     };
 
     @Override protected void attachBaseContext(Context newBase) {
@@ -101,6 +99,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         applySystemBarInsets();
         bindViews();
+        ShizukuBridge.addListener(bridgeListener);
+        GuardService.addStateListener(serviceListener);
         loadConfigIntoFields();
         setupLanguagePicker();
         setupAppearance();
@@ -111,11 +111,11 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        resumed = true;
+        ShizukuBridge.connect();
         configureFullEdgeToEdge();
         startLanguageButtonAnimation();
-        if (SettingsGuard.isProtectionEnabled(this) &&
-                SettingsGuard.usePersistentNotification(this) &&
-                GuardService.canShowPersistentNotification(this)) {
+        if (SettingsGuard.isProtectionEnabled(this) && ShizukuBridge.isReady()) {
             startProtectionService();
         }
         refreshStatus(null);
@@ -125,19 +125,17 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        resumed = false;
         stopLanguageButtonAnimation();
         super.onPause();
     }
 
-    @Override public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) {
-            configureFullEdgeToEdge();
-            if (notificationAccessPending) {
-                languageAnimationHandler.removeCallbacks(notificationAccessFollowUp);
-                languageAnimationHandler.postDelayed(notificationAccessFollowUp, 250L);
-            }
-        }
+    @Override protected void onDestroy() {
+        ShizukuBridge.removeListener(bridgeListener);
+        GuardService.removeStateListener(serviceListener);
+        languageAnimationHandler.removeCallbacksAndMessages(null);
+        worker.shutdownNow();
+        super.onDestroy();
     }
 
     private void bindViews() {
@@ -151,7 +149,6 @@ public class MainActivity extends Activity {
         languageButton = findViewById(R.id.languageButton);
         scanFcmAppsBtn = findViewById(R.id.scanFcmAppsBtn);
         protectionSwitch = findViewById(R.id.protectionSwitch);
-        notificationSwitch = findViewById(R.id.notificationSwitch);
         permissionBtn = findViewById(R.id.permissionBtn);
         appearanceGroup = findViewById(R.id.appearanceGroup);
     }
@@ -270,53 +267,66 @@ public class MainActivity extends Activity {
     private void setupSwitches() {
         suppressSwitchCallbacks = true;
         protectionSwitch.setChecked(SettingsGuard.isProtectionEnabled(this));
-        notificationSwitch.setChecked(SettingsGuard.usePersistentNotification(this));
         suppressSwitchCallbacks = false;
-
         protectionSwitch.setOnCheckedChangeListener((buttonView, checked) -> {
             if (suppressSwitchCallbacks) return;
-
             if (checked) {
-                SettingsGuard.saveConfig(this, keyEdit.getText().toString(), itemEdit.getText().toString());
-                if (!Settings.System.canWrite(this)) {
-                    SettingsGuard.setProtectionEnabled(this, false);
-                    suppressSwitchCallbacks = true;
-                    protectionSwitch.setChecked(false);
-                    suppressSwitchCallbacks = false;
-                    toast(getString(R.string.permission_missing));
-                    openWriteSettings();
-                    refreshStatus(null);
-                    return;
-                }
+                performRepair(true);
+            } else {
+                SettingsGuard.setProtectionEnabled(this, false);
+                stopService(new Intent(this, GuardService.class));
+                toast(getString(R.string.service_stopped));
+                refreshStatus(null);
+            }
+        });
+    }
 
-                SettingsGuard.setProtectionEnabled(this, true);
-                if (SettingsGuard.usePersistentNotification(this)) {
+    private void performRepair(boolean enableProtection) {
+        if (repairInProgress) return;
+        SettingsGuard.saveConfig(this, keyEdit.getText().toString(), itemEdit.getText().toString());
+        if (!ShizukuBridge.isReady()) {
+            refreshStatus(getString(ShizukuBridge.statusText()));
+            authorizeShizuku();
+            return;
+        }
+        repairInProgress = true;
+        protectionSwitch.setEnabled(false);
+        findViewById(R.id.repairBtn).setEnabled(false);
+        worker.execute(() -> {
+            SettingsGuard.Result result = SettingsGuard.repair(this);
+            if (result.changed) FcmReconnect.kick(this);
+            runOnUiThread(() -> {
+                if (isDestroyed()) return;
+                repairInProgress = false;
+                protectionSwitch.setEnabled(true);
+                findViewById(R.id.repairBtn).setEnabled(true);
+                if (enableProtection && result.success) {
+                    SettingsGuard.setProtectionEnabled(this, true);
+                    startProtectionService();
                     ensurePersistentNotificationAccess();
                 }
-                startProtectionService();
-                SettingsGuard.Result result = SettingsGuard.repair(this);
-                if (result.changed) FcmReconnect.kick(this);
-                toast(getString(R.string.service_started));
-            } else {
-                stopService(new Intent(this, GuardService.class));
-                SettingsGuard.setProtectionEnabled(this, false);
-                toast(getString(R.string.service_stopped));
-            }
-            refreshStatus(null);
+                refreshStatus(result.message);
+            });
         });
+    }
 
-        notificationSwitch.setOnCheckedChangeListener((buttonView, checked) -> {
-            if (suppressSwitchCallbacks) return;
-            SettingsGuard.setPersistentNotification(this, checked);
-            if (checked) {
-                ensurePersistentNotificationAccess();
-            } else {
-                notificationAccessPending = false;
-                languageAnimationHandler.removeCallbacks(notificationAccessFollowUp);
-            }
-            if (SettingsGuard.isProtectionEnabled(this)) startProtectionService();
-            refreshStatus(null);
-        });
+    private void authorizeShizuku() {
+        if (ShizukuBridge.isRunning()) {
+            try { ShizukuBridge.requestPermission(); }
+            catch (RuntimeException e) { toast(getString(R.string.shizuku_permission_missing)); }
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.authorize_shizuku)
+                .setMessage(R.string.shizuku_setup)
+                .setPositiveButton(R.string.open_shizuku, (dialog, which) -> {
+                    Intent launch = getPackageManager().getLaunchIntentForPackage("moe.shizuku.privileged.api");
+                    try {
+                        startActivity(launch != null ? launch : new Intent(Intent.ACTION_VIEW,
+                                Uri.parse("https://shizuku.rikka.app/download/")));
+                    } catch (RuntimeException e) { toast(getString(R.string.shizuku_not_running)); }
+                })
+                .setNegativeButton(android.R.string.cancel, null).show();
     }
 
     private void bindActions() {
@@ -328,19 +338,15 @@ public class MainActivity extends Activity {
             refreshStatus(getString(R.string.saved));
         });
 
-        permissionBtn.setOnClickListener(v -> openWriteSettings());
+        permissionBtn.setOnClickListener(v -> authorizeShizuku());
 
-        findViewById(R.id.repairBtn).setOnClickListener(v -> {
-            SettingsGuard.saveConfig(this, keyEdit.getText().toString(), itemEdit.getText().toString());
-            SettingsGuard.Result result = SettingsGuard.repair(this);
-            if (result.changed) FcmReconnect.kick(this);
-            refreshStatus(result.message);
-        });
+        findViewById(R.id.repairBtn).setOnClickListener(v -> performRepair(false));
 
         findViewById(R.id.wakeBtn).setOnClickListener(v -> {
-            FcmReconnect.kick(this);
-            toast(getString(R.string.wake_sent));
-            refreshStatus(getString(R.string.wake_sent));
+            boolean sent = FcmReconnect.kick(this);
+            String message = getString(sent ? R.string.wake_sent : R.string.wake_failed);
+            toast(message);
+            refreshStatus(message);
         });
 
         findViewById(R.id.diagBtn).setOnClickListener(v -> openFcmDiagnostics());
@@ -520,34 +526,33 @@ public class MainActivity extends Activity {
     private void startProtectionService() {
         Intent service = new Intent(this, GuardService.class);
         try {
-            boolean persistent = SettingsGuard.usePersistentNotification(this);
-            if (persistent) GuardService.ensureNotificationChannel(this);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && persistent) {
-                startForegroundService(service);
-            } else {
-                startService(service);
-            }
-        } catch (Throwable t) {
-            toast(t.getClass().getSimpleName());
+            GuardService.ensureNotificationChannel(this);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service);
+            else startService(service);
+        } catch (RuntimeException e) {
+            SettingsGuard.setProtectionEnabled(this, false);
+            toast(getString(R.string.service_start_failed));
         }
     }
 
     private void ensurePersistentNotificationAccess() {
-        boolean createdNow = GuardService.ensureNotificationChannel(this);
-        if (GuardService.canShowPersistentNotification(this)) {
-            notificationAccessPending = false;
-            return;
-        }
-
-        notificationAccessPending = true;
-        languageAnimationHandler.removeCallbacks(notificationAccessFollowUp);
-        if (createdNow) {
-            languageAnimationHandler.postDelayed(notificationAccessFollowUp, 900L);
+        GuardService.ensureNotificationChannel(this);
+        if (GuardService.canShowPersistentNotification(this)) return;
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                && !getPreferences(MODE_PRIVATE).getBoolean("notification_requested", false)) {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("notification_requested", true).apply();
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 427);
         } else {
-            notificationAccessPending = false;
-            openNotificationSettings();
+            new AlertDialog.Builder(this).setMessage(R.string.notification_permission_help)
+                    .setPositiveButton(R.string.open_notification_settings, (d, w) -> openNotificationSettings())
+                    .setNegativeButton(android.R.string.cancel, null).show();
         }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == 427) refreshStatus(null);
     }
 
     private void openNotificationSettings() {
@@ -564,14 +569,6 @@ public class MainActivity extends Activity {
             }
             startActivity(intent);
         } catch (Throwable ignored) {}
-    }
-
-    private void openWriteSettings() {
-        Intent intent = new Intent(
-                Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                Uri.parse("package:" + getPackageName())
-        );
-        startActivity(intent);
     }
 
     private void openFcmDiagnostics() {
@@ -615,18 +612,31 @@ public class MainActivity extends Activity {
     }
 
     private void refreshStatus(String firstLine) {
-        boolean canWrite = Settings.System.canWrite(this);
+        if (isDestroyed() || worker.isShutdown()) return;
+        // Settings commands and ROM package queries must never block the UI thread.
+        worker.execute(() -> {
+            String value = null;
+            boolean readFailed = false;
+            try { value = SettingsGuard.read(this); }
+            catch (RuntimeException e) { readFailed = true; }
+            final String current = value;
+            final String message = readFailed ? getString(R.string.read_failed) : firstLine;
+            runOnUiThread(() -> {
+                if (!isDestroyed()) renderStatus(message, current);
+            });
+        });
+    }
+
+    private void renderStatus(String firstLine, String current) {
+        boolean canWrite = ShizukuBridge.isReady();
         boolean enabled = SettingsGuard.isProtectionEnabled(this);
-        boolean notification = SettingsGuard.usePersistentNotification(this);
-        String current = SettingsGuard.read(this);
         boolean present = SettingsGuard.hasRequiredItem(this, current);
 
         suppressSwitchCallbacks = true;
         protectionSwitch.setChecked(enabled);
-        notificationSwitch.setChecked(notification);
         suppressSwitchCallbacks = false;
 
-        if (enabled && canWrite && present) {
+        if (enabled && canWrite && present && GuardService.isProtecting()) {
             statusHeadline.setText(R.string.status_protected);
             statusHeadline.setTextColor(getResources().getColor(R.color.green));
         } else if (canWrite && present) {
@@ -639,11 +649,11 @@ public class MainActivity extends Activity {
 
         SpannableStringBuilder status = new SpannableStringBuilder();
         if (firstLine != null && !firstLine.trim().isEmpty()) {
-            status.append("✓ ").append(firstLine).append("\n");
+            status.append(firstLine).append("\n");
         }
         appendStatusValueLine(
                 status,
-                canWrite ? getString(R.string.status_granted) : getString(R.string.status_not_granted),
+                getString(ShizukuBridge.statusText()),
                 canWrite ? R.color.status_value_green_bg : R.color.status_value_red_bg
         );
         status.append('\n');
@@ -659,16 +669,21 @@ public class MainActivity extends Activity {
                 present ? R.color.status_value_green_bg : R.color.status_value_red_bg
         );
         status.append('\n');
-        boolean visibleForeground = notification && enabled && GuardService.canShowPersistentNotification(this);
+        boolean visibleForeground = GuardService.isProtecting();
         appendStatusValueLine(
                 status,
                 visibleForeground
                         ? getString(R.string.notification_mode_foreground)
-                        : getString(R.string.notification_mode_quiet),
+                        : getString(R.string.protection_not_running),
                 visibleForeground ? R.color.status_value_green_bg : R.color.status_value_yellow_bg
         );
         statusText.setText(status);
         currentValueText.setText(buildWhitelistValue(current));
+        if (enabled && !GuardService.canShowPersistentNotification(this)) {
+            status.append('\n').append(getString(R.string.notification_permission_help));
+            statusText.setText(status);
+        }
+        permissionBtn.setText(R.string.authorize_shizuku);
         permissionBtn.setVisibility(canWrite ? View.GONE : View.VISIBLE);
     }
 
@@ -755,6 +770,7 @@ public class MainActivity extends Activity {
     @SuppressWarnings("deprecation")
     private void configureFullEdgeToEdge() {
         Window window = getWindow();
+        if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.clearFlags(
@@ -774,7 +790,7 @@ public class MainActivity extends Activity {
         int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-        if (!dark && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (!dark) {
             flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
         }
         if (!dark && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -785,8 +801,6 @@ public class MainActivity extends Activity {
 
     @SuppressWarnings("deprecation")
     private void applySystemBarInsets() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return;
-
         final View root = findViewById(R.id.root);
         final View scroll = findViewById(R.id.scroll);
         final View content = findViewById(R.id.contentRoot);
@@ -796,19 +810,25 @@ public class MainActivity extends Activity {
         final int extraBottom = dp(8);
 
         scroll.setOnApplyWindowInsetsListener((v, insets) -> {
-            int bottom = Math.max(
-                    insets.getSystemWindowInsetBottom(),
-                    insets.getStableInsetBottom()
-            );
+            int bottom = Math.max(insets.getSystemWindowInsetBottom(), insets.getStableInsetBottom());
+            int safeLeft = insets.getSystemWindowInsetLeft();
+            int safeRight = insets.getSystemWindowInsetRight();
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
+                bottom = bars.bottom;
+                safeLeft = bars.left;
+                safeRight = bars.right;
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 DisplayCutout cutout = insets.getDisplayCutout();
                 if (cutout != null) bottom = Math.max(bottom, cutout.getSafeInsetBottom());
             }
 
             content.setPadding(
-                    baseLeft,
+                    baseLeft + safeLeft,
                     content.getPaddingTop(),
-                    baseRight,
+                    baseRight + safeRight,
                     baseBottom + bottom + extraBottom
             );
             return insets;

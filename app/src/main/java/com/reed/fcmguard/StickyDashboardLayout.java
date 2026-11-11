@@ -89,17 +89,26 @@ public final class StickyDashboardLayout extends FrameLayout {
     }
 
     @Override public WindowInsets onApplyWindowInsets(WindowInsets insets) {
-        if (stickyHeader != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        if (stickyHeader != null) {
             int top = Math.max(insets.getSystemWindowInsetTop(), insets.getStableInsetTop());
+            int left = insets.getSystemWindowInsetLeft();
+            int right = insets.getSystemWindowInsetRight();
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets bars = insets.getInsets(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                top = bars.top;
+                left = bars.left;
+                right = bars.right;
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 DisplayCutout cutout = insets.getDisplayCutout();
                 if (cutout != null) top = Math.max(top, cutout.getSafeInsetTop());
             }
 
             stickyHeader.setPadding(
-                    stickyBaseLeft,
+                    stickyBaseLeft + left,
                     stickyBaseTop + top,
-                    stickyBaseRight,
+                    stickyBaseRight + right,
                     stickyBaseBottom
             );
         }

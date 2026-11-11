@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="authorize_shizuku">Authorize Shizuku</string>
+    <string name="shizuku_ready">Shizuku: connected and authorized</string>
+    <string name="shizuku_not_running">Shizuku: not running. Start it, then return here.</string>
+    <string name="shizuku_connecting">Shizuku: connecting. Retry authorization if this persists.</string>
+    <string name="shizuku_permission_missing">Shizuku: permission required. Allow FCM Guard in Shizuku.</string>
+    <string name="shizuku_setup">Install and start Shizuku, then return to FCM Guard and tap Authorize Shizuku. On Android 11 or later you can start Shizuku through wireless debugging. After a reboot, restart Shizuku before resuming protection. Root is optional.</string>
+    <string name="open_shizuku">Open / install Shizuku</string>
+    <string name="invalid_configuration">Enter a valid settings key and Android package name.</string>
+    <string name="setting_unavailable">The whitelist key does not exist on this ROM. No setting was created or changed.</string>
+    <string name="read_failed">Cannot read the whitelist. Check Shizuku and ROM compatibility.</string>
+    <string name="modern_notification_summary">Automatic protection uses a silent foreground notification. Android no longer supports a reliable long-running silent background mode.</string>
+    <string name="modern_note_text">Requires Shizuku authorization to modify the HyperOS whitelist. Enable Autostart and unrestricted battery use for both apps. Restart Shizuku after each reboot.</string>
+    <string name="notification_waiting">Waiting for Shizuku and whitelist verification</string>
+    <string name="stop_protection">Stop protection</string>
+    <string name="protection_not_running">Guard: inactive or waiting for authorization</string>
+    <string name="notification_permission_help">Notifications are disabled. Allow notifications to see protection status and the Stop action.</string>
+    <string name="open_notification_settings">Notification settings</string>
+    <string name="service_start_failed">Android blocked the protection service. Open the app and try again.</string>
+    <string name="wake_failed">The system rejected the heartbeat request.</string>
+</resources>

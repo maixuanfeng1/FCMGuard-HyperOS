@@ -7,7 +7,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
-import android.os.Build;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,9 +37,7 @@ public final class FcmAppScanner {
 
     public static List<AppEntry> scan(Context context) {
         PackageManager pm = context.getPackageManager();
-        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                ? PackageManager.MATCH_ALL
-                : 0;
+        int flags = PackageManager.MATCH_ALL;
 
         Map<String, Boolean> packages = new LinkedHashMap<>();
 
