@@ -147,6 +147,8 @@ public class GuardService extends Service {
             GuardRuntime.stop();
         } else GuardRuntime.refreshState();
         stopForeground(true);
+        NotificationManager notifications = getSystemService(NotificationManager.class);
+        if (notifications != null) notifications.cancel(NOTIFICATION_ID);
         super.onDestroy();
         if (reconsiderMode && SettingsGuard.isProtectionEnabled(this)
                 && !SettingsGuard.usesTileWakeup(this)) {
@@ -164,7 +166,10 @@ public class GuardService extends Service {
     @Override public IBinder onBind(Intent intent) { return null; }
 
     private void refreshNotification(String text) {
-        if (!foreground) return;
+        // AMS may stop the foreground service before delivering onDestroy. A queued
+        // runtime callback must not recreate its notification as an ordinary one.
+        if (!foreground || SettingsGuard.usesTileWakeup(this)
+                || !SettingsGuard.isProtectionEnabled(this)) return;
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm != null) nm.notify(NOTIFICATION_ID, buildNotification(text));
     }

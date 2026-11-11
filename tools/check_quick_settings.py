@@ -9,6 +9,7 @@ import time
 PACKAGE = 'com.reed.fcmguard'
 COMPONENT = PACKAGE + '/.GuardTileService'
 lines = []
+original_tiles = None
 
 
 def adb(*args):
@@ -41,7 +42,13 @@ try:
     script = 'mkdir -p shared_prefs && printf %s ' + shlex.quote(xml) + ' > shared_prefs/guard_state.xml'
     adb('shell', 'run-as ' + PACKAGE + ' sh -c ' + shlex.quote(script))
     adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
+    original_tiles = adb('shell', 'settings', 'get', 'secure', 'sysui_qs_tiles')
     adb('shell', 'cmd', 'statusbar', 'add-tile', COMPONENT)
+    # Match the user setup instructions: the tile must be on the visible page.
+    tile_spec = 'custom(' + COMPONENT + ')'
+    tail = 'internet,bt' if original_tiles in ('null', 'default', '') else original_tiles
+    tail = ','.join(tile for tile in tail.split(',') if tile != tile_spec)
+    adb('shell', 'settings', 'put', 'secure', 'sysui_qs_tiles', tile_spec + ',' + tail)
     adb('shell', 'logcat', '-c')
     adb('shell', 'cmd', 'statusbar', 'expand-settings')
     wait_for(lambda: 'Visible; tileWakeup=true enabled=true' in adb(
@@ -81,3 +88,6 @@ finally:
             adb(*command)
         except subprocess.SubprocessError:
             pass
+    if original_tiles is not None:
+        if original_tiles == 'null': adb('shell', 'settings', 'delete', 'secure', 'sysui_qs_tiles')
+        else: adb('shell', 'settings', 'put', 'secure', 'sysui_qs_tiles', original_tiles)
