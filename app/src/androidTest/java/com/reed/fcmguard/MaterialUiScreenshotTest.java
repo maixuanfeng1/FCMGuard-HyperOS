@@ -51,24 +51,48 @@ public class MaterialUiScreenshotTest {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         instrumentation.waitForIdleSync();
         SystemClock.sleep(400);
+        saveScreenshot(instrumentation, context, name);
+        if ("01-light".equals(name) || "02-dark".equals(name)) {
+            instrumentation.runOnMainSync(() -> {
+                activity.findViewById(R.id.advancedToggle).performClick();
+                androidx.core.widget.NestedScrollView scroll = activity.findViewById(R.id.scroll);
+                scroll.post(() -> scroll.fullScroll(android.view.View.FOCUS_DOWN));
+            });
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-advanced");
+        }
+        instrumentation.runOnMainSync(activity::finish);
+        instrumentation.waitForIdleSync();
+    }
+
+    private static void saveScreenshot(Instrumentation instrumentation, Context context, String name)
+            throws Exception {
         Bitmap screenshot = instrumentation.getUiAutomation().takeScreenshot();
         assertNotNull("Native screenshot unavailable", screenshot);
         File directory = context.getExternalFilesDir("screenshots");
         assertNotNull(directory);
         assertTrue(directory.exists() || directory.mkdirs());
-        try (FileOutputStream output = new FileOutputStream(new File(directory, name + ".png"))) {
+        File file = new File(directory, name + ".png");
+        try (FileOutputStream output = new FileOutputStream(file)) {
             assertTrue(screenshot.compress(Bitmap.CompressFormat.PNG, 100, output));
         }
         screenshot.recycle();
-        instrumentation.runOnMainSync(activity::finish);
-        instrumentation.waitForIdleSync();
+        // AGP uninstalls the target APK after instrumentation, deleting its private
+        // external directory. Export each capture before that teardown occurs.
+        String result = shell(instrumentation, "mkdir -p /sdcard/Download/FCMGuard && cp '"
+                + file.getAbsolutePath() + "' /sdcard/Download/FCMGuard/" + name + ".png && echo EXPORTED");
+        assertTrue("Cannot export screenshot: " + result, result.contains("EXPORTED"));
     }
 
-    private static void shell(Instrumentation instrumentation, String command) throws Exception {
+    private static String shell(Instrumentation instrumentation, String command) throws Exception {
         try (ParcelFileDescriptor descriptor = instrumentation.getUiAutomation().executeShellCommand(command);
-             java.io.InputStream input = new ParcelFileDescriptor.AutoCloseInputStream(descriptor)) {
+             java.io.InputStream input = new ParcelFileDescriptor.AutoCloseInputStream(descriptor);
+             java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
             byte[] bytes = new byte[1024];
-            while (input.read(bytes) != -1) { /* Wait for command completion. */ }
+            int count;
+            while ((count = input.read(bytes)) != -1) output.write(bytes, 0, count);
+            return output.toString("UTF-8");
         }
     }
 }
