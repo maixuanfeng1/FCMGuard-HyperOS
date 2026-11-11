@@ -38,7 +38,7 @@ Bump both `versionCode` and `versionName` before every new release. Publish the 
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-Use a clean Android 15 or Android 16 emulator for the automated missing-authorization, observer and settings-route checks. CI can opt into native screenshots using `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true`; only that explicit mode changes emulator resolution/density/font scale, restoring them afterward. Reports and images are uploaded as Actions artifacts. For a HyperOS device, additionally verify:
+Use a clean Android 15 / Android 16 emulator or Android 17 ATD for the automated missing-authorization, application-process observer and settings-route checks. `bash tools/run_device_checks.sh` also launches the read/write helper under the real shell UID with `adb app_process`. Android 17 uses system image `system-images;android-37.0;aosp_atd;x86_64` and SDK package `platforms;android-37.2`. ATD screenshots are blank because rendering is disabled; use full Android 15 / 16 images for visual review. CI can opt into native screenshots using `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true`; only that explicit mode changes emulator resolution/density/font scale, restoring them afterward. Reports and images are uploaded as Actions artifacts. For a HyperOS device, additionally verify:
 
 1. Approving/denying Shizuku access updates the dashboard correctly.
 2. Repair preserves every pre-existing whitelist entry and adds only the requested package.
@@ -47,5 +47,6 @@ Use a clean Android 15 or Android 16 emulator for the automated missing-authoriz
 5. Denying notifications does not crash the service; enabling them shows the silent notification and Stop action.
 6. Tapping each detected app row opens the corresponding app settings, including when Autostart is unknown.
 7. Stop action, app restart, reboot, language/theme changes, landscape cutouts and background/battery policy behave as described.
+8. Disabled Autostart apps appear first in red with explicit text, enabled apps last, and summary counts match the list. Partial/unavailable states are distinct. Returning from app settings updates counts and sorting.
 
 The emulator checks cannot establish Xiaomi private API compatibility or push reliability.

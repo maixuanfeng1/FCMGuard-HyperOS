@@ -50,7 +50,7 @@ The Xiaomi whitelist must exist on the device; the app will not create an ineffe
 
 FCM detection, vendor AppOps and diagnostics are best effort; unreadable Autostart status stays unknown. Automated tests cover list handling, settings observer change/unregister behavior, exact app-settings routing and safe startup/refusal without Shizuku. CI also captures real native light/dark and compact/large-font screens. **They do not replace HyperOS device testing of privileged writes, background survival or push delivery.**
 
-Android 17 / API 37 emulator runtime validation is incomplete: the CI images repeatedly failed during system startup, before reliable app testing. The app still targets API 37 and compiles against SDK 37.2.
+Android 17 / API 37 runtime checks now use Google's official Android 37.0 AOSP ATD image with SDK 37.2. This covers application-UID settings events and shell-UID reads/writes. ATD does not render useful screen captures; visual previews come from the full Android 15 / Android 16 images. These checks do not establish HyperOS 4 private-whitelist compatibility or long-term background survival.
 
 ## APK libraries
 
@@ -58,7 +58,7 @@ LibChecker may report no native libraries. That means the APK has no bundled C/C
 
 ## Build and release
 
-See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint and Android 15 / Android 16 emulator smoke tests. The separate signed-release workflow requires private signing secrets and refuses to overwrite an existing version.
+See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint and Android 15 / Android 16 and Android 17 ATD emulator checks. The separate signed-release workflow requires private signing secrets and refuses to overwrite an existing version.
 
 ## Credits and license
 
