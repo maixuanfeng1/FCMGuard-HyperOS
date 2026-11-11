@@ -55,7 +55,7 @@ jobs:
             target: google_apis
           - api: '36'
             target: google_apis
-          - api: '37'
+          - api: '37.2'
             image-api: '37.0'
             target: aosp_atd
     steps:
