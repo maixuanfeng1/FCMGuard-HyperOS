@@ -8,7 +8,6 @@
     <string name="fcm_apps_not_scanned">Toque em «Procurar apps FCM» para criar a lista local.</string>
     <string name="fcm_apps_found">Foram detetadas %1$d apps compatíveis com FCM</string>
     <string name="fcm_apps_status_summary">%1$d detetadas · %2$d ativadas · %3$d precisam de atenção · %4$d desconhecidas</string>
-    <string name="fcm_autostart_status_unavailable">Foram detetadas %1$d apps FCM, mas esta versão do HyperOS não expõe um estado de arranque automático legível. Use «Configurar tudo no HyperOS».</string>
     <string name="no_fcm_apps">Nenhuma app FCM voltada para o utilizador foi detetada.</string>
     <string name="app_settings">Arranque automático</string>
     <string name="autostart_enabled">Ativado</string>

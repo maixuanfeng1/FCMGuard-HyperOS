@@ -8,7 +8,6 @@
     <string name="fcm_apps_not_scanned">Нажмите «Сканировать FCM-приложения», чтобы создать локальный список.</string>
     <string name="fcm_apps_found">Обнаружено FCM-приложений: %1$d</string>
     <string name="fcm_apps_status_summary">Обнаружено: %1$d · включено: %2$d · требуют внимания: %3$d · неизвестно: %4$d</string>
-    <string name="fcm_autostart_status_unavailable">Обнаружено FCM-приложений: %1$d. Эта сборка HyperOS не предоставляет обычным приложениям читаемый статус автозапуска. Используйте «Настроить всё в HyperOS».</string>
     <string name="no_fcm_apps">Пользовательские FCM-приложения не обнаружены.</string>
     <string name="app_settings">Автозапуск</string>
     <string name="autostart_enabled">Включён</string>

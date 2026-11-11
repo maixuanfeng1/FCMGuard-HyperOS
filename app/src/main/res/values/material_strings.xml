@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="event_protection_summary">Listens for changes to the HyperOS whitelist and repairs it only when needed. No periodic checks or scheduled wakeups.</string>
+    <string name="event_notification_summary">A silent notification keeps Android aware of the running guard. It does not indicate periodic polling.</string>
+    <string name="event_protection_active">Listening for whitelist changes. Repairs happen automatically when the required app is removed.</string>
+    <string name="event_protection_needs_authorization">Start Shizuku and allow access to enable automatic protection.</string>
+    <string name="event_protection_needs_repair">The required app is missing from the whitelist. Repair it before turning on automatic protection.</string>
+    <string name="event_protection_waiting">Waiting for the whitelist listener to connect.</string>
+    <string name="event_protection_off">The whitelist is ready. Turn on automatic protection to keep watching for changes.</string>
+    <string name="fcm_apps_direct_summary">Find apps that declare FCM or GCM receivers. Tap an app to open its own settings.</string>
+    <string name="fcm_apps_direct_note">Autostart status may be unavailable on your ROM. You can still open each app and adjust its background, battery and notification settings.</string>
+    <string name="fcm_apps_tap_to_configure">%1$d apps found · tap an app to configure</string>
+    <string name="app_autostart_status">Autostart: %1$s</string>
+    <string name="open_app_settings_for">Open settings for %1$s</string>
+    <string name="scanning_fcm_apps">Scanning installed apps…</string>
+    <string name="advanced_configuration_help">Keep these defaults unless your ROM uses a different whitelist setting. Existing list entries are preserved.</string>
+    <string name="expanded">Expanded</string>
+    <string name="collapsed">Collapsed</string>
+    <string name="observer_unavailable">The whitelist listener could not be registered. Automatic protection is inactive. Reconnect Shizuku and try again.</string>
+    <string name="notification_observing">Protection active · listening for whitelist changes</string>
+</resources>

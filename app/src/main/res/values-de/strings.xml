@@ -19,11 +19,9 @@
 
     <string name="protection_title">Schutz</string>
     <string name="automatic_protection">Automatischer Schutz</string>
-    <string name="automatic_protection_summary">Überwacht ereignisgesteuert nur den FCM-Listenwert. Die 30-minütige Sicherheitsprüfung weckt das Telefon nicht absichtlich auf.</string>
     <string name="actions_title">Werkzeuge</string>
     <string name="advanced_title">Erweiterte Konfiguration</string>
 
-    <string name="helper_text">Energiesparendes Design: kein Polling alle 30 Sekunden, keine Beobachtung fremder Systemeinstellungen und FCM-Neuverbindung nur nach einer echten Reparatur.</string>
 
     <string name="status_protected">Geschützt</string>
     <string name="status_ready">Bereit</string>

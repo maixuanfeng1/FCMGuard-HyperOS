@@ -19,11 +19,9 @@
 
     <string name="protection_title">Protection</string>
     <string name="automatic_protection">Automatic protection</string>
-    <string name="automatic_protection_summary">Event-driven monitoring of only the FCM whitelist key. A non-waking 30-minute fallback check is used only as insurance.</string>
     <string name="actions_title">Tools</string>
     <string name="advanced_title">Advanced configuration</string>
 
-    <string name="helper_text">Low-power design: the service no longer polls every 30 seconds, no longer watches unrelated system settings, and only sends an FCM reconnect request after an actual whitelist repair.</string>
 
     <string name="status_protected">Protected</string>
     <string name="status_ready">Ready</string>

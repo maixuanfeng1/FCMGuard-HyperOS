@@ -19,11 +19,9 @@
 
     <string name="protection_title">Protection</string>
     <string name="automatic_protection">Protection automatique</string>
-    <string name="automatic_protection_summary">Surveillance événementielle uniquement de la clé FCM. Une vérification de secours toutes les 30 minutes ne réveille pas volontairement un téléphone en veille.</string>
     <string name="actions_title">Outils</string>
     <string name="advanced_title">Configuration avancée</string>
 
-    <string name="helper_text">Conception basse consommation : plus de scrutation toutes les 30 secondes, aucune surveillance de paramètres système sans rapport, et une demande de reconnexion FCM uniquement après une réparation réelle de la liste.</string>
 
     <string name="status_protected">Protégé</string>
     <string name="status_ready">Prêt</string>

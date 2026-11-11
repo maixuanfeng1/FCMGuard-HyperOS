@@ -19,21 +19,33 @@ A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGA
 
 Follow Shizuku's official startup instructions. Whether its service survives disabling debugging depends on the ROM. FCM heartbeat requests, diagnostics and app detection remain best-effort features.
 
-## Changes
+## Version 2.1
+
+- Official [Material Components for Android](https://github.com/material-components/material-components-android) 1.14.0 with Material 3 themes, dynamic colors, standard switches/buttons/text fields and a simpler settings-style hierarchy. The existing Java/Views app uses the official Views library; this is not a full Compose migration.
+- Language follows Android automatically; the in-app language selector is removed and existing language overrides are cleared on upgrade.
+- Entirely event-driven protection through a privileged settings observer; the previous 30-minute fallback has been removed. Repairs run on enable, configuration/reconnection and whitelist change events.
+- A silent foreground-service notification remains for process reliability and includes Stop protection. Android requires foreground-service visibility; silently hiding that notification would not make monitoring more reliable.
+- Every detected FCM/GCM app remains visible, including when its Autostart status is unknown. Tap its row to open its own settings page, using Xiaomi's app-specific route when available and the standard Android app-details page otherwise. The app does not promise that every ROM exposes a direct per-app Autostart toggle.
+
+## Core behavior
 
 - Modern SDK, explicit `specialUse` foreground-service declaration, Android 13+ notification permission and display/keyboard inset handling.
 - Shizuku user service exposes validated settings operations, with argument-array commands, timeouts and bounded output; no arbitrary shell interface.
 - Preserves the current `Settings.System.MILLET_NO_RESTRICT_APP` list and appends only the configured package (default `com.google.android.gms`). Empty lists no longer invent unrelated entries or restore stale snapshots.
 - Verifies writes by reading the setting back. Missing settings, denied access and disconnected Shizuku are reported accurately.
-- Settings operations run off the UI thread. Exact URI observation, 400ms debounce and a non-waking in-process 30-minute fallback keep background activity low.
-- Retains theme/language controls, responsive layouts and best-effort read-only Autostart status.
+- Settings operations run off the UI thread. The Shizuku process observes the exact settings URI and sends change callbacks to the guard, with a 400ms debounce after event delivery. There are no periodic checks or scheduled wakeups. Observer registration and an initial repair must both succeed before protection is reported as active.
+- Retains theme controls and system language, responsive layouts and best-effort read-only Autostart status.
 - Real release builds, private signing and APK SHA-256 checksums replace debug APK publication.
 
 ## Limitations and validation
 
 The Xiaomi whitelist must exist on the device; the app will not create an ineffective replacement on unsupported ROMs. Some ROMs may reject even shell/root writes. Foreground services can still be stopped by the user or system. This guard cannot guarantee per-app background execution, network access or message delivery; individual apps such as WhatsApp may need their own unrestricted battery policy.
 
-FCM detection, vendor AppOps and diagnostics are best effort; unreadable Autostart status stays unknown. Automated tests cover list handling and safe startup/refusal without Shizuku on modern Android. **They do not replace HyperOS device testing of privileged writes, background survival or push delivery.**
+FCM detection, vendor AppOps and diagnostics are best effort; unreadable Autostart status stays unknown. Automated tests cover list handling, settings observer change/unregister behavior, exact app-settings routing and safe startup/refusal without Shizuku. CI also captures real native light/dark and compact/large-font screens. **They do not replace HyperOS device testing of privileged writes, background survival or push delivery.**
+
+## APK libraries
+
+LibChecker may report no native libraries. That means the APK has no bundled C/C++ `.so` files. This app uses Java/Kotlin bytecode, the Android SDK and Shizuku, so no JNI library is required. It remains a native Android app and does not need a separate build for every CPU ABI.
 
 ## Build and release
 
@@ -43,6 +55,7 @@ See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint 
 
 - Original application: [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS)
 - Whitelist investigation: [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix)
+- Design components: [Material Components for Android](https://github.com/material-components/material-components-android)
 - Privileged bridge: [Shizuku](https://github.com/RikkaApps/Shizuku) / [Shizuku API](https://github.com/RikkaApps/Shizuku-API)
 
 MIT — see [LICENSE](LICENSE).

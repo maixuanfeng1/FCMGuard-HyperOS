@@ -19,11 +19,9 @@
 
     <string name="protection_title">Защита</string>
     <string name="automatic_protection">Автоматическая защита</string>
-    <string name="automatic_protection_summary">Отслеживается только ключ списка FCM по событиям. Резервная проверка раз в 30 минут специально не будит устройство.</string>
     <string name="actions_title">Инструменты</string>
     <string name="advanced_title">Расширенные настройки</string>
 
-    <string name="helper_text">Энергоэффективная схема: без опроса каждые 30 секунд, без слежения за посторонними настройками и с переподключением FCM только после реального исправления.</string>
 
     <string name="status_protected">Защищено</string>
     <string name="status_ready">Готово</string>
