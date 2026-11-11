@@ -27,6 +27,7 @@ Follow Shizuku's official startup instructions. Whether its service survives dis
 - Keeps Repair now because it performs a validated whitelist read/repair/read-back. Removes the manual Wake FCM action: a successfully sent heartbeat broadcast cannot establish receipt or reconnection. Automatic heartbeat requests after a real repair remain best effort.
 - Fixes the appearance selector's event guard and keeps it independent of keep-alive mode changes.
 - Advanced configuration reports the actual app and Shizuku helper process bitness. CI requires 64-bit app/helper execution and checks APKs for bundled 32-bit native libraries. The APK remains ABI-neutral DEX without a dummy native library or ineffective ABI filter.
+- Current device CI targets Android 17 only: AOSP ATD for fast functional/bitness checks and the full Google APIs image for rendered screens and real SystemUI tile recovery. Older Android runtime jobs are removed at the owner's request; minSdk remains 24.
 
 ## Version 2.3
 
@@ -68,7 +69,7 @@ The Xiaomi whitelist must exist on the device; the app will not create an ineffe
 
 FCM detection, vendor AppOps and diagnostics are best effort; unreadable Autostart status stays unknown. Automated tests cover list handling, settings observer change/unregister behavior, exact app-settings routing and safe startup/refusal without Shizuku. CI also captures real native light/dark and compact/large-font screens. **They do not replace HyperOS device testing of privileged writes, background survival or push delivery.**
 
-Android 17 / API 37 runtime checks now use Google's official Android 37.0 AOSP ATD image with SDK 37.2. This covers application-UID settings events and shell-UID reads/writes. ATD does not render useful screen captures; visual previews come from the full Android 15 / Android 16 images. These checks do not establish HyperOS 4 private-whitelist compatibility or long-term background survival.
+Current runtime checks target Android 17 / API 37 only, using Google's Android 37.0 AOSP ATD and full Google APIs images with SDK 37.2. ATD covers functional checks without useful rendered screenshots; the full image is used for visual review and SystemUI tile recovery. These checks do not establish HyperOS 4 private-whitelist compatibility or long-term background survival.
 
 ## APK libraries
 
@@ -76,7 +77,7 @@ LibChecker may report no native libraries. That means the APK has no bundled C/C
 
 ## Build and release
 
-See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint and Android 15 / Android 16 and Android 17 ATD emulator checks. The separate signed-release workflow requires private signing secrets and refuses to overwrite an existing version.
+See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint and Android 17 emulator checks. The separate signed-release workflow requires private signing secrets and refuses to overwrite an existing version.
 
 ## Credits and license
 
