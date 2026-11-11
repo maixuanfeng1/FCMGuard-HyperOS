@@ -55,6 +55,9 @@ jobs:
             target: google_apis
           - api: '36'
             target: google_apis
+          - api: '37'
+            image-api: '37.0'
+            target: aosp_atd
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -77,6 +80,7 @@ jobs:
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
+          system-image-api-level: ${{ matrix.image-api || matrix.api }}
           target: ${{ matrix.target }}
           arch: x86_64
           profile: pixel_6
