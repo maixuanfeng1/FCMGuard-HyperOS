@@ -57,3 +57,5 @@ Use an Android 17 full Google APIs emulator or Android 17 ATD for the automated 
 On the full Android 17 CI image, `tools/check_quick_settings.py` installs a disposable debug APK after instrumentation, seeds enabled protection, adds the tile through the shell, kills the app process with debug `run-as` (not force-stop), and verifies SystemUI invokes the tile in a new process with no foreground service or persistent notification. The check removes its tile and installation afterward.
 
 The emulator checks cannot establish Xiaomi private API compatibility or push reliability.
+
+The emulator runner prepends `cmdline-tools/latest` even when setup-android installed a newer pinned version elsewhere. CI therefore points that path at the pinned tools and verifies the AVD target is `android-37.0`. Legacy tools can otherwise generate `android-0` for minor API packages, causing incorrect graphics feature selection and SurfaceFlinger crashes. The Android 17 software-rendered configuration explicitly enables GLDirectMem and disables Vulkan.
