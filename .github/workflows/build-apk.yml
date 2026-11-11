@@ -83,23 +83,7 @@ jobs:
           ram-size: 3072M
           emulator-boot-timeout: 300
           emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -feature -Vulkan -partition-size 4096
-          script: |
-            # A boot-complete property alone is insufficient during a system-server restart.
-            ready=0
-            for attempt in $(seq 1 30); do
-              if adb shell cmd package list packages android 2>/dev/null | grep -q 'package:android'; then
-                ready=$((ready + 1))
-                if [ "$ready" -ge 3 ]; then break; fi
-              else
-                ready=0
-              fi
-              sleep 2
-            done
-            test "$ready" -ge 3
-            adb shell df -h /data
-            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true --stacktrace
-            mkdir -p artifacts/screenshots
-            adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/
+          script: bash tools/run_device_checks.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -108,3 +92,4 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
             artifacts/screenshots/
+            artifacts/emulator-crash.log
