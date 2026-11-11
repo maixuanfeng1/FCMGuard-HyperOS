@@ -50,7 +50,8 @@ public class GuardService extends Service {
         return running && repairSucceeded && ShizukuBridge.isReady();
     }
     private ContentObserver observer;
-    private boolean foreground;
+    private volatile boolean foreground;
+    private volatile boolean destroyed;
 
     private final Runnable fallbackCheck = new Runnable() {
         @Override public void run() {
@@ -92,7 +93,9 @@ public class GuardService extends Service {
     }
 
     private void repair() {
+        if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
         SettingsGuard.Result result = SettingsGuard.repair(this);
+        if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
         repairSucceeded = result.success;
         stateChanged();
         if (result.changed) FcmReconnect.kick(this);
@@ -101,6 +104,7 @@ public class GuardService extends Service {
     }
 
     private void registerObserver() {
+        if (destroyed) return;
         ContentResolver resolver = getContentResolver();
         try {
             if (observer != null) resolver.unregisterContentObserver(observer);
@@ -177,14 +181,17 @@ public class GuardService extends Service {
     }
 
     @Override public void onDestroy() {
+        destroyed = true;
         running = false;
         repairSucceeded = false;
         stateChanged();
         ShizukuBridge.removeListener(bridgeListener);
         handler.removeCallbacksAndMessages(null);
-        try {
-            if (observer != null) getContentResolver().unregisterContentObserver(observer);
-        } catch (Throwable ignored) {}
+        handler.post(() -> {
+            try {
+                if (observer != null) getContentResolver().unregisterContentObserver(observer);
+            } catch (RuntimeException ignored) {}
+        });
         workerThread.quitSafely();
         foreground = false;
         stopForeground(true);
