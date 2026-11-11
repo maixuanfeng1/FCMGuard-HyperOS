@@ -32,7 +32,7 @@ adb push app/build/outputs/apk/debug/app-debug.apk /data/local/tmp/fcmguard-app.
 adb push app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk /data/local/tmp/fcmguard-test.apk
 adb shell chmod 444 /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
 adb shell 'CLASSPATH=/data/local/tmp/fcmguard-app.apk:/data/local/tmp/fcmguard-test.apk app_process /system/bin com.reed.fcmguard.ShellSettingsProbe' | tee artifacts/shell-settings.log
-rg -q 'SHELL_SETTINGS_OK uid=2000' artifacts/shell-settings.log
+grep -Fq 'SHELL_SETTINGS_OK uid=2000' artifacts/shell-settings.log
 adb shell rm /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true --stacktrace
 
