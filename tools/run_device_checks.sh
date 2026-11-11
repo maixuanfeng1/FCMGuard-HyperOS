@@ -6,13 +6,16 @@ trap 'adb logcat -d -b crash > artifacts/emulator-crash.log 2>/dev/null || true'
 
 # Some images expose the boot property during a transient system-server restart.
 ready=0
-for attempt in $(seq 1 30); do
+for attempt in $(seq 1 45); do
   packages=$(adb shell cmd package list packages android 2>/dev/null || true)
-  if [[ "$packages" == *"package:android"* ]]; then
+  unlocked=$(adb shell cmd user is-user-unlocked 0 2>/dev/null || true)
+  if [[ "$packages" == *"package:android"* && "$unlocked" == *"true"* ]]; then
     ready=$((ready + 1))
     if [ "$ready" -ge 3 ]; then break; fi
   else
     ready=0
+    adb shell wm dismiss-keyguard >/dev/null 2>&1 || true
+    adb shell input keyevent 82 >/dev/null 2>&1 || true
   fi
   sleep 2
 done

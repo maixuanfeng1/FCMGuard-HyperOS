@@ -10,6 +10,8 @@ public final class LocaleHelper {
     private LocaleHelper() {}
 
     public static void followSystem(Context context) {
+        android.os.UserManager users = context.getSystemService(android.os.UserManager.class);
+        if (users != null && !users.isUserUnlocked()) return;
         android.content.SharedPreferences prefs = context.getSharedPreferences(SettingsGuard.PREFS, Context.MODE_PRIVATE);
         if (prefs.contains("ui_language") || prefs.contains("native_locale_migrated")) {
             prefs.edit().remove("ui_language").remove("native_locale_migrated").apply();

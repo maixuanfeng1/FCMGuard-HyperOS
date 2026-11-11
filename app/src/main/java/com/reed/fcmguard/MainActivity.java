@@ -65,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
     };
 
     @Override protected void onCreate(Bundle savedInstanceState) {
+        LocaleHelper.followSystem(this);
         String mode = ThemeHelper.getMode(this);
         getDelegate().setLocalNightMode(ThemeHelper.MODE_DARK.equals(mode)
                 ? AppCompatDelegate.MODE_NIGHT_YES : ThemeHelper.MODE_LIGHT.equals(mode)

@@ -79,10 +79,11 @@ jobs:
           api-level: ${{ matrix.api }}
           target: ${{ matrix.target }}
           arch: x86_64
+          profile: pixel_6
           disable-animations: true
           ram-size: 3072M
           emulator-boot-timeout: 300
-          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -feature -Vulkan -partition-size 4096
+          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -partition-size 4096
           script: bash tools/run_device_checks.sh
       - uses: actions/upload-artifact@v4
         if: always()
