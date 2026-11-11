@@ -22,9 +22,10 @@ public class GuardService extends Service {
     private static final int NOTIFICATION_ID = 426;
     private HandlerThread workerThread;
     private Handler handler;
-    private static volatile boolean running;
-    private static volatile boolean repairSucceeded;
-    private static volatile boolean observerRegistered;
+    private static volatile GuardService activeInstance;
+    private volatile boolean running;
+    private volatile boolean repairSucceeded;
+    private volatile boolean observerRegistered;
     private static final java.util.concurrent.CopyOnWriteArraySet<Runnable> STATE_LISTENERS =
             new java.util.concurrent.CopyOnWriteArraySet<>();
     private static final Handler MAIN = new Handler(android.os.Looper.getMainLooper());
@@ -34,7 +35,7 @@ public class GuardService extends Service {
     private static void stateChanged() {
         MAIN.post(() -> { for (Runnable listener : STATE_LISTENERS) listener.run(); });
     }
-    private ISettingsService subscription;
+    private volatile ISettingsService subscription;
     private String observedKey;
     private final Runnable bridgeListener = () -> {
         repairSucceeded = false;
@@ -47,7 +48,9 @@ public class GuardService extends Service {
     };
 
     public static boolean isProtecting() {
-        return running && observerRegistered && repairSucceeded && ShizukuBridge.isReady();
+        GuardService current = activeInstance;
+        return current != null && current.running && current.observerRegistered && current.repairSucceeded
+                && ShizukuBridge.isCurrentService(current.subscription);
     }
     private volatile boolean foreground;
     private volatile boolean destroyed;
@@ -70,6 +73,7 @@ public class GuardService extends Service {
         handler = new Handler(workerThread.getLooper());
         applyExecutionMode();
         running = true;
+        activeInstance = this;
         ShizukuBridge.addListener(bridgeListener);
         ShizukuBridge.connect();
     }
@@ -87,7 +91,8 @@ public class GuardService extends Service {
     }
 
     private void repair() {
-        if (destroyed || !SettingsGuard.isProtectionEnabled(this) || !observerRegistered) return;
+        if (destroyed || !SettingsGuard.isProtectionEnabled(this) || !observerRegistered
+                || !ShizukuBridge.isCurrentService(subscription)) return;
         SettingsGuard.Result result = SettingsGuard.repair(this);
         if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
         repairSucceeded = result.success;
@@ -197,6 +202,7 @@ public class GuardService extends Service {
     @Override public void onDestroy() {
         destroyed = true;
         running = false;
+        if (activeInstance == this) activeInstance = null;
         repairSucceeded = false;
         observerRegistered = false;
         stateChanged();
