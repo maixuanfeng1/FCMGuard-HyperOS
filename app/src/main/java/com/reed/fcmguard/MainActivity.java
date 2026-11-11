@@ -53,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton advancedToggle;
     private MaterialSwitch protectionSwitch;
     private boolean suppressSwitchCallbacks;
+    private boolean suppressModeCallbacks;
     private boolean resumed;
     private boolean repairInProgress;
     private boolean scanInProgress;
@@ -148,6 +149,7 @@ public class MainActivity extends AppCompatActivity {
         group.check(ThemeHelper.MODE_DARK.equals(mode) ? R.id.themeDark
                 : ThemeHelper.MODE_LIGHT.equals(mode) ? R.id.themeLight : R.id.themeSystem);
         group.setOnCheckedChangeListener((view, id) -> {
+            if (suppressModeCallbacks || (id != R.id.keepAliveTile && id != R.id.keepAliveNotification)) return;
             String next = id == R.id.themeDark ? ThemeHelper.MODE_DARK
                     : id == R.id.themeLight ? ThemeHelper.MODE_LIGHT : ThemeHelper.MODE_SYSTEM;
             if (!next.equals(ThemeHelper.getMode(this))) {
@@ -507,7 +509,9 @@ public class MainActivity extends AppCompatActivity {
                 ? getString(R.string.missing_current) : current.replace(",", "\n"));
         permissionBtn.setVisibility(!ready || failure != null ? View.VISIBLE : View.GONE);
         permissionBtn.setText(ready && failure != null ? R.string.retry_protection : R.string.authorize_shizuku);
+        suppressModeCallbacks = true;
         ((RadioGroup) findViewById(R.id.keepAliveGroup)).check(tile ? R.id.keepAliveTile : R.id.keepAliveNotification);
+        suppressModeCallbacks = false;
         ((TextView) findViewById(R.id.keepAliveSummary)).setText(tile
                 ? R.string.tile_mode_summary : R.string.event_notification_summary);
         findViewById(R.id.addTileBtn).setVisibility(tile ? View.VISIBLE : View.GONE);

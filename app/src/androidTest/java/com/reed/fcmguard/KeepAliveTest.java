@@ -68,6 +68,7 @@ public class KeepAliveTest {
         });
         assertFalse(GuardService.isRunning());
         assertNoGuardNotification();
+
     }
 
     @Test public void switchingToTileStopsForegroundServiceAndRemovesItsNotification() throws Exception {
@@ -85,6 +86,14 @@ public class KeepAliveTest {
         instrumentation.runOnMainSync(() -> GuardController.restoreFromTile(context));
         assertFalse(GuardService.isRunning());
         assertNoGuardNotification();
+        // A mode change before onCreate/onStartCommand must acknowledge the pending
+        // foreground start and then stop, without Android crashing the process.
+        instrumentation.runOnMainSync(() -> {
+            GuardController.changeMode(context, false);
+            GuardController.changeMode(context, true);
+        });
+        await(() -> !GuardService.isStarting() && !GuardService.isRunning());
+        await(() -> context.getSystemService(NotificationManager.class).getActiveNotifications().length == 0);
     }
 
     @Test public void passiveVisibilityCannotStartNotificationModeAndDisabledProtectionStaysOff() throws Exception {

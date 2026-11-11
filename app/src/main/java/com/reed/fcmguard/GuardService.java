@@ -19,12 +19,36 @@ public class GuardService extends Service {
     private static final String CHANNEL_ID = "fcm_guard_persistent_v2";
     private static final int NOTIFICATION_ID = 426;
     private static volatile GuardService activeInstance;
+    private static volatile boolean startPending;
+    private static volatile boolean stopPending;
     private volatile boolean foreground;
     private final Runnable stateListener = () -> refreshNotification(GuardRuntime.statusMessage(this));
 
     public static boolean isRunning() {
         GuardService current = activeInstance;
-        return current != null && current.foreground;
+        return current != null && current.foreground && !startPending && !stopPending;
+    }
+    static boolean isStarting() { return startPending; }
+
+    /** Serialize fast mode changes with Android's foreground-start handshake. */
+    static void requestStart(Context context) {
+        if (isRunning()) { GuardRuntime.resume(context); return; }
+        if (startPending || stopPending) return;
+        startPending = true;
+        try {
+            Intent intent = new Intent(context, GuardService.class);
+            if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent);
+            else context.startService(intent);
+        } catch (RuntimeException e) { startPending = false; throw e; }
+    }
+
+    static void requestStop(Context context) {
+        // onStartCommand must acknowledge a pending FGS start before it can stop.
+        // It will read the latest selected mode and enabled preference itself.
+        if (!startPending) {
+            stopPending = activeInstance != null;
+            context.stopService(new Intent(context, GuardService.class));
+        }
     }
     public static boolean isProtecting() { return GuardRuntime.isProtecting(); }
     public static String protectionError() { return GuardRuntime.protectionError(); }
@@ -39,13 +63,19 @@ public class GuardService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        applyExecutionMode();
+        startPending = false;
         if ((intent != null && "com.reed.fcmguard.STOP".equals(intent.getAction()))
                 || !SettingsGuard.isProtectionEnabled(this)) {
-            GuardController.stop(this);
+            SettingsGuard.setProtectionEnabled(this, false);
+            GuardRuntime.stop();
+            stopPending = true;
+            stopSelf();
             return START_NOT_STICKY;
         }
         GuardRuntime.resume(this);
         if (SettingsGuard.usesTileWakeup(this)) {
+            stopPending = true;
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -111,11 +141,24 @@ public class GuardService extends Service {
         GuardRuntime.removeStateListener(stateListener);
         foreground = false;
         if (activeInstance == this) activeInstance = null;
+        boolean reconsiderMode = stopPending;
+        stopPending = false;
         if (!SettingsGuard.usesTileWakeup(this) || !SettingsGuard.isProtectionEnabled(this)) {
             GuardRuntime.stop();
         } else GuardRuntime.refreshState();
         stopForeground(true);
         super.onDestroy();
+        if (reconsiderMode && SettingsGuard.isProtectionEnabled(this)
+                && !SettingsGuard.usesTileWakeup(this)) {
+            // The user may have selected notification mode again while this
+            // instance was stopping. Complete destruction before starting anew.
+            Context app = getApplicationContext();
+            new android.os.Handler(getMainLooper()).post(() -> {
+                if (!SettingsGuard.isProtectionEnabled(app)) return;
+                try { GuardController.start(app); }
+                catch (RuntimeException e) { android.util.Log.w("FCMGuard", "Mode restart denied", e); }
+            });
+        }
     }
 
     @Override public IBinder onBind(Intent intent) { return null; }

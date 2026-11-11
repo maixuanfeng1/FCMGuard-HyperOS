@@ -1,8 +1,6 @@
 package com.reed.fcmguard;
 
 import android.content.Context;
-import android.content.Intent;
-import android.os.Build;
 import android.os.UserManager;
 
 /** Selects process-only observation or the explicitly requested foreground service. */
@@ -13,18 +11,16 @@ public final class GuardController {
         if (!SettingsGuard.isProtectionEnabled(context)) return;
         if (SettingsGuard.usesTileWakeup(context)) {
             GuardRuntime.resume(context);
-            context.stopService(new Intent(context, GuardService.class));
+            GuardService.requestStop(context);
         } else {
-            Intent intent = new Intent(context, GuardService.class);
-            if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent);
-            else context.startService(intent);
+            GuardService.requestStart(context);
         }
     }
 
     public static void stop(Context context) {
         SettingsGuard.setProtectionEnabled(context, false);
         GuardRuntime.stop();
-        context.stopService(new Intent(context, GuardService.class));
+        GuardService.requestStop(context);
     }
 
     public static void changeMode(Context context, boolean tileWakeup) {
