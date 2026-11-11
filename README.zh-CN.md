@@ -46,13 +46,15 @@
 
 自启动 AppOps、FCM 扫描和诊断入口属于非保证功能；不可读取时显示未知。自动测试覆盖名单处理、设置变化监听/取消监听、单应用设置跳转和无 Shizuku 时的安全启动/拒绝修复；CI 同时采集浅色/深色、小屏及大字体的真实原生截图，**不能代替 HyperOS 真机上的授权写入、后台存活及推送测试**。
 
+Android 17 / API 37 模拟器运行验证尚未完成：CI 镜像在系统启动阶段反复失败，未能完成可靠的应用测试。应用仍使用 target API 37 / compile SDK 37.2。
+
 ## APK 原生库
 
 LibChecker 中“没有原生库”表示 APK 没有捆绑 C/C++ 的 `.so` 文件。本应用使用 Java/Kotlin 字节码、Android SDK 和 Shizuku，不依赖 JNI 库，功能不受影响；它仍是原生 Android 应用，也不需要为每种 CPU 单独打包无用的 `.so`。
 
 ## 构建与签名
 
-见 [构建、签名与发布说明](docs/BUILDING.md)。CI 编译、运行单元测试及 Android lint，并在 Android 15 / API 37 模拟器执行启动检查。正式发布使用独立工作流，缺少私有签名 secrets 时会拒绝发布，不生成临时签名冒充旧版本更新。
+见 [构建、签名与发布说明](docs/BUILDING.md)。CI 编译、运行单元测试及 Android lint，并在 Android 15 / Android 16 模拟器执行启动检查。正式发布使用独立工作流，缺少私有签名 secrets 时会拒绝发布，不生成临时签名冒充旧版本更新。
 
 ## 致谢与许可
 

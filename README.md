@@ -43,13 +43,15 @@ The Xiaomi whitelist must exist on the device; the app will not create an ineffe
 
 FCM detection, vendor AppOps and diagnostics are best effort; unreadable Autostart status stays unknown. Automated tests cover list handling, settings observer change/unregister behavior, exact app-settings routing and safe startup/refusal without Shizuku. CI also captures real native light/dark and compact/large-font screens. **They do not replace HyperOS device testing of privileged writes, background survival or push delivery.**
 
+Android 17 / API 37 emulator runtime validation is incomplete: the CI images repeatedly failed during system startup, before reliable app testing. The app still targets API 37 and compiles against SDK 37.2.
+
 ## APK libraries
 
 LibChecker may report no native libraries. That means the APK has no bundled C/C++ `.so` files. This app uses Java/Kotlin bytecode, the Android SDK and Shizuku, so no JNI library is required. It remains a native Android app and does not need a separate build for every CPU ABI.
 
 ## Build and release
 
-See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint and Android 15 / API 37 emulator smoke tests. The separate signed-release workflow requires private signing secrets and refuses to overwrite an existing version.
+See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint and Android 15 / Android 16 emulator smoke tests. The separate signed-release workflow requires private signing secrets and refuses to overwrite an existing version.
 
 ## Credits and license
 

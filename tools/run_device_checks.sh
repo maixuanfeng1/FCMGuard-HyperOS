@@ -8,8 +8,8 @@ trap 'adb logcat -d -b crash > artifacts/emulator-crash.log 2>/dev/null || true'
 ready=0
 for attempt in $(seq 1 45); do
   packages=$(adb shell cmd package list packages android 2>/dev/null || true)
-  unlocked=$(adb shell cmd user is-user-unlocked 0 2>/dev/null || true)
-  if [[ "$packages" == *"package:android"* && "$unlocked" == *"true"* ]]; then
+  unlocked=$(adb shell am get-started-user-state 0 2>/dev/null || true)
+  if [[ "$packages" == *"package:android"* && "$unlocked" == *"RUNNING_UNLOCKED"* ]]; then
     ready=$((ready + 1))
     if [ "$ready" -ge 3 ]; then break; fi
   else
@@ -19,7 +19,11 @@ for attempt in $(seq 1 45); do
   fi
   sleep 2
 done
-test "$ready" -ge 3
+if [ "$ready" -lt 3 ]; then
+  echo "Android package service or user storage did not become ready" >&2
+  adb shell am get-started-user-state 0 || true
+  exit 1
+fi
 adb shell df -h /data
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true --stacktrace
 
