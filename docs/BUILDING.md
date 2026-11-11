@@ -38,7 +38,7 @@ Bump both `versionCode` and `versionName` before every new release. Publish the 
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-Use a clean Android 15 or API 37.2 emulator for the automated missing-authorization, observer and settings-route checks. CI can opt into native screenshots using `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true`; only that explicit mode changes emulator resolution/density/font scale, restoring them afterward. Reports and images are uploaded as Actions artifacts. For a HyperOS device, additionally verify:
+Use a clean Android 15 or API 37 emulator for the automated missing-authorization, observer and settings-route checks. CI can opt into native screenshots using `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true`; only that explicit mode changes emulator resolution/density/font scale, restoring them afterward. Reports and images are uploaded as Actions artifacts. For a HyperOS device, additionally verify:
 
 1. Approving/denying Shizuku access updates the dashboard correctly.
 2. Repair preserves every pre-existing whitelist entry and adds only the requested package.
