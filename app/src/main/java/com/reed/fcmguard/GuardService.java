@@ -6,29 +6,26 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.ContentObserver;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.content.pm.ServiceInfo;
 import android.os.IBinder;
-import android.provider.Settings;
 
 public class GuardService extends Service {
     // v2 intentionally uses a new channel id. Android does not allow an app to raise
     // an existing channel from IMPORTANCE_MIN to IMPORTANCE_LOW after creation.
     private static final String CHANNEL_ID = "fcm_guard_persistent_v2";
     private static final int NOTIFICATION_ID = 426;
-    private static final long FALLBACK_INTERVAL_MS = 30L * 60L * 1000L;
     private HandlerThread workerThread;
     private Handler handler;
-    private static volatile boolean running;
-    private static volatile boolean repairSucceeded;
+    private static volatile GuardService activeInstance;
+    private volatile boolean running;
+    private volatile boolean repairSucceeded;
+    private volatile boolean observerRegistered;
     private static final java.util.concurrent.CopyOnWriteArraySet<Runnable> STATE_LISTENERS =
             new java.util.concurrent.CopyOnWriteArraySet<>();
     private static final Handler MAIN = new Handler(android.os.Looper.getMainLooper());
@@ -38,31 +35,34 @@ public class GuardService extends Service {
     private static void stateChanged() {
         MAIN.post(() -> { for (Runnable listener : STATE_LISTENERS) listener.run(); });
     }
+    private volatile ISettingsService subscription;
+    private String observedKey;
     private final Runnable bridgeListener = () -> {
-        if (handler != null) {
-            repairSucceeded = false;
-            handler.removeCallbacks(this.repairDebounced);
-            handler.post(this.repairDebounced);
+        repairSucceeded = false;
+        observerRegistered = false;
+        stateChanged();
+        if (handler != null && !this.destroyed) {
+            handler.removeCallbacks(this.monitorAndRepair);
+            handler.post(this.monitorAndRepair);
         }
     };
 
     public static boolean isProtecting() {
-        return running && repairSucceeded && ShizukuBridge.isReady();
+        GuardService current = activeInstance;
+        return current != null && current.running && current.observerRegistered && current.repairSucceeded
+                && ShizukuBridge.isCurrentService(current.subscription);
     }
-    private ContentObserver observer;
     private volatile boolean foreground;
     private volatile boolean destroyed;
 
-    private final Runnable fallbackCheck = new Runnable() {
-        @Override public void run() {
-            repair();
-            handler.postDelayed(this, FALLBACK_INTERVAL_MS);
-        }
-    };
-
-    private final Runnable repairDebounced = new Runnable() {
-        @Override public void run() {
-            repair();
+    private final Runnable monitorAndRepair = this::subscribeAndRepair;
+    private final Runnable repairDebounced = this::repair;
+    private final ISettingsObserver settingsObserver = new ISettingsObserver.Stub() {
+        @Override public void onSettingChanged() {
+            if (destroyed || handler == null) return;
+            // This delay is only a debounce after a real provider event, never polling.
+            handler.removeCallbacks(repairDebounced);
+            handler.postDelayed(repairDebounced, 400L);
         }
     };
 
@@ -73,6 +73,7 @@ public class GuardService extends Service {
         handler = new Handler(workerThread.getLooper());
         applyExecutionMode();
         running = true;
+        activeInstance = this;
         ShizukuBridge.addListener(bridgeListener);
         ShizukuBridge.connect();
     }
@@ -84,45 +85,63 @@ public class GuardService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        handler.post(() -> {
-            registerObserver();
-            handler.removeCallbacks(fallbackCheck);
-            handler.post(fallbackCheck);
-        });
+        handler.removeCallbacks(monitorAndRepair);
+        handler.post(monitorAndRepair);
         return START_STICKY;
     }
 
     private void repair() {
-        if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
+        if (destroyed || !SettingsGuard.isProtectionEnabled(this) || !observerRegistered
+                || !ShizukuBridge.isCurrentService(subscription)) return;
         SettingsGuard.Result result = SettingsGuard.repair(this);
         if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
         repairSucceeded = result.success;
         stateChanged();
         if (result.changed) FcmReconnect.kick(this);
         if (foreground) refreshNotification(result.success
-                ? getString(R.string.notification_active) : result.message);
+                ? getString(R.string.notification_observing) : result.message);
     }
 
-    private void registerObserver() {
-        if (destroyed) return;
-        ContentResolver resolver = getContentResolver();
-        try {
-            if (observer != null) resolver.unregisterContentObserver(observer);
-        } catch (Throwable ignored) {}
-
-        observer = new ContentObserver(handler) {
-            @Override public void onChange(boolean selfChange, Uri uri) {
-                handler.removeCallbacks(repairDebounced);
-                handler.postDelayed(repairDebounced, 400L);
-            }
-        };
-        try {
-            resolver.registerContentObserver(
-                    Settings.System.getUriFor(SettingsGuard.getConfiguredKey(this)), false, observer);
-        } catch (RuntimeException e) {
-            // Some ROMs restrict observers. The non-waking fallback remains available.
-            android.util.Log.w("FCMGuard", "Whitelist observer unavailable", e);
+    private void subscribeAndRepair() {
+        if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
+        String key = SettingsGuard.getConfiguredKey(this);
+        if (!ShizukuBridge.isReady()) {
+            clearSubscription();
+            repairSucceeded = false;
+            stateChanged();
+            refreshNotification(getString(ShizukuBridge.statusText()));
+            return;
         }
+        try {
+            if (!observerRegistered || !key.equals(observedKey)
+                    || !ShizukuBridge.isCurrentService(subscription)) {
+                clearSubscription();
+                ISettingsService next = ShizukuBridge.observe(key, settingsObserver);
+                if (destroyed || !SettingsGuard.isProtectionEnabled(this)) {
+                    ShizukuBridge.stopObserving(next, settingsObserver);
+                    return;
+                }
+                subscription = next;
+                observedKey = key;
+                observerRegistered = true;
+            }
+            // Register first, then read/repair once. Subsequent work requires an event.
+            repair();
+        } catch (Exception e) {
+            clearSubscription();
+            repairSucceeded = false;
+            stateChanged();
+            refreshNotification(getString(R.string.observer_unavailable));
+            android.util.Log.w("FCMGuard", "Whitelist observation unavailable", e);
+        }
+    }
+
+    private void clearSubscription() {
+        observerRegistered = false;
+        observedKey = null;
+        ISettingsService old = subscription;
+        subscription = null;
+        ShizukuBridge.stopObserving(old, settingsObserver);
     }
 
     private void applyExecutionMode() {
@@ -183,15 +202,13 @@ public class GuardService extends Service {
     @Override public void onDestroy() {
         destroyed = true;
         running = false;
+        if (activeInstance == this) activeInstance = null;
         repairSucceeded = false;
+        observerRegistered = false;
         stateChanged();
         ShizukuBridge.removeListener(bridgeListener);
         handler.removeCallbacksAndMessages(null);
-        handler.post(() -> {
-            try {
-                if (observer != null) getContentResolver().unregisterContentObserver(observer);
-            } catch (RuntimeException ignored) {}
-        });
+        handler.post(this::clearSubscription);
         workerThread.quitSafely();
         foreground = false;
         stopForeground(true);

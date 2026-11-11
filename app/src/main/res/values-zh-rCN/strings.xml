@@ -19,11 +19,9 @@
 
     <string name="protection_title">保护设置</string>
     <string name="automatic_protection">自动保护</string>
-    <string name="automatic_protection_summary">仅监听 FCM 白名单这一项的变化，主要采用事件触发；30 分钟兜底检查不会主动唤醒休眠中的手机。</string>
     <string name="actions_title">工具</string>
     <string name="advanced_title">高级配置</string>
 
-    <string name="helper_text">低功耗优化：不再每 30 秒轮询，不再监听无关系统设置，仅在真正修复白名单后才发送一次 FCM 重连请求。</string>
 
     <string name="status_protected">保护正常</string>
     <string name="status_ready">已就绪</string>

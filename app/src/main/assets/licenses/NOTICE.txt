@@ -11,3 +11,9 @@ See Apache-2.0.txt and https://developer.android.com/jetpack/androidx
 
 Kotlin standard library (Apache License 2.0): JetBrains s.r.o. and Kotlin contributors.
 See Apache-2.0.txt, Kotlin-COPYRIGHT.txt and https://github.com/JetBrains/kotlin
+
+Material Components for Android 1.14.0 (Apache License 2.0): The Android Open Source Project.
+See Apache-2.0.txt and https://github.com/material-components/material-components-android
+
+AndroidX AppCompat and its AndroidX dependencies (Apache License 2.0): The Android Open Source Project.
+See Apache-2.0.txt and https://developer.android.com/jetpack/androidx

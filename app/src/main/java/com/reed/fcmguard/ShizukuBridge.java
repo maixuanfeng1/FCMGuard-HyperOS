@@ -21,6 +21,7 @@ public final class ShizukuBridge {
     private static Shizuku.UserServiceArgs args;
     private static boolean binding;
     private static boolean initialized;
+    private static boolean automaticRebindUsed;
     private static final Runnable BIND_TIMEOUT = () -> {
         binding = false;
         changed();
@@ -33,13 +34,18 @@ public final class ShizukuBridge {
                 binding = false;
                 if (binder != null && binder.pingBinder()) {
                     service = ISettingsService.Stub.asInterface(binder);
-                    try { binder.linkToDeath(() -> MAIN.post(ShizukuBridge::disconnected), 0); }
+                    try { binder.linkToDeath(() -> MAIN.post(() -> helperDisconnected(binder)), 0); }
                     catch (RemoteException e) { service = null; }
                 }
                 changed();
             });
         }
-        @Override public void onServiceDisconnected(ComponentName name) { MAIN.post(ShizukuBridge::disconnected); }
+        @Override public void onServiceDisconnected(ComponentName name) {
+            MAIN.post(() -> {
+                ISettingsService current = service;
+                if (current != null && !current.asBinder().pingBinder()) helperDisconnected(current.asBinder());
+            });
+        }
     };
 
     public static void initialize(Context context) {
@@ -48,7 +54,10 @@ public final class ShizukuBridge {
         args = new Shizuku.UserServiceArgs(new ComponentName(context, SettingsUserService.class))
                 .daemon(false).processNameSuffix("settings").debuggable(false)
                 .version(BuildConfig.VERSION_CODE);
-        Shizuku.addBinderReceivedListenerSticky(() -> MAIN.post(ShizukuBridge::connect));
+        Shizuku.addBinderReceivedListenerSticky(() -> MAIN.post(() -> {
+            automaticRebindUsed = false;
+            connect();
+        }));
         Shizuku.addBinderDeadListener(() -> MAIN.post(ShizukuBridge::disconnected));
         Shizuku.addRequestPermissionResultListener((requestCode, grantResult) -> {
             if (requestCode == REQUEST_CODE) MAIN.post(() -> {
@@ -67,6 +76,17 @@ public final class ShizukuBridge {
         binding = false;
         MAIN.removeCallbacks(BIND_TIMEOUT);
         changed();
+    }
+
+    private static void helperDisconnected(IBinder expectedBinder) {
+        ISettingsService current = service;
+        // Death callbacks from a superseded helper must not clear a newer binding.
+        if (current == null || current.asBinder() != expectedBinder) return;
+        disconnected();
+        if (!automaticRebindUsed && isAuthorized()) {
+            automaticRebindUsed = true;
+            connect();
+        }
     }
 
     public static boolean isRunning() {
@@ -98,6 +118,7 @@ public final class ShizukuBridge {
     }
 
     public static void requestPermission() {
+        automaticRebindUsed = false;
         if (isAuthorized()) { connect(); return; }
         if (isRunning()) Shizuku.requestPermission(REQUEST_CODE);
     }
@@ -118,5 +139,27 @@ public final class ShizukuBridge {
         ISettingsService current = service;
         if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
         return current.write(key, value, Process.myUid() / 100000);
+    }
+
+    /** Subscribe before the initial read/repair so a concurrent settings change is not missed. */
+    public static ISettingsService observe(String key, ISettingsObserver observer) throws RemoteException {
+        ISettingsService current = service;
+        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
+        if (!current.observe(key, Process.myUid() / 100000, observer)) {
+            throw new IllegalStateException("Whitelist observer rejected");
+        }
+        return current;
+    }
+
+    public static boolean isCurrentService(ISettingsService subscription) {
+        ISettingsService current = service;
+        return isReady() && subscription != null && current != null
+                && subscription.asBinder() == current.asBinder();
+    }
+
+    public static void stopObserving(ISettingsService subscription, ISettingsObserver observer) {
+        if (subscription == null) return;
+        try { subscription.stopObserving(observer); }
+        catch (RemoteException | RuntimeException ignored) {}
     }
 }

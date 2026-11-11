@@ -1,0 +1,3 @@
+<resources>
+    <dimen name="screen_horizontal_padding">64dp</dimen>
+</resources>

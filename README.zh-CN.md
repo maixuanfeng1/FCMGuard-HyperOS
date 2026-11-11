@@ -20,14 +20,22 @@
 
 无线调试仅用于按 Shizuku 官方流程启动服务。本分支不保证关闭相关调试功能后每个 ROM 上的 Shizuku 都能持续工作。请根据设备实际情况选择启动方式。
 
-## 改进
+## 2.1 版本
+
+- 接入 Google 官方 [Material Components for Android](https://github.com/material-components/material-components-android) 1.14.0，采用 Material 3 主题、动态取色、标准开关/按钮/文本框和更清晰的设置式页面结构。本次在现有 Java/Views 项目中使用官方 Views 组件，并非整体迁移 Compose。
+- 语言默认跟随 Android 系统，移除应用内语言切换入口；升级时清除旧版语言覆盖设置。
+- 自动保护改为 Shizuku 授权进程中的系统设置变化监听，移除旧有 30 分钟兜底检查。只在启用、配置/连接变化和白名单变化时处理，无周期轮询或定时唤醒。
+- 保留静音前台通知及停止按钮，用于后台可靠性。Android 要求前台服务具有系统可见性；隐藏通知不会使守护更可靠。
+- 检测出的每个 FCM/GCM 应用都可点击进入它自己的设置页面；自启动状态不可读时仍显示应用和“未知”。优先使用小米单应用详情页，失败时退回 Android 的该应用详情页，不再要求从总列表重新查找。不同 ROM 未必支持直接进入该应用的自启动开关页，因此不虚报能直接切换自启动。
+
+## 核心行为
 
 - target API 37、compile SDK 37.2，适配现代前台服务类型和通知运行时权限。
 - Shizuku 独立进程只暴露经过校验的系统设置读写，不提供任意命令执行接口；命令使用独立参数、超时和输出上限。
 - 读取当前 `Settings.System.MILLET_NO_RESTRICT_APP`，仅追加指定包名（默认 `com.google.android.gms`），保留原有包名。空名单不再自动添加微信或其他无关包。
 - 写入后重新读取并验证；设置不存在、写入失败、Shizuku 未授权或断开时明确提示，不虚报成功，也不恢复可能过期的名单快照。
-- 设置读写在工作线程执行；精确监听白名单 URI，变化后约 400ms 防抖，30 分钟进程内兜底检查不主动唤醒设备。
-- 保留深色模式、应用语言、响应式布局和只读自启动状态检查；适配状态栏、横屏刘海与导航栏安全区域。
+- 设置读写在工作线程执行；由 Shizuku 授权进程监听准确的白名单 URI，通过变化事件触发在收到事件后做约 400ms 防抖，再修复；不再进行周期检查或定时唤醒。监听成功并完成初次验证后，才显示保护已启用。
+- 保留深色模式、系统语言、响应式布局和只读自启动状态检查；适配状态栏、横屏刘海与导航栏安全区域。
 - 使用正式 release 构建及私有签名；发布 APK 的 SHA-256 校验文件，不再将 debug APK 当作正式版本发布。
 
 ## 限制与验证范围
@@ -36,16 +44,23 @@
 
 前台服务可被用户或系统停止。FCM Guard 保护共享的 GMS 连接，无法保证某个 App 获得后台执行时间或网络，也不绕过对该 App 的电池策略。WhatsApp 等仍延迟时，可单独为它开启自启动和无限制电池策略。
 
-自启动 AppOps、FCM 扫描和诊断入口属于非保证功能；不可读取时显示未知。自动测试覆盖名单处理及现代 Android 下无 Shizuku 时的安全启动/拒绝修复路径，**不能代替 HyperOS 真机上的授权写入、后台存活及推送测试**。
+自启动 AppOps、FCM 扫描和诊断入口属于非保证功能；不可读取时显示未知。自动测试覆盖名单处理、设置变化监听/取消监听、单应用设置跳转和无 Shizuku 时的安全启动/拒绝修复；CI 同时采集浅色/深色、小屏及大字体的真实原生截图，**不能代替 HyperOS 真机上的授权写入、后台存活及推送测试**。
+
+Android 17 / API 37 模拟器运行验证尚未完成：CI 镜像在系统启动阶段反复失败，未能完成可靠的应用测试。应用仍使用 target API 37 / compile SDK 37.2。
+
+## APK 原生库
+
+LibChecker 中“没有原生库”表示 APK 没有捆绑 C/C++ 的 `.so` 文件。本应用使用 Java/Kotlin 字节码、Android SDK 和 Shizuku，不依赖 JNI 库，功能不受影响；它仍是原生 Android 应用，也不需要为每种 CPU 单独打包无用的 `.so`。
 
 ## 构建与签名
 
-见 [构建、签名与发布说明](docs/BUILDING.md)。CI 编译、运行单元测试及 Android lint，并在 Android 15 / API 37 模拟器执行启动检查。正式发布使用独立工作流，缺少私有签名 secrets 时会拒绝发布，不生成临时签名冒充旧版本更新。
+见 [构建、签名与发布说明](docs/BUILDING.md)。CI 编译、运行单元测试及 Android lint，并在 Android 15 / Android 16 模拟器执行启动检查。正式发布使用独立工作流，缺少私有签名 secrets 时会拒绝发布，不生成临时签名冒充旧版本更新。
 
 ## 致谢与许可
 
 - 原项目：[ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS)
 - PowerKeeper / Greezer 调查及白名单思路：[dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix)
+- 官方组件：[Material Components for Android](https://github.com/material-components/material-components-android)
 - 特权桥接：[Shizuku](https://github.com/RikkaApps/Shizuku) / [Shizuku API](https://github.com/RikkaApps/Shizuku-API)
 
 MIT，见 [LICENSE](LICENSE)。

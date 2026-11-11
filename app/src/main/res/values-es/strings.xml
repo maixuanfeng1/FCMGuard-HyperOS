@@ -19,11 +19,9 @@
 
     <string name="protection_title">Protección</string>
     <string name="automatic_protection">Protección automática</string>
-    <string name="automatic_protection_summary">Supervisa solo la clave de la lista de FCM mediante eventos. La comprobación de respaldo cada 30 minutos no despierta deliberadamente el teléfono.</string>
     <string name="actions_title">Herramientas</string>
     <string name="advanced_title">Configuración avanzada</string>
 
-    <string name="helper_text">Diseño de bajo consumo: sin sondeo cada 30 segundos, sin observar ajustes no relacionados y con reconexión FCM solo tras una reparación real.</string>
 
     <string name="status_protected">Protegido</string>
     <string name="status_ready">Listo</string>

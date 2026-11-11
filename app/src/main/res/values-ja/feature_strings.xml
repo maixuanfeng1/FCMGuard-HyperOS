@@ -8,7 +8,6 @@
     <string name="fcm_apps_not_scanned">「FCM アプリをスキャン」をタップして端末内リストを作成します。</string>
     <string name="fcm_apps_found">FCM 対応アプリを %1$d 個検出</string>
     <string name="fcm_apps_status_summary">%1$d 個検出 · %2$d 個有効 · %3$d 個要確認 · %4$d 個不明</string>
-    <string name="fcm_autostart_status_unavailable">FCM 対応アプリを %1$d 個検出しましたが、この HyperOS では通常アプリから自動起動状態を読み取れません。「HyperOS でまとめて設定」を使用してください。</string>
     <string name="no_fcm_apps">ユーザー向けの FCM アプリは検出されませんでした。</string>
     <string name="app_settings">自動起動</string>
     <string name="autostart_enabled">有効</string>

@@ -8,7 +8,6 @@
     <string name="fcm_apps_not_scanned">點選「掃描 FCM 應用程式」建立本機清單。</string>
     <string name="fcm_apps_found">偵測到 %1$d 個支援 FCM 的應用程式</string>
     <string name="fcm_apps_status_summary">偵測到 %1$d 個 · %2$d 個已開啟 · %3$d 個需處理 · %4$d 個未知</string>
-    <string name="fcm_autostart_status_unavailable">偵測到 %1$d 個 FCM 應用程式，但目前 HyperOS 未向一般應用程式開放可讀取的自啟動狀態。請使用「在 HyperOS 中統一設定」。</string>
     <string name="no_fcm_apps">未偵測到面向使用者的 FCM 應用程式。</string>
     <string name="app_settings">自啟動</string>
     <string name="autostart_enabled">已開啟</string>

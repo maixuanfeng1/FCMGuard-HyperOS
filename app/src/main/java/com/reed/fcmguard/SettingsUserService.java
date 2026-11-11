@@ -1,6 +1,12 @@
 package com.reed.fcmguard;
 
 import android.os.SystemClock;
+import android.content.Context;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.IBinder;
+import android.os.Process;
+import android.os.RemoteException;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -9,7 +15,101 @@ import java.util.concurrent.TimeUnit;
 
 /** Runs as Shizuku's shell/root identity. No caller-provided shell program is run. */
 public final class SettingsUserService extends ISettingsService.Stub {
-    public SettingsUserService() {}
+    private final Context context;
+    private HandlerThread observerThread;
+    private SettingsChangeMonitor monitor;
+    private ISettingsObserver client;
+    private IBinder.DeathRecipient clientDeath;
+
+    /** Shizuku 13 supplies an initialized application context for this user. */
+    public SettingsUserService(Context context) { this.context = context; }
+
+    /** Compatibility with older Shizuku launchers; resolve a context only if needed. */
+    public SettingsUserService() { this.context = null; }
+
+    private Context observerContext() {
+        try {
+            Context base = context;
+            if (base == null) {
+                Class<?> activityThread = Class.forName("android.app.ActivityThread");
+                Object thread = activityThread.getMethod("currentActivityThread").invoke(null);
+                if (thread == null) thread = activityThread.getMethod("systemMain").invoke(null);
+                base = (Context) activityThread.getMethod("getSystemContext").invoke(thread);
+            }
+            // Match ContentResolver attribution to the helper's real identity.
+            if (Process.myUid() == Process.SHELL_UID || Process.myUid() == 0) {
+                return base.createPackageContext("com.android.shell", 0);
+            }
+            return base;
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot create settings observer context", e);
+        }
+    }
+
+    @Override public synchronized boolean observe(String key, int userId, ISettingsObserver observer) {
+        validate(key, userId);
+        if (observer == null) throw new IllegalArgumentException("Observer is required");
+        stopObserver();
+        if (monitor == null) {
+            android.content.ContentResolver resolver = observerContext().getContentResolver();
+            observerThread = new HandlerThread("settings-provider-events");
+            observerThread.start();
+            monitor = new SettingsChangeMonitor(resolver,
+                    new Handler(observerThread.getLooper()));
+        }
+        IBinder binder = observer.asBinder();
+        IBinder.DeathRecipient death = () -> {
+            synchronized (SettingsUserService.this) {
+                if (client != null && client.asBinder() == binder) stopObserver();
+            }
+        };
+        try {
+            binder.linkToDeath(death, 0);
+            client = observer;
+            clientDeath = death;
+            monitor.start(key, userId, () -> deliverChange(binder));
+            return true;
+        } catch (RemoteException | RuntimeException e) {
+            stopObserver();
+            throw new IllegalStateException("Cannot observe whitelist", e);
+        }
+    }
+
+    private void deliverChange(IBinder expectedClient) {
+        ISettingsObserver current;
+        synchronized (this) {
+            current = client;
+            if (current == null || current.asBinder() != expectedClient) return;
+        }
+        try { current.onSettingChanged(); }
+        catch (RemoteException e) {
+            synchronized (this) {
+                if (client == current) stopObserver();
+            }
+        }
+    }
+
+    @Override public synchronized void stopObserving(ISettingsObserver observer) {
+        if (client != null && observer != null && client.asBinder() == observer.asBinder()) stopObserver();
+    }
+
+    private void stopObserver() {
+        ISettingsObserver previous = client;
+        IBinder.DeathRecipient previousDeath = clientDeath;
+        client = null;
+        clientDeath = null;
+        if (previous != null && previousDeath != null) {
+            try { previous.asBinder().unlinkToDeath(previousDeath, 0); }
+            catch (RuntimeException ignored) {}
+        }
+        if (monitor != null) {
+            try { monitor.stop(); }
+            catch (RuntimeException e) { android.util.Log.w("FCMGuard", "Observer cleanup failed", e); }
+            monitor = null;
+        }
+        if (observerThread != null) observerThread.quitSafely();
+        observerThread = null;
+    }
 
     private static void validate(String key, int userId) {
         if (!PackageList.validKey(key) || userId < 0 || userId > 21474) {
@@ -36,7 +136,7 @@ public final class SettingsUserService extends ISettingsService.Stub {
     }
 
     private static String run(String... command) {
-        Process process = null;
+        java.lang.Process process = null;
         try {
             process = new ProcessBuilder(command).redirectErrorStream(true).start();
             final InputStream input = process.getInputStream();
@@ -80,5 +180,8 @@ public final class SettingsUserService extends ISettingsService.Stub {
         }
     }
 
-    @Override public void destroy() { System.exit(0); }
+    @Override public synchronized void destroy() {
+        stopObserver();
+        System.exit(0);
+    }
 }

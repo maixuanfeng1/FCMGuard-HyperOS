@@ -19,11 +19,9 @@
 
     <string name="protection_title">保護設定</string>
     <string name="automatic_protection">自動保護</string>
-    <string name="automatic_protection_summary">僅監聽 FCM 白名單這一項的變化，主要採用事件觸發；30 分鐘兜底檢查不會主動喚醒休眠中的手機。</string>
     <string name="actions_title">工具</string>
     <string name="advanced_title">進階設定</string>
 
-    <string name="helper_text">低功耗最佳化：不再每 30 秒輪詢，不再監聽無關系統設定，僅在真正修復白名單後才送出一次 FCM 重連請求。</string>
 
     <string name="status_protected">保護正常</string>
     <string name="status_ready">已就緒</string>
