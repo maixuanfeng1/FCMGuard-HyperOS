@@ -10,8 +10,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.content.pm.ServiceInfo;
 import android.os.IBinder;
 
@@ -20,143 +18,38 @@ public class GuardService extends Service {
     // an existing channel from IMPORTANCE_MIN to IMPORTANCE_LOW after creation.
     private static final String CHANNEL_ID = "fcm_guard_persistent_v2";
     private static final int NOTIFICATION_ID = 426;
-    private HandlerThread workerThread;
-    private Handler handler;
     private static volatile GuardService activeInstance;
-    private volatile boolean running;
-    private volatile boolean repairSucceeded;
-    private volatile boolean observerRegistered;
-    private volatile String protectionError;
-    private static final java.util.concurrent.CopyOnWriteArraySet<Runnable> STATE_LISTENERS =
-            new java.util.concurrent.CopyOnWriteArraySet<>();
-    private static final Handler MAIN = new Handler(android.os.Looper.getMainLooper());
-
-    public static void addStateListener(Runnable listener) { STATE_LISTENERS.add(listener); }
-    public static void removeStateListener(Runnable listener) { STATE_LISTENERS.remove(listener); }
-    private static void stateChanged() {
-        MAIN.post(() -> { for (Runnable listener : STATE_LISTENERS) listener.run(); });
-    }
-    private SettingsChangeMonitor monitor;
-    private String observedKey;
-    private final Runnable bridgeListener = () -> {
-        repairSucceeded = false;
-        observerRegistered = false;
-        protectionError = null;
-        stateChanged();
-        if (handler != null && !this.destroyed) {
-            handler.removeCallbacks(this.monitorAndRepair);
-            handler.post(this.monitorAndRepair);
-        }
-    };
-
-    public static boolean isProtecting() {
-        GuardService current = activeInstance;
-        return current != null && current.running && current.observerRegistered && current.repairSucceeded
-                && ShizukuBridge.isReady();
-    }
-
-    public static String protectionError() {
-        GuardService current = activeInstance;
-        return current == null ? null : current.protectionError;
-    }
     private volatile boolean foreground;
-    private volatile boolean destroyed;
+    private final Runnable stateListener = () -> refreshNotification(GuardRuntime.statusMessage(this));
 
-    private final Runnable monitorAndRepair = this::subscribeAndRepair;
-    private final Runnable repairDebounced = this::repair;
-    private void whitelistChanged() {
-        if (destroyed || handler == null) return;
-        // Debounce only after a real SettingsProvider event, never periodic polling.
-        handler.removeCallbacks(repairDebounced);
-        handler.postDelayed(repairDebounced, 400L);
+    public static boolean isRunning() {
+        GuardService current = activeInstance;
+        return current != null && current.foreground;
     }
+    public static boolean isProtecting() { return GuardRuntime.isProtecting(); }
+    public static String protectionError() { return GuardRuntime.protectionError(); }
+    public static void addStateListener(Runnable listener) { GuardRuntime.addStateListener(listener); }
+    public static void removeStateListener(Runnable listener) { GuardRuntime.removeStateListener(listener); }
 
     @Override public void onCreate() {
         super.onCreate();
-        workerThread = new HandlerThread("whitelist-guard");
-        workerThread.start();
-        handler = new Handler(workerThread.getLooper());
-        applyExecutionMode();
-        running = true;
         activeInstance = this;
-        ShizukuBridge.addListener(bridgeListener);
-        ShizukuBridge.connect();
+        applyExecutionMode();
+        GuardRuntime.addStateListener(stateListener);
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if ((intent != null && "com.reed.fcmguard.STOP".equals(intent.getAction()))
                 || !SettingsGuard.isProtectionEnabled(this)) {
-            SettingsGuard.setProtectionEnabled(this, false);
+            GuardController.stop(this);
+            return START_NOT_STICKY;
+        }
+        GuardRuntime.resume(this);
+        if (SettingsGuard.usesTileWakeup(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }
-        handler.removeCallbacks(monitorAndRepair);
-        handler.post(monitorAndRepair);
         return START_STICKY;
-    }
-
-    private void repair() {
-        if (destroyed || !SettingsGuard.isProtectionEnabled(this) || !observerRegistered
-                || !ShizukuBridge.isReady()) return;
-        SettingsGuard.Result result = SettingsGuard.repair(this);
-        if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
-        repairSucceeded = result.success;
-        protectionError = result.success ? null : result.message;
-        stateChanged();
-        if (result.changed) FcmReconnect.kick(this);
-        if (foreground) refreshNotification(result.success
-                ? getString(R.string.notification_observing) : result.message);
-    }
-
-    private void subscribeAndRepair() {
-        if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
-        String key = SettingsGuard.getConfiguredKey(this);
-        protectionError = null;
-        stateChanged();
-        if (!ShizukuBridge.isReady()) {
-            clearSubscription();
-            repairSucceeded = false;
-            stateChanged();
-            refreshNotification(getString(ShizukuBridge.statusText()));
-            return;
-        }
-        try {
-            if (!observerRegistered || !key.equals(observedKey)) {
-                clearSubscription();
-                // The foreground application is a valid Android process. Shizuku's
-                // shell UserService is not, and modern ContentService rejects its PID.
-                monitor = new SettingsChangeMonitor(getContentResolver(), handler);
-                monitor.start(key, android.os.Process.myUid() / 100000, this::whitelistChanged);
-                if (destroyed || !SettingsGuard.isProtectionEnabled(this)) {
-                    clearSubscription();
-                    return;
-                }
-                observedKey = key;
-                observerRegistered = true;
-            }
-            // Register first, then read/repair once. Subsequent work requires an event.
-            repair();
-        } catch (Exception e) {
-            clearSubscription();
-            repairSucceeded = false;
-            String reason = e.getMessage();
-            protectionError = getString(R.string.observer_failure_detail,
-                    reason == null ? e.getClass().getSimpleName() : reason);
-            stateChanged();
-            refreshNotification(protectionError);
-            android.util.Log.w("FCMGuard", "Whitelist observation unavailable", e);
-        }
-    }
-
-    private void clearSubscription() {
-        observerRegistered = false;
-        observedKey = null;
-        SettingsChangeMonitor previous = monitor;
-        monitor = null;
-        if (previous != null) {
-            try { previous.stop(); }
-            catch (RuntimeException e) { android.util.Log.w("FCMGuard", "Observer cleanup failed", e); }
-        }
     }
 
     private void applyExecutionMode() {
@@ -215,17 +108,12 @@ public class GuardService extends Service {
     }
 
     @Override public void onDestroy() {
-        destroyed = true;
-        running = false;
-        if (activeInstance == this) activeInstance = null;
-        repairSucceeded = false;
-        observerRegistered = false;
-        stateChanged();
-        ShizukuBridge.removeListener(bridgeListener);
-        handler.removeCallbacksAndMessages(null);
-        handler.post(this::clearSubscription);
-        workerThread.quitSafely();
+        GuardRuntime.removeStateListener(stateListener);
         foreground = false;
+        if (activeInstance == this) activeInstance = null;
+        if (!SettingsGuard.usesTileWakeup(this) || !SettingsGuard.isProtectionEnabled(this)) {
+            GuardRuntime.stop();
+        } else GuardRuntime.refreshState();
         stopForeground(true);
         super.onDestroy();
     }

@@ -6,6 +6,7 @@ import android.provider.Settings;
 public final class SettingsGuard {
     public static final String PREFS = "guard_state";
     public static final String PREF_ENABLED = "enabled";
+    private static final String PREF_TILE_WAKEUP = "tile_wakeup";
 
     private SettingsGuard() {}
 
@@ -27,6 +28,17 @@ public final class SettingsGuard {
     public static void setProtectionEnabled(Context context, boolean enabled) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit().putBoolean(PREF_ENABLED, enabled).apply();
+    }
+
+    /** Default requested by the user: no persistent notification, opportunistic wakeup. */
+    public static boolean usesTileWakeup(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(PREF_TILE_WAKEUP, true);
+    }
+
+    public static void setTileWakeup(Context context, boolean enabled) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(PREF_TILE_WAKEUP, enabled).apply();
     }
 
     public static void saveConfig(Context context, String key, String requiredItem) {

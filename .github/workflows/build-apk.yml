@@ -78,6 +78,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - run: adb start-server
       - uses: reactivecircus/android-emulator-runner@v2
+        env:
+          FCMGUARD_TEST_QUICK_SETTINGS: ${{ matrix.target != 'aosp_atd' }}
         with:
           api-level: ${{ matrix.api }}
           system-image-api-level: ${{ matrix.image-api || matrix.api }}
@@ -99,3 +101,4 @@ jobs:
             artifacts/screenshots/
             artifacts/emulator-crash.log
             artifacts/shell-settings.log
+            artifacts/quick-settings-smoke.log

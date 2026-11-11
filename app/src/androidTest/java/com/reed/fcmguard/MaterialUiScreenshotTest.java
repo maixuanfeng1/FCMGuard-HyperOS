@@ -70,6 +70,20 @@ public class MaterialUiScreenshotTest {
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-app-list-examples");
+            instrumentation.runOnMainSync(() -> {
+                androidx.core.widget.NestedScrollView scroll = activity.findViewById(R.id.scroll);
+                scroll.post(() -> scroll.scrollTo(0, activity.findViewById(R.id.keepAliveGroup).getTop()
+                        - (int) (48 * activity.getResources().getDisplayMetrics().density)));
+            });
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-keep-alive");
+            instrumentation.runOnMainSync(() -> activity.findViewById(R.id.tileHelpBtn).performClick());
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-tile-setup");
+            shell(instrumentation, "input keyevent KEYCODE_BACK");
+            instrumentation.waitForIdleSync();
         }
         instrumentation.runOnMainSync(activity::finish);
         instrumentation.waitForIdleSync();

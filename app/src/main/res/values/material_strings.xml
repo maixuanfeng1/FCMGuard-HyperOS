@@ -6,7 +6,7 @@
     <string name="event_protection_needs_authorization">Start Shizuku and allow access to enable automatic protection.</string>
     <string name="event_protection_needs_repair">The required app is missing from the whitelist. Repair it before turning on automatic protection.</string>
     <string name="event_protection_waiting">Waiting for the whitelist listener to connect.</string>
-    <string name="event_protection_off">The whitelist is ready. Turn on automatic protection to keep watching for changes.</string>
+    <string name="event_protection_off">The whitelist is ready. Enable protection with the selected keep-alive mode.</string>
     <string name="fcm_apps_direct_summary">Find apps that declare FCM or GCM receivers. Tap an app to open its own settings.</string>
     <string name="fcm_apps_direct_note">Autostart status may be unavailable on your ROM. You can still open each app and adjust its background, battery and notification settings.</string>
     <string name="fcm_apps_tap_to_configure">%1$d apps found · tap an app to configure</string>
@@ -22,4 +22,18 @@
     <string name="retry_protection">Retry protection</string>
     <string name="observer_failure_detail">Automatic protection is inactive. Listener registration failed: %1$s\nTap Retry protection. If it still fails, share this message and your Android / HyperOS version.</string>
     <string name="fcm_apps_counts">%1$d apps declare FCM/GCM components\n%2$d enabled · %3$d disabled\n%4$d partially enabled · %5$d unavailable\nDisabled apps appear first. Tap an app to configure.</string>
+    <string name="keep_alive_title">Keep-alive mode</string>
+    <string name="keep_alive_tile">Quick Settings wakeup · no persistent notification</string>
+    <string name="keep_alive_notification">Persistent notification · more reliable monitoring</string>
+    <string name="tile_mode_summary">No persistent notification or notification permission required. Add FCM Guard to a visible Quick Settings position. When Android binds the visible tile, it can resume the app. Monitoring may pause if the process is frozen or reclaimed; pull down Quick Settings, tap the tile, or open this app to resume. Continuous protection is not guaranteed.</string>
+    <string name="add_quick_settings_tile">Add Quick Settings tile</string>
+    <string name="tile_setup_title">Quick Settings wakeup setup</string>
+    <string name="tile_setup_steps">1. Pull down Quick Settings and enter Edit.\n\n2. Find FCM Guard and add it. Place it where it is visible when you pull down the panel.\n\n3. Enable automatic protection in this app. A visible tile gives Android an opportunity to resume monitoring; tap it or open the app if it does not resume.\n\nA lit tile means monitoring is currently running: tap to stop. An unlit tile starts or retries protection. If Shizuku needs attention, tapping opens this app. Long-press opens settings.\n\nThis mode has no persistent notification. Process freezing or reclamation can interrupt protection until the app resumes.</string>
+    <string name="tile_added">Tile added. Keep FCM Guard visible in Quick Settings.</string>
+    <string name="status_tile_listening">Listening · Quick Settings wakeup</string>
+    <string name="tile_protection_active">This process is listening for whitelist changes. Monitoring can pause if Android freezes or reclaims it; pull down Quick Settings, tap the tile or open this app to resume.</string>
+    <string name="tile_listening">Listening</string>
+    <string name="tile_off">Off</string>
+    <string name="tile_needs_shizuku">Shizuku required</string>
+    <string name="tile_tap_to_resume">Tap to resume</string>
 </resources>

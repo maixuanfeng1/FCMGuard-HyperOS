@@ -1,12 +1,15 @@
 package com.reed.fcmguard;
 
 import android.Manifest;
+import android.app.StatusBarManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -79,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
         loadConfigIntoFields();
         setupAppearance();
         setupActions();
+        setupKeepAlive();
         ShizukuBridge.addListener(bridgeListener);
         GuardService.addStateListener(serviceListener);
         setAdvancedExpanded(savedInstanceState != null && savedInstanceState.getBoolean("advanced_expanded"));
@@ -160,7 +164,7 @@ public class MainActivity extends AppCompatActivity {
             if (checked) performRepair(true);
             else {
                 SettingsGuard.setProtectionEnabled(this, false);
-                stopService(new Intent(this, GuardService.class));
+                GuardController.stop(this);
                 showMessage(getString(R.string.service_stopped));
                 refreshStatus(null);
             }
@@ -184,6 +188,8 @@ public class MainActivity extends AppCompatActivity {
         });
         findViewById(R.id.diagBtn).setOnClickListener(v -> openFcmDiagnostics());
         findViewById(R.id.notificationSettingsBtn).setOnClickListener(v -> openNotificationSettings());
+        findViewById(R.id.addTileBtn).setOnClickListener(v -> requestQuickSettingsTile());
+        findViewById(R.id.tileHelpBtn).setOnClickListener(v -> showTileSetup());
         scanFcmAppsBtn.setOnClickListener(v -> {
             if (scanInProgress) return;
             if (fcmListExpanded) {
@@ -200,6 +206,43 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
         advancedToggle.setIconResource(expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
         ViewCompat.setStateDescription(advancedToggle, getString(expanded ? R.string.expanded : R.string.collapsed));
+    }
+
+    private void setupKeepAlive() {
+        RadioGroup group = findViewById(R.id.keepAliveGroup);
+        group.check(SettingsGuard.usesTileWakeup(this) ? R.id.keepAliveTile : R.id.keepAliveNotification);
+        group.setOnCheckedChangeListener((view, id) -> {
+            boolean tile = id == R.id.keepAliveTile;
+            if (tile == SettingsGuard.usesTileWakeup(this)) return;
+            try {
+                GuardController.changeMode(this, tile);
+                if (!tile && SettingsGuard.isProtectionEnabled(this)) ensurePersistentNotificationAccess();
+            } catch (RuntimeException e) { showMessage(getString(R.string.service_start_failed)); }
+            refreshStatus(null);
+        });
+    }
+
+    private void showTileSetup() {
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.tile_setup_title)
+                .setMessage(R.string.tile_setup_steps)
+                .setPositiveButton(android.R.string.ok, null).show();
+    }
+
+    private void requestQuickSettingsTile() {
+        if (Build.VERSION.SDK_INT < 33) { showTileSetup(); return; }
+        StatusBarManager manager = getSystemService(StatusBarManager.class);
+        if (manager == null) { showTileSetup(); return; }
+        try {
+            manager.requestAddTileService(new ComponentName(this, GuardTileService.class),
+                    getString(R.string.app_name), Icon.createWithResource(this, R.drawable.ic_guard_tile),
+                    androidx.core.content.ContextCompat.getMainExecutor(this), result -> {
+                        if (isDestroyed()) return;
+                        if (result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED
+                                || result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED) {
+                            showMessage(getString(R.string.tile_added));
+                        } else showTileSetup();
+                    });
+        } catch (RuntimeException e) { showTileSetup(); }
     }
 
     private void loadConfigIntoFields() {
@@ -342,10 +385,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void startProtectionService() {
         try {
-            GuardService.ensureNotificationChannel(this);
-            Intent service = new Intent(this, GuardService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service);
-            else startService(service);
+            GuardController.start(this);
         } catch (RuntimeException e) {
             SettingsGuard.setProtectionEnabled(this, false);
             showMessage(getString(R.string.service_start_failed));
@@ -353,6 +393,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void ensurePersistentNotificationAccess() {
+        if (SettingsGuard.usesTileWakeup(this)) return;
         GuardService.ensureNotificationChannel(this);
         if (GuardService.canShowPersistentNotification(this)) return;
         if (Build.VERSION.SDK_INT >= 33
@@ -443,11 +484,12 @@ public class MainActivity extends AppCompatActivity {
         boolean enabled = SettingsGuard.isProtectionEnabled(this);
         boolean present = SettingsGuard.hasRequiredItem(this, current);
         boolean protecting = enabled && ready && present && GuardService.isProtecting();
+        boolean tile = SettingsGuard.usesTileWakeup(this);
         String failure = enabled ? GuardService.protectionError() : null;
         suppressSwitchCallbacks = true;
         protectionSwitch.setChecked(enabled);
         suppressSwitchCallbacks = false;
-        statusHeadline.setText(protecting ? R.string.status_protected
+        statusHeadline.setText(protecting ? (tile ? R.string.status_tile_listening : R.string.status_protected)
                 : enabled && ready && failure == null && present && !readFailed
                 ? R.string.status_connecting
                 : !enabled && ready && present && !readFailed ? R.string.status_ready : R.string.status_attention);
@@ -455,7 +497,7 @@ public class MainActivity extends AppCompatActivity {
                 ? androidx.appcompat.R.attr.colorError : protecting
                 ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOnSurface));
         statusText.setText(getString(ShizukuBridge.statusText()));
-        protectionDetail.setText(protecting ? R.string.event_protection_active
+        protectionDetail.setText(protecting ? (tile ? R.string.tile_protection_active : R.string.event_protection_active)
                 : !ready ? R.string.event_protection_needs_authorization
                 : readFailed ? R.string.read_failed
                 : !present ? R.string.event_protection_needs_repair
@@ -465,8 +507,14 @@ public class MainActivity extends AppCompatActivity {
                 ? getString(R.string.missing_current) : current.replace(",", "\n"));
         permissionBtn.setVisibility(!ready || failure != null ? View.VISIBLE : View.GONE);
         permissionBtn.setText(ready && failure != null ? R.string.retry_protection : R.string.authorize_shizuku);
+        ((RadioGroup) findViewById(R.id.keepAliveGroup)).check(tile ? R.id.keepAliveTile : R.id.keepAliveNotification);
+        ((TextView) findViewById(R.id.keepAliveSummary)).setText(tile
+                ? R.string.tile_mode_summary : R.string.event_notification_summary);
+        findViewById(R.id.addTileBtn).setVisibility(tile ? View.VISIBLE : View.GONE);
+        findViewById(R.id.tileHelpBtn).setVisibility(tile ? View.VISIBLE : View.GONE);
+        findViewById(R.id.notificationSettingsBtn).setVisibility(tile ? View.GONE : View.VISIBLE);
         findViewById(R.id.notificationWarning).setVisibility(
-                enabled && !GuardService.canShowPersistentNotification(this) ? View.VISIBLE : View.GONE);
+                !tile && enabled && !GuardService.canShowPersistentNotification(this) ? View.VISIBLE : View.GONE);
     }
 
     private void showMessage(String message) {

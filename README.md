@@ -19,6 +19,15 @@ A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGA
 
 Follow Shizuku's official startup instructions. Whether its service survives disabling debugging depends on the ROM. FCM heartbeat requests, diagnostics and app detection remain best-effort features.
 
+## Version 2.3
+
+- Defaults to **Quick Settings wakeup**, without a persistent notification or notification permission request. Add FCM Guard to a visible Quick Settings position using the Android 13+ Add tile prompt or the in-app manual instructions.
+- A non-active `TileService` gives Android an opportunity to start the app when the tile becomes visible, similar to [GKD's visible-tile callback](https://github.com/gkd-kit/gkd/blob/d07357d453cc1125f43b461dd4da3de7f5bf3520/gkd-app/src/androidMain/kotlin/li/gkd/app/service/BaseTileService.kt). No GKD implementation or accessibility service is bundled.
+- Monitoring runs in the application process. Android can freeze or reclaim it; protection may pause until the tile is bound, tapped, or the app is opened again. A tile is **not equivalent to a continuous foreground service** and does not guarantee restart after force-stop.
+- Tile state reflects actual observer/repair readiness. A lit tile stops protection; an unlit tile starts or retries it. Missing Shizuku opens the dashboard; long-press also opens the dashboard. The Android 14+ path uses `PendingIntent` as required by modern targets.
+- The more reliable persistent-notification strategy remains selectable. Switching to tile mode removes its foreground service and notification. Passive tile visibility never starts a foreground service from the background.
+- Device checks cover notification removal, mode selection and safe missing-Shizuku behavior. Full Android 15/16 images also run a real SystemUI tile recovery check after killing the app process; Android 17 ATD covers functional tests without rendering screenshots.
+
 ## Version 2.2
 
 - Moves settings observation into the foreground application process using the public ContentResolver API. Shizuku UserServices are not valid Android application processes; Android 17 rejects their observer registration with “Failed to find PID”. Privileged reads/writes remain in Shizuku, with no application Context needed there. See the [Shizuku UserService limitations](https://github.com/RikkaApps/Shizuku-API#user-service).
@@ -36,11 +45,11 @@ Follow Shizuku's official startup instructions. Whether its service survives dis
 
 ## Core behavior
 
-- Modern SDK, explicit `specialUse` foreground-service declaration, Android 13+ notification permission and display/keyboard inset handling.
+- Modern SDK, optional `specialUse` foreground-service strategy, notification permission only for that strategy, and display/keyboard inset handling.
 - Shizuku user service exposes validated settings operations, with argument-array commands, timeouts and bounded output; no arbitrary shell interface.
 - Preserves the current `Settings.System.MILLET_NO_RESTRICT_APP` list and appends only the configured package (default `com.google.android.gms`). Empty lists no longer invent unrelated entries or restore stale snapshots.
 - Verifies writes by reading the setting back. Missing settings, denied access and disconnected Shizuku are reported accurately.
-- Settings operations run off the UI thread. The foreground application observes the exact settings URI; Shizuku handles the privileged reads and repairs, with a 400ms debounce after event delivery. There are no periodic checks or scheduled wakeups. Observer registration and an initial repair must both succeed before protection is reported as active.
+- Settings operations run off the UI thread. The application process observes the exact settings URI; Shizuku handles the privileged reads and repairs, with a 400ms debounce after event delivery. There are no periodic checks or scheduled wakeups. Observer registration and an initial repair must both succeed before protection is reported as active. In tile mode, observation can pause while the process is frozen or reclaimed.
 - Retains theme controls and system language, responsive layouts and best-effort read-only Autostart status.
 - Real release builds, private signing and APK SHA-256 checksums replace debug APK publication.
 

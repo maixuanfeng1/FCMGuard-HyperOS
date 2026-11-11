@@ -7,5 +7,6 @@ public final class GuardApplication extends Application {
         super.onCreate();
         LocaleHelper.followSystem(this);
         ShizukuBridge.initialize(this);
+        GuardController.restoreApplication(this);
     }
 }

@@ -48,5 +48,9 @@ Use a clean Android 15 / Android 16 emulator or Android 17 ATD for the automated
 6. Tapping each detected app row opens the corresponding app settings, including when Autostart is unknown.
 7. Stop action, app restart, reboot, language/theme changes, landscape cutouts and background/battery policy behave as described.
 8. Disabled Autostart apps appear first in red with explicit text, enabled apps last, and summary counts match the list. Partial/unavailable states are distinct. Returning from app settings updates counts and sorting.
+9. Quick Settings wakeup is the default: no foreground service or persistent notification, no notification-permission prompt. Add the tile, position it where visible, and test pulling down the panel after process reclamation. Tapping an active tile stops protection; missing Shizuku opens the dashboard. Force-stop and OEM tile-binding policies may require reopening the app.
+10. Switching to persistent notification starts the foreground service; switching back removes it and its notification. Passive tile visibility must not start a foreground service in notification mode.
+
+On full Android 15/16 CI images, `tools/check_quick_settings.py` installs a disposable debug APK after instrumentation, seeds enabled protection, adds the tile through the shell, kills the app process with debug `run-as` (not force-stop), and verifies SystemUI invokes the tile in a new process with no foreground service or persistent notification. The check removes its tile and installation afterward.
 
 The emulator checks cannot establish Xiaomi private API compatibility or push reliability.
