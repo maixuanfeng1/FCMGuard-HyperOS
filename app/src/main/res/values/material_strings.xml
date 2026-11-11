@@ -18,4 +18,8 @@
     <string name="collapsed">Collapsed</string>
     <string name="observer_unavailable">The whitelist listener could not be registered. Automatic protection is inactive. Reconnect Shizuku and try again.</string>
     <string name="notification_observing">Protection active · listening for whitelist changes</string>
+    <string name="status_connecting">Connecting protection</string>
+    <string name="retry_protection">Retry protection</string>
+    <string name="observer_failure_detail">Automatic protection is inactive. Listener registration failed: %1$s\nTap Retry protection. If it still fails, share this message and your Android / HyperOS version.</string>
+    <string name="fcm_apps_counts">%1$d apps declare FCM/GCM components\n%2$d enabled · %3$d disabled\n%4$d partially enabled · %5$d unavailable\nDisabled apps appear first. Tap an app to configure.</string>
 </resources>

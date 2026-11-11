@@ -19,6 +19,13 @@ A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGA
 
 Follow Shizuku's official startup instructions. Whether its service survives disabling debugging depends on the ROM. FCM heartbeat requests, diagnostics and app detection remain best-effort features.
 
+## Version 2.2
+
+- Fixes listener registration in Shizuku's shell/root UserService. These are not Android application processes; the observer now uses the system ContentService Binder directly rather than an unsupported Context ContentResolver. See the [Shizuku UserService limitations](https://github.com/RikkaApps/Shizuku-API#user-service).
+- The dashboard reports connecting, active or failed protection consistently with the notification. Registration errors include their diagnostic message and a Retry protection button; a connected Shizuku alone is never reported as active protection.
+- FCM/GCM results show counts for enabled, disabled, partially enabled and unavailable Autostart states. Disabled apps appear first with Material error colors and explicit text, followed by partial/unavailable states and enabled apps. Returning from app settings refreshes the snapshot.
+- CI adds a bare `adb app_process` test under shell UID 2000 for real SettingsProvider events and unsubscribe behavior, alongside the application-process tests. Example list fixtures verify order/counts/colors in both themes.
+
 ## Version 2.1
 
 - Official [Material Components for Android](https://github.com/material-components/material-components-android) 1.14.0 with Material 3 themes, dynamic colors, standard switches/buttons/text fields and a simpler settings-style hierarchy. The existing Java/Views app uses the official Views library; this is not a full Compose migration.

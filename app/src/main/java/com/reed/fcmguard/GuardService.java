@@ -26,6 +26,7 @@ public class GuardService extends Service {
     private volatile boolean running;
     private volatile boolean repairSucceeded;
     private volatile boolean observerRegistered;
+    private volatile String protectionError;
     private static final java.util.concurrent.CopyOnWriteArraySet<Runnable> STATE_LISTENERS =
             new java.util.concurrent.CopyOnWriteArraySet<>();
     private static final Handler MAIN = new Handler(android.os.Looper.getMainLooper());
@@ -40,6 +41,7 @@ public class GuardService extends Service {
     private final Runnable bridgeListener = () -> {
         repairSucceeded = false;
         observerRegistered = false;
+        protectionError = null;
         stateChanged();
         if (handler != null && !this.destroyed) {
             handler.removeCallbacks(this.monitorAndRepair);
@@ -51,6 +53,11 @@ public class GuardService extends Service {
         GuardService current = activeInstance;
         return current != null && current.running && current.observerRegistered && current.repairSucceeded
                 && ShizukuBridge.isCurrentService(current.subscription);
+    }
+
+    public static String protectionError() {
+        GuardService current = activeInstance;
+        return current == null ? null : current.protectionError;
     }
     private volatile boolean foreground;
     private volatile boolean destroyed;
@@ -96,6 +103,7 @@ public class GuardService extends Service {
         SettingsGuard.Result result = SettingsGuard.repair(this);
         if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
         repairSucceeded = result.success;
+        protectionError = result.success ? null : result.message;
         stateChanged();
         if (result.changed) FcmReconnect.kick(this);
         if (foreground) refreshNotification(result.success
@@ -105,6 +113,8 @@ public class GuardService extends Service {
     private void subscribeAndRepair() {
         if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
         String key = SettingsGuard.getConfiguredKey(this);
+        protectionError = null;
+        stateChanged();
         if (!ShizukuBridge.isReady()) {
             clearSubscription();
             repairSucceeded = false;
@@ -130,8 +140,11 @@ public class GuardService extends Service {
         } catch (Exception e) {
             clearSubscription();
             repairSucceeded = false;
+            String reason = e.getMessage();
+            protectionError = getString(R.string.observer_failure_detail,
+                    reason == null ? e.getClass().getSimpleName() : reason);
             stateChanged();
-            refreshNotification(getString(R.string.observer_unavailable));
+            refreshNotification(protectionError);
             android.util.Log.w("FCMGuard", "Whitelist observation unavailable", e);
         }
     }

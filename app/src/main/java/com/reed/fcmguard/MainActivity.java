@@ -165,7 +165,11 @@ public class MainActivity extends AppCompatActivity {
                 refreshStatus(null);
             }
         });
-        permissionBtn.setOnClickListener(v -> authorizeShizuku());
+        permissionBtn.setOnClickListener(v -> {
+            if (ShizukuBridge.isReady() && SettingsGuard.isProtectionEnabled(this)) {
+                startProtectionService();
+            } else authorizeShizuku();
+        });
         findViewById(R.id.repairBtn).setOnClickListener(v -> performRepair(false));
         findViewById(R.id.saveBtn).setOnClickListener(v -> {
             SettingsGuard.saveConfig(this, keyEdit.getText().toString(), itemEdit.getText().toString());
@@ -285,7 +289,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void renderAppRows(List<FcmAppScanner.AppEntry> apps, List<AutostartStatusReader.Status> statuses) {
+    void renderAppRows(List<FcmAppScanner.AppEntry> apps, List<AutostartStatusReader.Status> statuses) {
         fcmAppsContainer.removeAllViews();
         if (apps.isEmpty()) {
             fcmAppsContainer.setVisibility(View.GONE);
@@ -294,16 +298,29 @@ public class MainActivity extends AppCompatActivity {
         }
         // A ROM may hide every autostart state. The app-specific settings links still work.
         fcmAppsContainer.setVisibility(View.VISIBLE);
-        fcmAppsStatusText.setText(getString(R.string.fcm_apps_tap_to_configure, apps.size()));
+        FcmAppList list = new FcmAppList(apps, statuses);
+        fcmAppsStatusText.setText(getString(R.string.fcm_apps_counts, list.rows.size(),
+                list.enabled, list.disabled, list.partial, list.unknown));
         LayoutInflater inflater = LayoutInflater.from(this);
-        for (int i = 0; i < apps.size(); i++) {
-            FcmAppScanner.AppEntry app = apps.get(i);
-            AutostartStatusReader.Status state = statuses.get(i);
+        for (FcmAppList.Row entry : list.rows) {
+            FcmAppScanner.AppEntry app = entry.app;
+            AutostartStatusReader.Status state = entry.status;
             View row = inflater.inflate(R.layout.item_fcm_app, fcmAppsContainer, false);
             ((TextView) row.findViewById(R.id.appLabel)).setText(app.label);
             ((TextView) row.findViewById(R.id.appPackage)).setText(app.packageName);
-            ((TextView) row.findViewById(R.id.appAutostartState)).setText(getString(
+            TextView stateView = row.findViewById(R.id.appAutostartState);
+            stateView.setText(getString(
                     R.string.app_autostart_status, getString(autostartStatusText(state))));
+            int color = MaterialColors.getColor(row, state == AutostartStatusReader.Status.DISABLED
+                    ? androidx.appcompat.R.attr.colorError
+                    : state == AutostartStatusReader.Status.ENABLED
+                    ? androidx.appcompat.R.attr.colorPrimary
+                    : com.google.android.material.R.attr.colorOnSurfaceVariant);
+            stateView.setTextColor(color);
+            if (state == AutostartStatusReader.Status.DISABLED) {
+                ((TextView) row.findViewById(R.id.appLabel)).setTextColor(color);
+                stateView.setTypeface(stateView.getTypeface(), android.graphics.Typeface.BOLD);
+            }
             row.setContentDescription(getString(R.string.open_app_settings_for, app.label)
                     + ", " + app.packageName + ", " + getString(R.string.app_autostart_status,
                     getString(autostartStatusText(state))));
@@ -426,12 +443,16 @@ public class MainActivity extends AppCompatActivity {
         boolean enabled = SettingsGuard.isProtectionEnabled(this);
         boolean present = SettingsGuard.hasRequiredItem(this, current);
         boolean protecting = enabled && ready && present && GuardService.isProtecting();
+        String failure = enabled ? GuardService.protectionError() : null;
         suppressSwitchCallbacks = true;
         protectionSwitch.setChecked(enabled);
         suppressSwitchCallbacks = false;
         statusHeadline.setText(protecting ? R.string.status_protected
-                : ready && present ? R.string.status_ready : R.string.status_attention);
-        statusHeadline.setTextColor(MaterialColors.getColor(statusHeadline, protecting
+                : enabled && ready && failure == null && present && !readFailed
+                ? R.string.status_connecting
+                : !enabled && ready && present && !readFailed ? R.string.status_ready : R.string.status_attention);
+        statusHeadline.setTextColor(MaterialColors.getColor(statusHeadline, failure != null
+                ? androidx.appcompat.R.attr.colorError : protecting
                 ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOnSurface));
         statusText.setText(getString(ShizukuBridge.statusText()));
         protectionDetail.setText(protecting ? R.string.event_protection_active
@@ -439,9 +460,11 @@ public class MainActivity extends AppCompatActivity {
                 : readFailed ? R.string.read_failed
                 : !present ? R.string.event_protection_needs_repair
                 : enabled ? R.string.event_protection_waiting : R.string.event_protection_off);
+        if (failure != null) protectionDetail.setText(failure);
         currentValueText.setText(current == null || current.trim().isEmpty()
                 ? getString(R.string.missing_current) : current.replace(",", "\n"));
-        permissionBtn.setVisibility(ready ? View.GONE : View.VISIBLE);
+        permissionBtn.setVisibility(!ready || failure != null ? View.VISIBLE : View.GONE);
+        permissionBtn.setText(ready && failure != null ? R.string.retry_protection : R.string.authorize_shizuku);
         findViewById(R.id.notificationWarning).setVisibility(
                 enabled && !GuardService.canShowPersistentNotification(this) ? View.VISIBLE : View.GONE);
     }

@@ -21,42 +21,16 @@ public final class SettingsUserService extends ISettingsService.Stub {
     private ISettingsObserver client;
     private IBinder.DeathRecipient clientDeath;
 
-    /** Shizuku 13 supplies an initialized application context for this user. */
+    /** Supplied by Shizuku; only ordinary application tests use its resolver. */
     public SettingsUserService(Context context) { this.context = context; }
 
-    /** Compatibility with older Shizuku launchers; resolve a context only if needed. */
+    /** Also works in a bare shell app_process with no application context. */
     public SettingsUserService() { this.context = null; }
-
-    private Context observerContext() {
-        try {
-            Context base = context;
-            if (base == null) {
-                Class<?> activityThread = Class.forName("android.app.ActivityThread");
-                Object thread = activityThread.getMethod("currentActivityThread").invoke(null);
-                if (thread == null) thread = activityThread.getMethod("systemMain").invoke(null);
-                base = (Context) activityThread.getMethod("getSystemContext").invoke(thread);
-            }
-            // Match ContentResolver attribution to the helper's real identity.
-            if (Process.myUid() == Process.SHELL_UID || Process.myUid() == 0) {
-                return base.createPackageContext("com.android.shell", 0);
-            }
-            return base;
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot create settings observer context", e);
-        }
-    }
 
     @Override public synchronized boolean observe(String key, int userId, ISettingsObserver observer) {
         validate(key, userId);
         if (observer == null) throw new IllegalArgumentException("Observer is required");
         stopObserver();
-        if (monitor == null) {
-            android.content.ContentResolver resolver = observerContext().getContentResolver();
-            observerThread = new HandlerThread("settings-provider-events");
-            observerThread.start();
-            monitor = new SettingsChangeMonitor(resolver,
-                    new Handler(observerThread.getLooper()));
-        }
         IBinder binder = observer.asBinder();
         IBinder.DeathRecipient death = () -> {
             synchronized (SettingsUserService.this) {
@@ -64,6 +38,12 @@ public final class SettingsUserService extends ISettingsService.Stub {
             }
         };
         try {
+            observerThread = new HandlerThread("settings-provider-events");
+            observerThread.start();
+            Handler handler = new Handler(observerThread.getLooper());
+            monitor = Process.myUid() == Process.SHELL_UID || Process.myUid() == 0
+                    ? new SettingsChangeMonitor(handler)
+                    : new SettingsChangeMonitor(context.getContentResolver(), handler);
             binder.linkToDeath(death, 0);
             client = observer;
             clientDeath = death;
@@ -71,7 +51,8 @@ public final class SettingsUserService extends ISettingsService.Stub {
             return true;
         } catch (RemoteException | RuntimeException e) {
             stopObserver();
-            throw new IllegalStateException("Cannot observe whitelist", e);
+            // Binder does not preserve nested causes; include the diagnostic in its message.
+            throw new IllegalStateException("Cannot observe whitelist: " + e.getMessage(), e);
         }
     }
 

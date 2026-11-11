@@ -61,6 +61,15 @@ public class MaterialUiScreenshotTest {
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-advanced");
+            instrumentation.runOnMainSync(() -> {
+                FcmAppListUiTest.showExamples(activity);
+                androidx.core.widget.NestedScrollView scroll = activity.findViewById(R.id.scroll);
+                scroll.post(() -> scroll.scrollTo(0,
+                        activity.findViewById(R.id.fcmAppsStatusText).getTop()));
+            });
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-app-list-examples");
         }
         instrumentation.runOnMainSync(activity::finish);
         instrumentation.waitForIdleSync();

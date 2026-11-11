@@ -18,4 +18,8 @@
     <string name="collapsed">已收起</string>
     <string name="observer_unavailable">无法注册白名单监听，自动保护未运行。请重新连接 Shizuku 后重试。</string>
     <string name="notification_observing">自动保护中 · 监听白名单变化</string>
+    <string name="status_connecting">正在连接保护</string>
+    <string name="retry_protection">重试保护</string>
+    <string name="observer_failure_detail">自动保护未运行，监听注册失败：%1$s\n请点击“重试保护”。若仍失败，请提供此错误信息及 Android / HyperOS 版本。</string>
+    <string name="fcm_apps_counts">共扫描到 %1$d 个声明 FCM/GCM 接收组件的应用\n已开启 %2$d 个 · 未开启 %3$d 个\n部分开启 %4$d 个 · 无法读取 %5$d 个\n未开启的应用优先展示，点击应用即可设置。</string>
 </resources>

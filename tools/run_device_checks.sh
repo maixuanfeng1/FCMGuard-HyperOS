@@ -25,6 +25,15 @@ if [ "$ready" -lt 3 ]; then
   exit 1
 fi
 adb shell df -h /data
+./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+# Instrumentation has an application Context; Shizuku's actual shell process does
+# not. Exercise the production path independently, as the same UID used by ADB.
+adb push app/build/outputs/apk/debug/app-debug.apk /data/local/tmp/fcmguard-app.apk
+adb push app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk /data/local/tmp/fcmguard-test.apk
+adb shell chmod 444 /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
+adb shell 'CLASSPATH=/data/local/tmp/fcmguard-app.apk:/data/local/tmp/fcmguard-test.apk app_process /system/bin com.reed.fcmguard.ShellObserverProbe' | tee artifacts/shell-observer.log
+rg -q 'SHELL_OBSERVER_OK uid=2000' artifacts/shell-observer.log
+adb shell rm /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true --stacktrace
 
 # AGP's new test engine can finish its Gradle task even after APK installation
@@ -40,7 +49,7 @@ for report in reports:
     tests += int(root.get('tests', '0'))
     for attribute in ('failures', 'errors', 'skipped'):
         assert int(root.get(attribute, '0')) == 0, f'{report}: {attribute}={root.get(attribute)}'
-assert tests >= 11, f'Expected the full device suite; only {tests} tests ran'
+assert tests >= 12, f'Expected the full device suite; only {tests} tests ran'
 print(f'Verified {tests} device tests passed')
 PY
 adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/
