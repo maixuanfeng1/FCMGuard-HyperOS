@@ -36,7 +36,7 @@ public class GuardService extends Service {
     private static void stateChanged() {
         MAIN.post(() -> { for (Runnable listener : STATE_LISTENERS) listener.run(); });
     }
-    private volatile ISettingsService subscription;
+    private SettingsChangeMonitor monitor;
     private String observedKey;
     private final Runnable bridgeListener = () -> {
         repairSucceeded = false;
@@ -52,7 +52,7 @@ public class GuardService extends Service {
     public static boolean isProtecting() {
         GuardService current = activeInstance;
         return current != null && current.running && current.observerRegistered && current.repairSucceeded
-                && ShizukuBridge.isCurrentService(current.subscription);
+                && ShizukuBridge.isReady();
     }
 
     public static String protectionError() {
@@ -64,14 +64,12 @@ public class GuardService extends Service {
 
     private final Runnable monitorAndRepair = this::subscribeAndRepair;
     private final Runnable repairDebounced = this::repair;
-    private final ISettingsObserver settingsObserver = new ISettingsObserver.Stub() {
-        @Override public void onSettingChanged() {
-            if (destroyed || handler == null) return;
-            // This delay is only a debounce after a real provider event, never polling.
-            handler.removeCallbacks(repairDebounced);
-            handler.postDelayed(repairDebounced, 400L);
-        }
-    };
+    private void whitelistChanged() {
+        if (destroyed || handler == null) return;
+        // Debounce only after a real SettingsProvider event, never periodic polling.
+        handler.removeCallbacks(repairDebounced);
+        handler.postDelayed(repairDebounced, 400L);
+    }
 
     @Override public void onCreate() {
         super.onCreate();
@@ -99,7 +97,7 @@ public class GuardService extends Service {
 
     private void repair() {
         if (destroyed || !SettingsGuard.isProtectionEnabled(this) || !observerRegistered
-                || !ShizukuBridge.isCurrentService(subscription)) return;
+                || !ShizukuBridge.isReady()) return;
         SettingsGuard.Result result = SettingsGuard.repair(this);
         if (destroyed || !SettingsGuard.isProtectionEnabled(this)) return;
         repairSucceeded = result.success;
@@ -123,15 +121,16 @@ public class GuardService extends Service {
             return;
         }
         try {
-            if (!observerRegistered || !key.equals(observedKey)
-                    || !ShizukuBridge.isCurrentService(subscription)) {
+            if (!observerRegistered || !key.equals(observedKey)) {
                 clearSubscription();
-                ISettingsService next = ShizukuBridge.observe(key, settingsObserver);
+                // The foreground application is a valid Android process. Shizuku's
+                // shell UserService is not, and modern ContentService rejects its PID.
+                monitor = new SettingsChangeMonitor(getContentResolver(), handler);
+                monitor.start(key, android.os.Process.myUid() / 100000, this::whitelistChanged);
                 if (destroyed || !SettingsGuard.isProtectionEnabled(this)) {
-                    ShizukuBridge.stopObserving(next, settingsObserver);
+                    clearSubscription();
                     return;
                 }
-                subscription = next;
                 observedKey = key;
                 observerRegistered = true;
             }
@@ -152,9 +151,12 @@ public class GuardService extends Service {
     private void clearSubscription() {
         observerRegistered = false;
         observedKey = null;
-        ISettingsService old = subscription;
-        subscription = null;
-        ShizukuBridge.stopObserving(old, settingsObserver);
+        SettingsChangeMonitor previous = monitor;
+        monitor = null;
+        if (previous != null) {
+            try { previous.stop(); }
+            catch (RuntimeException e) { android.util.Log.w("FCMGuard", "Observer cleanup failed", e); }
+        }
     }
 
     private void applyExecutionMode() {

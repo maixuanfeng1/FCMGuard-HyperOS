@@ -21,16 +21,16 @@ Follow Shizuku's official startup instructions. Whether its service survives dis
 
 ## Version 2.2
 
-- Fixes listener registration in Shizuku's shell/root UserService. These are not Android application processes; the observer now uses the system ContentService Binder directly rather than an unsupported Context ContentResolver. See the [Shizuku UserService limitations](https://github.com/RikkaApps/Shizuku-API#user-service).
+- Moves settings observation into the foreground application process using the public ContentResolver API. Shizuku UserServices are not valid Android application processes; Android 17 rejects their observer registration with “Failed to find PID”. Privileged reads/writes remain in Shizuku, with no application Context needed there. See the [Shizuku UserService limitations](https://github.com/RikkaApps/Shizuku-API#user-service).
 - The dashboard reports connecting, active or failed protection consistently with the notification. Registration errors include their diagnostic message and a Retry protection button; a connected Shizuku alone is never reported as active protection.
 - FCM/GCM results show counts for enabled, disabled, partially enabled and unavailable Autostart states. Disabled apps appear first with Material error colors and explicit text, followed by partial/unavailable states and enabled apps. Returning from app settings refreshes the snapshot.
-- CI adds a bare `adb app_process` test under shell UID 2000 for real SettingsProvider events and unsubscribe behavior, alongside the application-process tests. Example list fixtures verify order/counts/colors in both themes.
+- CI verifies actual SettingsProvider events, unrelated-key isolation and unsubscription in the foreground application identity. A separate bare `adb app_process` probe under shell UID 2000 tests the privileged read/write helper without an application Context. Example list fixtures verify order/counts/colors in both themes.
 
 ## Version 2.1
 
 - Official [Material Components for Android](https://github.com/material-components/material-components-android) 1.14.0 with Material 3 themes, dynamic colors, standard switches/buttons/text fields and a simpler settings-style hierarchy. The existing Java/Views app uses the official Views library; this is not a full Compose migration.
 - Language follows Android automatically; the in-app language selector is removed and existing language overrides are cleared on upgrade.
-- Entirely event-driven protection through a privileged settings observer; the previous 30-minute fallback has been removed. Repairs run on enable, configuration/reconnection and whitelist change events.
+- Entirely event-driven protection through a settings observer; the previous 30-minute fallback has been removed. Repairs run on enable, configuration/reconnection and whitelist change events.
 - A silent foreground-service notification remains for process reliability and includes Stop protection. Android requires foreground-service visibility; silently hiding that notification would not make monitoring more reliable.
 - Every detected FCM/GCM app remains visible, including when its Autostart status is unknown. Tap its row to open its own settings page, using Xiaomi's app-specific route when available and the standard Android app-details page otherwise. The app does not promise that every ROM exposes a direct per-app Autostart toggle.
 
@@ -40,7 +40,7 @@ Follow Shizuku's official startup instructions. Whether its service survives dis
 - Shizuku user service exposes validated settings operations, with argument-array commands, timeouts and bounded output; no arbitrary shell interface.
 - Preserves the current `Settings.System.MILLET_NO_RESTRICT_APP` list and appends only the configured package (default `com.google.android.gms`). Empty lists no longer invent unrelated entries or restore stale snapshots.
 - Verifies writes by reading the setting back. Missing settings, denied access and disconnected Shizuku are reported accurately.
-- Settings operations run off the UI thread. The Shizuku process observes the exact settings URI and sends change callbacks to the guard, with a 400ms debounce after event delivery. There are no periodic checks or scheduled wakeups. Observer registration and an initial repair must both succeed before protection is reported as active.
+- Settings operations run off the UI thread. The foreground application observes the exact settings URI; Shizuku handles the privileged reads and repairs, with a 400ms debounce after event delivery. There are no periodic checks or scheduled wakeups. Observer registration and an initial repair must both succeed before protection is reported as active.
 - Retains theme controls and system language, responsive layouts and best-effort read-only Autostart status.
 - Real release builds, private signing and APK SHA-256 checksums replace debug APK publication.
 

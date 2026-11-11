@@ -98,4 +98,4 @@ jobs:
             app/build/outputs/androidTest-results/
             artifacts/screenshots/
             artifacts/emulator-crash.log
-            artifacts/shell-observer.log
+            artifacts/shell-settings.log

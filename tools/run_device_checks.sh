@@ -26,13 +26,13 @@ if [ "$ready" -lt 3 ]; then
 fi
 adb shell df -h /data
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
-# Instrumentation has an application Context; Shizuku's actual shell process does
-# not. Exercise the production path independently, as the same UID used by ADB.
+# Read/write operations run in Shizuku's shell process without an application
+# Context. Observation is tested separately in the foreground application's UID.
 adb push app/build/outputs/apk/debug/app-debug.apk /data/local/tmp/fcmguard-app.apk
 adb push app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk /data/local/tmp/fcmguard-test.apk
 adb shell chmod 444 /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
-adb shell 'CLASSPATH=/data/local/tmp/fcmguard-app.apk:/data/local/tmp/fcmguard-test.apk app_process /system/bin com.reed.fcmguard.ShellObserverProbe' | tee artifacts/shell-observer.log
-rg -q 'SHELL_OBSERVER_OK uid=2000' artifacts/shell-observer.log
+adb shell 'CLASSPATH=/data/local/tmp/fcmguard-app.apk:/data/local/tmp/fcmguard-test.apk app_process /system/bin com.reed.fcmguard.ShellSettingsProbe' | tee artifacts/shell-settings.log
+rg -q 'SHELL_SETTINGS_OK uid=2000' artifacts/shell-settings.log
 adb shell rm /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true --stacktrace
 

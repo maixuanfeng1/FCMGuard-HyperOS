@@ -141,25 +141,4 @@ public final class ShizukuBridge {
         return current.write(key, value, Process.myUid() / 100000);
     }
 
-    /** Subscribe before the initial read/repair so a concurrent settings change is not missed. */
-    public static ISettingsService observe(String key, ISettingsObserver observer) throws RemoteException {
-        ISettingsService current = service;
-        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
-        if (!current.observe(key, Process.myUid() / 100000, observer)) {
-            throw new IllegalStateException("Whitelist observer rejected");
-        }
-        return current;
-    }
-
-    public static boolean isCurrentService(ISettingsService subscription) {
-        ISettingsService current = service;
-        return isReady() && subscription != null && current != null
-                && subscription.asBinder() == current.asBinder();
-    }
-
-    public static void stopObserving(ISettingsService subscription, ISettingsObserver observer) {
-        if (subscription == null) return;
-        try { subscription.stopObserving(observer); }
-        catch (RemoteException | RuntimeException ignored) {}
-    }
 }

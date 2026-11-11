@@ -2,11 +2,6 @@ package com.reed.fcmguard;
 
 import android.os.SystemClock;
 import android.content.Context;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.IBinder;
-import android.os.Process;
-import android.os.RemoteException;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -15,82 +10,8 @@ import java.util.concurrent.TimeUnit;
 
 /** Runs as Shizuku's shell/root identity. No caller-provided shell program is run. */
 public final class SettingsUserService extends ISettingsService.Stub {
-    private final Context context;
-    private HandlerThread observerThread;
-    private SettingsChangeMonitor monitor;
-    private ISettingsObserver client;
-    private IBinder.DeathRecipient clientDeath;
-
-    /** Supplied by Shizuku; only ordinary application tests use its resolver. */
-    public SettingsUserService(Context context) { this.context = context; }
-
-    /** Also works in a bare shell app_process with no application context. */
-    public SettingsUserService() { this.context = null; }
-
-    @Override public synchronized boolean observe(String key, int userId, ISettingsObserver observer) {
-        validate(key, userId);
-        if (observer == null) throw new IllegalArgumentException("Observer is required");
-        stopObserver();
-        IBinder binder = observer.asBinder();
-        IBinder.DeathRecipient death = () -> {
-            synchronized (SettingsUserService.this) {
-                if (client != null && client.asBinder() == binder) stopObserver();
-            }
-        };
-        try {
-            observerThread = new HandlerThread("settings-provider-events");
-            observerThread.start();
-            Handler handler = new Handler(observerThread.getLooper());
-            monitor = Process.myUid() == Process.SHELL_UID || Process.myUid() == 0
-                    ? new SettingsChangeMonitor(handler)
-                    : new SettingsChangeMonitor(context.getContentResolver(), handler);
-            binder.linkToDeath(death, 0);
-            client = observer;
-            clientDeath = death;
-            monitor.start(key, userId, () -> deliverChange(binder));
-            return true;
-        } catch (RemoteException | RuntimeException e) {
-            stopObserver();
-            // Binder does not preserve nested causes; include the diagnostic in its message.
-            throw new IllegalStateException("Cannot observe whitelist: " + e.getMessage(), e);
-        }
-    }
-
-    private void deliverChange(IBinder expectedClient) {
-        ISettingsObserver current;
-        synchronized (this) {
-            current = client;
-            if (current == null || current.asBinder() != expectedClient) return;
-        }
-        try { current.onSettingChanged(); }
-        catch (RemoteException e) {
-            synchronized (this) {
-                if (client == current) stopObserver();
-            }
-        }
-    }
-
-    @Override public synchronized void stopObserving(ISettingsObserver observer) {
-        if (client != null && observer != null && client.asBinder() == observer.asBinder()) stopObserver();
-    }
-
-    private void stopObserver() {
-        ISettingsObserver previous = client;
-        IBinder.DeathRecipient previousDeath = clientDeath;
-        client = null;
-        clientDeath = null;
-        if (previous != null && previousDeath != null) {
-            try { previous.asBinder().unlinkToDeath(previousDeath, 0); }
-            catch (RuntimeException ignored) {}
-        }
-        if (monitor != null) {
-            try { monitor.stop(); }
-            catch (RuntimeException e) { android.util.Log.w("FCMGuard", "Observer cleanup failed", e); }
-            monitor = null;
-        }
-        if (observerThread != null) observerThread.quitSafely();
-        observerThread = null;
-    }
+    public SettingsUserService(Context context) { }
+    public SettingsUserService() { }
 
     private static void validate(String key, int userId) {
         if (!PackageList.validKey(key) || userId < 0 || userId > 21474) {
@@ -162,7 +83,6 @@ public final class SettingsUserService extends ISettingsService.Stub {
     }
 
     @Override public synchronized void destroy() {
-        stopObserver();
         System.exit(0);
     }
 }
