@@ -1,0 +1,49 @@
+name: Publish verified v2.1.0 APK
+
+on:
+  push:
+    branches: [release/v2.1.0-assets]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '16111833'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'build-tools;37.0.0'
+      - name: Verify exact signed release artifact
+        working-directory: release-assets/v2.1.0
+        run: |
+          cp FCMGuard-HyperOS.apk FCMGuard-HyperOS-v2.1.0.apk
+          sha256sum --check SHA256SUMS.txt
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs FCMGuard-HyperOS.apk | tee certificate.txt
+          grep -F 'c61a0648bfc46534632dc1bc03f1a3379d4ea133c3d5236ac4e31dd92b5b1836' certificate.txt
+          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging FCMGuard-HyperOS.apk > package.txt
+          grep -F "versionName='2.1.0'" package.txt
+          unzip -p FCMGuard-HyperOS.apk META-INF/version-control-info.textproto | grep -F 996a62d7343112579506604bbadf825f06291c05
+          grep -F "targetSdkVersion:'37'" package.txt
+          if grep -q 'application-debuggable' package.txt; then
+            echo 'Refusing to publish a debuggable APK' >&2
+            exit 1
+          fi
+      - name: Publish signed APKs and checksums
+        working-directory: release-assets/v2.1.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v2.1.0 FCMGuard-HyperOS.apk FCMGuard-HyperOS-v2.1.0.apk SHA256SUMS.txt UI-light.png UI-dark.png \
+            --target 996a62d7343112579506604bbadf825f06291c05 \
+            --title 'FCM Guard v2.1.0 · Material 3 + 事件驱动守护' \
+            --notes-file notes.md --latest
