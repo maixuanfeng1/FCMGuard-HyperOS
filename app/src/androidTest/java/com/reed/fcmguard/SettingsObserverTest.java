@@ -19,8 +19,6 @@ import static org.junit.Assert.*;
 /** Uses actual SettingsProvider notifications and shell mutations, without Shizuku installed. */
 @RunWith(AndroidJUnit4.class)
 public class SettingsObserverTest {
-    private static final String KEY = "FCMGUARD_OBSERVER_TEST";
-    private static final String OTHER_KEY = "FCMGUARD_OBSERVER_OTHER_TEST";
 
     private static String shell(String command) throws Exception {
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
@@ -35,6 +33,9 @@ public class SettingsObserverTest {
     }
 
     @Test public void exactKeyEventsAreDeliveredAndUnsubscriptionStopsCallbacks() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        String KEY = "FCMGUARD_OBSERVER_TEST_" + suffix;
+        String OTHER_KEY = "FCMGUARD_OBSERVER_OTHER_TEST_" + suffix;
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         int user = Process.myUid() / 100000;
         SettingsUserService service = new SettingsUserService(context);
@@ -47,7 +48,6 @@ public class SettingsObserverTest {
             }
         };
         try {
-            shell("settings --user " + user + " put system " + KEY + " com.example.before");
             assertTrue(service.observe(KEY, user, callback));
             shell("settings --user " + user + " put system " + OTHER_KEY + " com.example.unrelated");
             assertFalse("An unrelated settings URI must not trigger the observer",
@@ -69,6 +69,9 @@ public class SettingsObserverTest {
     }
 
     @Test public void resubscriptionUsesOnlyTheLatestKey() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        String KEY = "FCMGUARD_OBSERVER_TEST_" + suffix;
+        String OTHER_KEY = "FCMGUARD_OBSERVER_OTHER_TEST_" + suffix;
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         int user = Process.myUid() / 100000;
         SettingsUserService service = new SettingsUserService(context);

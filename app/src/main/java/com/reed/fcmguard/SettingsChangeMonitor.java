@@ -22,8 +22,15 @@ final class SettingsChangeMonitor {
             throw new IllegalArgumentException("Invalid settings key or user");
         }
         stop();
+        Uri base = Settings.System.getUriFor(key);
         ContentObserver next = new ContentObserver(handler) {
             @Override public void onChange(boolean selfChange, Uri uri) {
+                // Vendor providers may emit coarse ancestor notifications. Accept
+                // those, but never treat a sibling key URI as a target-key event.
+                if (uri != null && uri.getPath() != null) {
+                    String path = uri.getPath();
+                    if (!base.getPath().equals(path) && !base.getPath().startsWith(path + "/")) return;
+                }
                 // Ignore callbacks already queued before this subscription was closed.
                 synchronized (SettingsChangeMonitor.this) {
                     if (observer != this) return;
@@ -31,7 +38,6 @@ final class SettingsChangeMonitor {
                 changed.run();
             }
         };
-        Uri base = Settings.System.getUriFor(key);
         // ContentResolver understands user-qualified provider URIs and removes the
         // user prefix before registering. This also supports managed profiles while
         // the helper process itself runs as shell in the system user.

@@ -80,9 +80,11 @@ public class MaterialUiScreenshotTest {
         screenshot.recycle();
         // AGP uninstalls the target APK after instrumentation, deleting its private
         // external directory. Export each capture before that teardown occurs.
-        String result = shell(instrumentation, "mkdir -p /sdcard/Download/FCMGuard && cp '"
-                + file.getAbsolutePath() + "' /sdcard/Download/FCMGuard/" + name + ".png && echo EXPORTED");
-        assertTrue("Cannot export screenshot: " + result, result.contains("EXPORTED"));
+        shell(instrumentation, "mkdir -p /sdcard/Download/FCMGuard");
+        shell(instrumentation, "cp " + file.getAbsolutePath()
+                + " /sdcard/Download/FCMGuard/" + name + ".png");
+        String result = shell(instrumentation, "ls /sdcard/Download/FCMGuard/" + name + ".png");
+        assertTrue("Cannot export screenshot: " + result, result.contains(name + ".png"));
     }
 
     private static String shell(Instrumentation instrumentation, String command) throws Exception {
