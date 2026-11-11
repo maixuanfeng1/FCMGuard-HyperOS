@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <string name="manual_repair_summary">检查 HyperOS 白名单，补回缺失的目标应用，并通过 Shizuku 回读确认结果。此操作不代表 FCM 网络连接已恢复。</string>
+    <string name="runtime_architecture">应用进程：%1$d 位\nShizuku 辅助进程：%2$s</string>
+    <string name="runtime_bits">%1$d 位</string>
+    <string name="runtime_helper_unavailable">未连接或无法读取</string>
     <string name="event_protection_summary">监听 HyperOS 白名单变化，仅在需要时修复。不进行定时检查，也不会定时唤醒手机。</string>
     <string name="event_notification_summary">静音通知用于让 Android 保留正在运行的守护服务，并不代表应用正在定时轮询。</string>
     <string name="event_protection_active">正在监听白名单变化。目标应用被移除时，会自动进行修复。</string>

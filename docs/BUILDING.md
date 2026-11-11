@@ -1,6 +1,6 @@
 # Building and signing
 
-Use JDK 21 (Java source level 17), Android SDK platform 37.2 and build-tools 37.0.0. The checked-in Gradle wrapper pins Gradle 9.6.0 and verifies its distribution SHA-256.
+Use JDK 21 (Java source level 17), Android SDK platform 37.2 and build-tools 37.0.0. The checked-in Gradle wrapper pins Gradle 9.9.1 and verifies its distribution SHA-256. Use the wrapper for release builds as well; do not substitute a machine-wide older Gradle.
 
 ```sh
 sdkmanager 'platforms;android-37.2' 'build-tools;37.0.0'
@@ -50,6 +50,9 @@ Use a clean Android 15 / Android 16 emulator or Android 17 ATD for the automated
 8. Disabled Autostart apps appear first in red with explicit text, enabled apps last, and summary counts match the list. Partial/unavailable states are distinct. Returning from app settings updates counts and sorting.
 9. Quick Settings wakeup is the default: no foreground service or persistent notification, no notification-permission prompt. Add the tile, position it where visible, and test pulling down the panel after process reclamation. Tapping an active tile stops protection; missing Shizuku opens the dashboard. Force-stop and OEM tile-binding policies may require reopening the app.
 10. Switching to persistent notification starts the foreground service; switching back removes it and its notification. Passive tile visibility must not start a foreground service in notification mode.
+11. Open FCM diagnostics stays visible above the scrolling content and targets Google Play services. Repair now validates the configured whitelist rather than claiming network reconnection. Appearance radio buttons change the theme without changing the keep-alive selection.
+
+`FCMGUARD_REQUIRE_64BIT=true bash tools/run_device_checks.sh` requires both the app process and bare shell helper to execute as 64-bit. CI enables this on its x86_64 images. ARM64 physical-device bitness can be checked in Advanced configuration after Shizuku connects. `python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit or unknown native ELF libraries; an APK without native libraries is ABI-neutral and supports 64-bit Android. No `abiFilters` or dummy JNI library is necessary.
 
 On full Android 15/16 CI images, `tools/check_quick_settings.py` installs a disposable debug APK after instrumentation, seeds enabled protection, adds the tile through the shell, kills the app process with debug `run-as` (not force-stop), and verifies SystemUI invokes the tile in a new process with no foreground service or persistent notification. The check removes its tile and installation afterward.
 

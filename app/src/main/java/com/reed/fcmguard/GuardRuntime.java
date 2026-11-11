@@ -103,7 +103,7 @@ public final class GuardRuntime {
         repairSucceeded = result.success;
         protectionError = result.success ? null : result.message;
         stateChanged();
-        if (result.changed) FcmReconnect.kick(context);
+        if (result.changed) FcmReconnect.requestHeartbeat(context);
     }
 
     private void subscribeAndRepair() {

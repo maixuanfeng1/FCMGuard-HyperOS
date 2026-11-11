@@ -13,6 +13,14 @@ import static org.junit.Assert.*;
 /** Run on a clean emulator without Shizuku: modern-target failure paths must be safe. */
 @RunWith(AndroidJUnit4.class)
 public class ModernAndroidTest {
+    @Test public void runtimeMatchesRequested64BitEnvironment() {
+        int bits = android.os.Process.is64Bit() ? 64 : 32;
+        if (Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("require64Bit", "false"))) {
+            assertEquals("The dedicated 64-bit CI environment must run the app as 64-bit", 64, bits);
+        }
+        android.util.Log.i("FCMGuardRuntime", "APP_RUNTIME_BITS=" + bits);
+    }
+
     @Test public void modernTargetAndNoPrivilegedPermissionWithoutConsent() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         assertEquals(37, context.getApplicationInfo().targetSdkVersion);

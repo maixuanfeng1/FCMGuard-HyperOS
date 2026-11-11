@@ -5,5 +5,6 @@ package com.reed.fcmguard;
 interface ISettingsService {
     String read(String key, int userId) = 0;
     boolean write(String key, String value, int userId) = 1;
+    int runtimeBitness() = 2;
     void destroy() = 16777114;
 }

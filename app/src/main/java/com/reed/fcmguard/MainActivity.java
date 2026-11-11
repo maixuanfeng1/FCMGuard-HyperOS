@@ -149,7 +149,6 @@ public class MainActivity extends AppCompatActivity {
         group.check(ThemeHelper.MODE_DARK.equals(mode) ? R.id.themeDark
                 : ThemeHelper.MODE_LIGHT.equals(mode) ? R.id.themeLight : R.id.themeSystem);
         group.setOnCheckedChangeListener((view, id) -> {
-            if (suppressModeCallbacks || (id != R.id.keepAliveTile && id != R.id.keepAliveNotification)) return;
             String next = id == R.id.themeDark ? ThemeHelper.MODE_DARK
                     : id == R.id.themeLight ? ThemeHelper.MODE_LIGHT : ThemeHelper.MODE_SYSTEM;
             if (!next.equals(ThemeHelper.getMode(this))) {
@@ -184,10 +183,6 @@ public class MainActivity extends AppCompatActivity {
             showMessage(getString(R.string.saved));
             refreshStatus(null);
         });
-        findViewById(R.id.wakeBtn).setOnClickListener(v -> {
-            boolean sent = FcmReconnect.kick(this);
-            showMessage(getString(sent ? R.string.wake_sent : R.string.wake_failed));
-        });
         findViewById(R.id.diagBtn).setOnClickListener(v -> openFcmDiagnostics());
         findViewById(R.id.notificationSettingsBtn).setOnClickListener(v -> openNotificationSettings());
         findViewById(R.id.addTileBtn).setOnClickListener(v -> requestQuickSettingsTile());
@@ -214,6 +209,7 @@ public class MainActivity extends AppCompatActivity {
         RadioGroup group = findViewById(R.id.keepAliveGroup);
         group.check(SettingsGuard.usesTileWakeup(this) ? R.id.keepAliveTile : R.id.keepAliveNotification);
         group.setOnCheckedChangeListener((view, id) -> {
+            if (suppressModeCallbacks || (id != R.id.keepAliveTile && id != R.id.keepAliveNotification)) return;
             boolean tile = id == R.id.keepAliveTile;
             if (tile == SettingsGuard.usesTileWakeup(this)) return;
             try {
@@ -265,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.repairBtn).setEnabled(false);
         worker.execute(() -> {
             SettingsGuard.Result result = SettingsGuard.repair(this);
-            if (result.changed) FcmReconnect.kick(this);
+            if (result.changed) FcmReconnect.requestHeartbeat(this);
             runOnUiThread(() -> {
                 if (isDestroyed()) return;
                 repairInProgress = false;
@@ -471,11 +467,18 @@ public class MainActivity extends AppCompatActivity {
             boolean failed = false;
             try { value = SettingsGuard.read(this); }
             catch (RuntimeException e) { failed = true; }
+            String helper = getString(R.string.runtime_helper_unavailable);
+            try {
+                if (ShizukuBridge.isReady()) helper = getString(R.string.runtime_bits, ShizukuBridge.runtimeBitness());
+            } catch (Exception ignored) { }
+            final String runtimeInfo = getString(R.string.runtime_architecture,
+                    android.os.Process.is64Bit() ? 64 : 32, helper);
             final String current = value;
             final boolean readFailed = failed;
             runOnUiThread(() -> {
                 if (isDestroyed()) return;
                 renderStatus(current, readFailed);
+                ((TextView) findViewById(R.id.runtimeInfoText)).setText(runtimeInfo);
                 if (!TextUtils.isEmpty(message)) showMessage(message);
             });
         });

@@ -19,6 +19,15 @@ A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGA
 
 Follow Shizuku's official startup instructions. Whether its service survives disabling debugging depends on the ROM. FCM heartbeat requests, diagnostics and app detection remain best-effort features.
 
+## Version 2.4
+
+- Upgrades the complete, SHA-256-verified Gradle Wrapper to 9.9.1. Retains AGP 9.5.1, JDK 21, Java source/target 17, compile SDK 37.2 and target API 37.
+- Uses AppCompat 1.8.0, Core 1.19.1 and Annotation 1.11.0; aligns existing Activity 1.13.0, Fragment 1.9.1, Lifecycle runtime 2.11.0 and Coroutines Android 1.11.0 dependencies. AGP continues to manage its Kotlin compiler; the dependency graph selects Kotlin stdlib 2.2.20 to satisfy runtime requirements.
+- Pins Open FCM diagnostics above the scrolling dashboard, so the frequent action remains visible even when a long application list is expanded.
+- Keeps Repair now because it performs a validated whitelist read/repair/read-back. Removes the manual Wake FCM action: a successfully sent heartbeat broadcast cannot establish receipt or reconnection. Automatic heartbeat requests after a real repair remain best effort.
+- Fixes the appearance selector's event guard and keeps it independent of keep-alive mode changes.
+- Advanced configuration reports the actual app and Shizuku helper process bitness. CI requires 64-bit app/helper execution and checks APKs for bundled 32-bit native libraries. The APK remains ABI-neutral DEX without a dummy native library or ineffective ABI filter.
+
 ## Version 2.3
 
 - Defaults to **Quick Settings wakeup**, without a persistent notification or notification permission request. Add FCM Guard to a visible Quick Settings position using the Android 13+ Add tile prompt or the in-app manual instructions.

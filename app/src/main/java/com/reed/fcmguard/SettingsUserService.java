@@ -13,6 +13,8 @@ public final class SettingsUserService extends ISettingsService.Stub {
     public SettingsUserService(Context context) { }
     public SettingsUserService() { }
 
+    @Override public int runtimeBitness() { return android.os.Process.is64Bit() ? 64 : 32; }
+
     private static void validate(String key, int userId) {
         if (!PackageList.validKey(key) || userId < 0 || userId > 21474) {
             throw new IllegalArgumentException("Invalid settings key or user");

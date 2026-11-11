@@ -135,6 +135,12 @@ public final class ShizukuBridge {
         return current.read(key, Process.myUid() / 100000);
     }
 
+    public static int runtimeBitness() throws RemoteException {
+        ISettingsService current = service;
+        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
+        return current.runtimeBitness();
+    }
+
     public static boolean write(String key, String value) throws RemoteException {
         ISettingsService current = service;
         if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
