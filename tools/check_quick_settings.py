@@ -13,6 +13,9 @@ original_tiles = None
 
 
 def adb(*args):
+    if len(args) > 2 and args[0] == 'shell':
+        # adb forwards commands to a remote shell; custom tile specs contain ().
+        args = ('shell', shlex.join(args[1:]))
     return subprocess.check_output(['adb', *args], text=True, stderr=subprocess.STDOUT, timeout=25).strip()
 
 
