@@ -3,7 +3,7 @@
 
 # FCM Guard for HyperOS · Modern API fork
 
-A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS). This fork upgrades **target SDK 22 to API 37**, with **compile SDK 37.2**, AGP 9.5.1 and Gradle 9.6.0. Minimum Android version: 7.0 / API 24.
+A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS). This fork upgrades **target SDK 22 to API 37**, with **compile SDK 37.2**, AGP 9.5.1 and Gradle 9.9.1. Minimum Android version: 7.0 / API 24.
 
 **Version 2.0 requires Shizuku authorization.** Modern-target applications cannot rely on the original legacy path for writing Xiaomi private system settings with only WRITE_SETTINGS.
 
@@ -14,7 +14,7 @@ A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGA
 1. Install the release APK. Upstream builds use a different signing key: uninstall the old build first if Android reports a signature mismatch. Uninstalling removes its settings. Future releases from this fork use the same independent release key.
 2. Install and start [Shizuku](https://shizuku.rikka.app/download/). Android 11+ supports wireless debugging; older Android requires computer ADB or optional root.
 3. Open FCM Guard, tap **Authorize Shizuku**, approve access, wait for the helper to connect, then tap **Repair now**.
-4. Enable **Automatic protection** and allow notifications. A silent foreground notification includes a **Stop protection** action. Long-running silent background mode has been removed.
+4. Enable **Automatic protection**. The default **Quick Settings wakeup** mode has no persistent notification: add FCM Guard to a visible position in Quick Settings. For continuous foreground-service protection, select **Persistent notification** and allow notifications; its silent notification includes a Stop action.
 5. Enable Autostart and unrestricted battery use for both apps. **Restart Shizuku after a reboot**. Until the authorized connection is ready, the app reports that protection is waiting.
 
 Follow Shizuku's official startup instructions. Whether its service survives disabling debugging depends on the ROM. FCM heartbeat requests, diagnostics and app detection remain best-effort features.
@@ -36,7 +36,7 @@ Follow Shizuku's official startup instructions. Whether its service survives dis
 - Monitoring runs in the application process. Android can freeze or reclaim it; protection may pause until the tile is bound, tapped, or the app is opened again. A tile is **not equivalent to a continuous foreground service** and does not guarantee restart after force-stop.
 - Tile state reflects actual observer/repair readiness. A lit tile stops protection; an unlit tile starts or retries it. Missing Shizuku opens the dashboard; long-press also opens the dashboard. The Android 14+ path uses `PendingIntent` as required by modern targets.
 - The more reliable persistent-notification strategy remains selectable. Switching to tile mode removes its foreground service and notification. Passive tile visibility never starts a foreground service from the background.
-- Device checks cover notification removal, mode selection and safe missing-Shizuku behavior. Full Android 15/16 images also run a real SystemUI tile recovery check after killing the app process; Android 17 ATD covers functional tests without rendering screenshots.
+- At the v2.3 release, device checks covered notification removal, mode selection and safe missing-Shizuku behavior on Android 15/16 full images and Android 17 ATD. Current v2.4 device CI uses Android 17 only, including the full SystemUI tile recovery check after killing the app process.
 
 ## Version 2.2
 
