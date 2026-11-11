@@ -136,7 +136,7 @@ public final class SettingsUserService extends ISettingsService.Stub {
     }
 
     private static String run(String... command) {
-        Process process = null;
+        java.lang.Process process = null;
         try {
             process = new ProcessBuilder(command).redirectErrorStream(true).start();
             final InputStream input = process.getInputStream();
