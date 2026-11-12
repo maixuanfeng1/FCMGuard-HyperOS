@@ -14,13 +14,19 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
 
+## Version 3.2.0: smaller APK and efficient lists
+
+The signed APK is 1.55 MiB, 72.8% smaller than 3.1.3, using R8 and resource shrinking with verified Shizuku helper entry points. RecyclerView recycles visible app rows and applies diffs; disabled apps retain their priority, red text and counts. Component metadata is cached on demand, while mutable policy/permissions are reread when returning to the app. List mode, advanced expansion and position survive recreation.
+
+All 105 Traditional Chinese application strings are complete. App data is explicitly excluded from cloud backup and device transfer. Application/test dependencies are locked and CI actions use immutable commits. Validation includes 35 device tests on each Android 17 image, actual minified-helper queries and real Shizuku authorization/64-bit binding. Use the [HyperOS 4 phone checklist](docs/HYPEROS_CHECKS.md) for OEM settings and locked-screen delivery.
+
 ## Version 3.1.3: launcher shortcut
 
 Long-press the FCM Guard launcher icon and choose **FCM diagnostics** to open Google diagnostics directly. This is a native Android app shortcut, with menu styling supplied by the launcher and no Shizuku/extra permission requirement. Cold launches and existing activities use the same diagnostic routing without a recording prompt on return.
 
 ## Version 3.1.2: project audit
 
-Fixed stale callbacks/results, helper lifecycle and recovery-request handling; bounded duplicate refresh work; reduced per-app scan overhead; removed obsolete socket/repair resources and strengthened release verification. [Full audit and remaining review items](docs/PROJECT_AUDIT.md).
+Fixed stale callbacks/results, helper lifecycle and recovery-request handling; bounded duplicate refresh work; reduced per-app scan overhead; removed obsolete socket/repair resources and strengthened release verification. [Full audit and follow-up decisions](docs/PROJECT_AUDIT.md).
 
 ## Version 3.1.1: automatic checks without manual records
 
@@ -33,10 +39,6 @@ Only a successful read of the correct profile and current GMS connection fields 
 Reads refresh every five seconds only while the dashboard or quick-settings panel is visible. Hidden surfaces stop their refresh callbacks. Verdicts expire after 15 monotonic seconds and invalidate immediately on network, authorization or helper changes. Hiding the panel clears its lit state so SystemUI cannot cache a stale connection claim. Tapping still checks, attempts a heartbeat and opens diagnostics; it does not turn off GMS push.
 
 The private GMS dump format can change. Denied, unavailable, unsupported or timed-out reads remain Unknown. Permission-free mode retains the diagnostic shortcut; automatic connection indication needs Shizuku.
-
-## Version 3.0.1
-
-Authorization, helper readiness and socket-query results are displayed independently. An authorized helper with restricted or unsupported socket access is not called unauthorized. Checks refresh immediately after binding and independently of the network probe; replies from a disabled or replaced helper are discarded. The socket query uses kernel UID metadata without process-name scanning.
 
 ## Optional Shizuku
 
