@@ -98,4 +98,5 @@
     <string name="tile_requires_shizuku">需开启 Shizuku 检查</string>
     <string name="tile_stale">需重新读取 · 点按诊断</string>
     <string name="scan_failed">應用檢查重新整理失敗，請重試。</string>
+    <string name="shortcut_fcm_diagnostics">FCM 診斷</string>
 </resources>

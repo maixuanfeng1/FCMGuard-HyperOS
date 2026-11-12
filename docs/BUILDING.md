@@ -51,3 +51,5 @@ Before claiming a physical-device result, verify on Android 17 / HyperOS 4:
 `python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit/unknown bundled ELF libraries. No native libraries means ABI-neutral DEX, compatible with ARM64; optional helper and app bitness are shown on the dashboard.
 
 Run `python3 -m unittest discover -s tools/tests -v` for APK ABI-validator cases. See [PROJECT_AUDIT](PROJECT_AUDIT.md) for review coverage and remaining decisions.
+
+The full Android 17 image also runs `tools/check_launcher_shortcut.py`: long-press the actual launcher icon, verify the diagnostic menu item, capture the native menu and click through to real Google Diagnostics. Platform ShortcutManager and cold/warm routing are covered by instrumentation. HyperOS launcher presentation must be checked on the actual phone.

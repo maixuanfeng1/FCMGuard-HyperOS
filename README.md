@@ -14,6 +14,10 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
 
+## Version 3.1.3: launcher shortcut
+
+Long-press the FCM Guard launcher icon and choose **FCM diagnostics** to open Google diagnostics directly. This is a native Android app shortcut, with menu styling supplied by the launcher and no Shizuku/extra permission requirement. Cold launches and existing activities use the same diagnostic routing without a recording prompt on return.
+
 ## Version 3.1.2: project audit
 
 Fixed stale callbacks/results, helper lifecycle and recovery-request handling; bounded duplicate refresh work; reduced per-app scan overhead; removed obsolete socket/repair resources and strengthened release verification. [Full audit and remaining review items](docs/PROJECT_AUDIT.md).

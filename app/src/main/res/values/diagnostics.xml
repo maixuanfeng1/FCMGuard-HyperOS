@@ -99,4 +99,5 @@
     <string name="tile_requires_shizuku">Enable Shizuku checks</string>
     <string name="tile_stale">Refresh needed · tap for diagnostics</string>
     <string name="scan_failed">Could not refresh app checks. Please try again.</string>
+    <string name="shortcut_fcm_diagnostics">FCM diagnostics</string>
 </resources>

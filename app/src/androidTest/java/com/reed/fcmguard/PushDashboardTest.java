@@ -159,6 +159,54 @@ public class PushDashboardTest {
    assertFalse(DiagnosticPreferences.prefs(c).contains("awaiting_report"));
   } finally { in.removeMonitor(monitor); }
  }
+ @Test public void systemPublishesTheNativeDiagnosticsShortcut() {
+  android.content.pm.ShortcutInfo shortcut=diagnosticsShortcut();
+  assertTrue(shortcut.isEnabled());assertTrue(shortcut.isDeclaredInManifest());
+  assertEquals(c.getString(R.string.shortcut_fcm_diagnostics),shortcut.getShortLabel().toString());
+  Intent intent=shortcut.getIntent();assertNotNull(intent);
+  assertEquals(new ComponentName(c,MainActivity.class),intent.getComponent());
+  assertTrue(intent.getBooleanExtra("open_diagnostics",false));
+  assertFalse(intent.getBooleanExtra("request_recovery",false));
+ }
+ @Test public void diagnosticsShortcutOpensGmsOnColdLaunch() {
+  checkShortcutRoute(true);
+ }
+ @Test public void diagnosticsShortcutOpensGmsWhenActivityIsAlreadyOpen() {
+  checkShortcutRoute(false);
+ }
+ private android.content.pm.ShortcutInfo diagnosticsShortcut() {
+  for(android.content.pm.ShortcutInfo shortcut:c.getSystemService(android.content.pm.ShortcutManager.class).getManifestShortcuts()) {
+   if("fcm_diagnostics".equals(shortcut.getId())) return shortcut;
+  }
+  throw new AssertionError("FCM diagnostics must be registered as a native manifest shortcut");
+ }
+ private void checkShortcutRoute(boolean cold) {
+  List<Intent> opened=new ArrayList<>();
+  Instrumentation.ActivityMonitor monitor=new Instrumentation.ActivityMonitor() {
+   @Override public Instrumentation.ActivityResult onStartActivity(Intent intent) {
+    if(intent.getComponent()!=null && "com.google.android.gms".equals(intent.getComponent().getPackageName())) {
+     opened.add(new Intent(intent));return new Instrumentation.ActivityResult(0,null);
+    }return null;
+   }
+  };
+  Intent intent=new Intent(diagnosticsShortcut().getIntent());
+  in.addMonitor(monitor);
+  try {
+   if(cold) {
+    in.runOnMainSync(activity::finish);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);
+    activity=(MainActivity)in.startActivitySync(intent);
+   } else in.runOnMainSync(() -> in.callActivityOnNewIntent(activity,intent));
+   in.waitForIdleSync();
+   assertEquals(1,opened.size());
+   assertEquals("com.google.android.gms.gcm.GcmDiagnostics",opened.get(0).getComponent().getClassName());
+   assertFalse(activity.getIntent().hasExtra("open_diagnostics"));
+   assertFalse(DiagnosticPreferences.prefs(c).contains("awaiting_report"));
+   assertEquals(0,DiagnosticPreferences.prefs(c).getLong("request_time",0));
+   in.runOnMainSync(() -> in.callActivityOnNewIntent(activity,new Intent(activity.getIntent())));
+   in.waitForIdleSync();assertEquals("Consumed shortcut must not reopen diagnostics",1,opened.size());
+  } finally { in.removeMonitor(monitor); }
+ }
  @Test public void disabledAppsSortBeforeEnabledAndCountsUseRenderedList() {
   in.runOnMainSync(() -> {
    showExamples(activity);
