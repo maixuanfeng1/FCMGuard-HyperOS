@@ -17,9 +17,13 @@ def sample(label):
         if any(word in text.lower() for word in ('timeout', 'exception', 'failure', 'error', 'denial', 'dump', 'crash')):
             print('DIAGNOSTIC', re.sub(r'[0-9]{6,}', '<number>', text)[:500], flush=True)
         if text.startswith(('SERVICE ', 'Client:', 'connected=', 'ReconnectManager ',
-                            'No services', 'Permission', 'Failure ', 'Got a RemoteException')):
+                            'Is client connected', 'connecting=', 'Reconnect Scheduler Alarm', 'No services', 'Permission', 'Failure ', 'Got a RemoteException')):
             text = re.sub(r'(mtalk\.google\.com)/[^,\s]+', r'\1/192.0.2.1', text)
             print(text, flush=True)
+    ui_path='/data/local/tmp/fcmguard-ui.xml'
+    adb('uiautomator', 'dump', ui_path)
+    xml=adb('cat', ui_path)
+    print('UI_SERVER', re.findall(r'Server: ([A-Za-z ]+)', xml)[:1], flush=True)
     print('FIELD_KEYS', sorted(set(re.findall(r'^\s*([A-Za-z][A-Za-z0-9 ]{0,35})[:=]', dump, re.M)))[:60], flush=True)
 
 
