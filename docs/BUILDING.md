@@ -26,7 +26,7 @@ Keep a private, backed-up JKS/PKCS12 keystore. Never commit or attach the keysto
   app/build/outputs/apk/release/app-release.apk
 ```
 
-For GitHub Actions, configure repository Actions secrets with the last three variable names and `FCMGUARD_KEYSTORE_BASE64` (base64 of the same private keystore). Then manually run **Signed APK release** after checks pass. Releases can also be built locally with the same private key. If a connected credential cannot authenticate to uploads.github.com, a dedicated release branch can carry only the already signed APK and checksums to a verification/upload workflow using the repository GITHUB_TOKEN; never include the private signing key on that branch.
+For GitHub Actions, configure repository Actions secrets with the last three variable names and `FCMGUARD_KEYSTORE_BASE64` (base64 of the same private keystore). Then manually run **Signed APK release** after checks pass. The workflow requires successful Android checks for its exact source SHA and the existing release certificate (`c61a0648bfc46534632dc1bc03f1a3379d4ea133c3d5236ac4e31dd92b5b1836`); key rotation must be reviewed separately. Releases can also be built locally with the same private key. If a connected credential cannot authenticate to uploads.github.com, a dedicated release branch can carry only the already signed APK and checksums to a verification/upload workflow using the repository GITHUB_TOKEN; never include the private signing key on that branch.
 
 The signing backup for this fork is provided privately to the repository owner outside Git. Preserve it for future updates. Actions caches are not a safe signing-key backup and are no longer used for release identity.
 
@@ -34,7 +34,7 @@ Bump both `versionCode` and `versionName` for each immutable release. Attach onl
 
 ## Android 17 checks
 
-`bash tools/run_device_checks.sh` builds APKs, exercises the fixed read-only helper under real shell UID 2000, runs instrumentation and exports native screenshots. `FCMGUARD_REQUIRE_64BIT=true` checks the app and helper bitness. ATD covers functionality; the full Google APIs image also renders screenshots and runs `tools/check_quick_settings.py` against actual SystemUI after app-process reclamation. Device CI intentionally contains no Android 15/16 jobs.
+`bash tools/run_device_checks.sh` requires a disposable emulator before changing any settings, builds APKs, exercises the fixed read-only helper under real shell UID 2000, runs instrumentation and exports native screenshots. `FCMGUARD_REQUIRE_64BIT=true` checks the app and helper bitness. ATD covers functionality; the full Google APIs image also renders screenshots and runs `tools/check_quick_settings.py` against actual SystemUI after app-process reclamation. Device CI intentionally contains no Android 15/16 jobs.
 
 The emulator runner must use the pinned command-line tools through its `latest` path so AVD target metadata is `android-37.0`. Its software graphics configuration enables GLDirectMem and disables Vulkan to avoid the older tools’ Android 0 / SurfaceFlinger failure.
 
@@ -49,3 +49,5 @@ Before claiming a physical-device result, verify on Android 17 / HyperOS 4:
 7. Run real locked-screen notification tests for chosen apps. These results cannot be replaced by emulator checks.
 
 `python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit/unknown bundled ELF libraries. No native libraries means ABI-neutral DEX, compatible with ARM64; optional helper and app bitness are shown on the dashboard.
+
+Run `python3 -m unittest discover -s tools/tests -v` for APK ABI-validator cases. See [PROJECT_AUDIT](PROJECT_AUDIT.md) for review coverage and remaining decisions.

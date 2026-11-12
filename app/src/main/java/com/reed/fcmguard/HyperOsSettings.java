@@ -15,21 +15,6 @@ public final class HyperOsSettings {
 
     private HyperOsSettings() {}
 
-    public static boolean openAutoStartManager(Context context) {
-        Intent intent = new Intent("miui.intent.action.OP_AUTO_START");
-        intent.addCategory(Intent.CATEGORY_DEFAULT);
-        if (launch(context, intent)) return true;
-
-        Intent explicit = new Intent();
-        explicit.setComponent(new ComponentName(
-                "com.miui.securitycenter",
-                "com.miui.permcenter.autostart.AutoStartManagementActivity"
-        ));
-        if (launch(context, explicit)) return true;
-
-        return launch(context, new Intent(Settings.ACTION_APPLICATION_SETTINGS));
-    }
-
     /**
      * Opens the selected application's own settings, including the vendor battery,
      * notifications and Autostart controls when that ROM exposes them there.
@@ -45,7 +30,7 @@ public final class HyperOsSettings {
 
     public static boolean openNotificationSettings(Context context, String packageName) {
         requirePackage(packageName);
-        return launch(context, new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        return android.os.Build.VERSION.SDK_INT >= 26 && launch(context, new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                 .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) || openApplicationSettings(context, packageName);
     }
 

@@ -1,42 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="runtime_architecture">应用进程：%1$d 位\nShizuku 辅助进程：%2$s</string>
-    <string name="runtime_bits">%1$d 位</string>
-    <string name="runtime_helper_unavailable">未连接或无法读取</string>
-    <string name="event_protection_summary">监听 HyperOS 白名单变化，仅在需要时修复。不进行定时检查，也不会定时唤醒手机。</string>
-    <string name="event_notification_summary">静音通知用于让 Android 保留正在运行的守护服务，并不代表应用正在定时轮询。</string>
-    <string name="event_protection_active">正在监听白名单变化。目标应用被移除时，会自动进行修复。</string>
-    <string name="event_protection_needs_authorization">请启动 Shizuku 并授权访问，以启用自动保护。</string>
-    <string name="event_protection_needs_repair">白名单中缺少目标应用，请先修复，再开启自动保护。</string>
-    <string name="event_protection_waiting">正在等待白名单监听连接。</string>
-    <string name="event_protection_off">白名单已就绪，开启自动保护后按所选保活方式运行。</string>
-    <string name="fcm_apps_direct_summary">查找声明了 FCM 或 GCM 接收组件的应用。点击任一应用即可进入它自己的设置页。</string>
-    <string name="fcm_apps_direct_note">部分 ROM 无法读取自启动状态。你仍可逐个打开应用设置，调整后台、电池和通知权限。</string>
-    <string name="fcm_apps_tap_to_configure">找到 %1$d 个应用 · 点击应用即可设置</string>
-    <string name="app_autostart_status">自启动：%1$s</string>
-    <string name="open_app_settings_for">打开%1$s的应用设置</string>
-    <string name="scanning_fcm_apps">正在扫描已安装的应用…</string>
-    <string name="advanced_configuration_help">除非当前 ROM 使用了其他白名单设置，否则请保留默认值。修复时会保留名单中的已有应用。</string>
-    <string name="expanded">已展开</string>
-    <string name="collapsed">已收起</string>
-    <string name="observer_unavailable">无法注册白名单监听，自动保护未运行。请重新连接 Shizuku 后重试。</string>
-    <string name="notification_observing">自动保护中 · 监听白名单变化</string>
-    <string name="status_connecting">正在连接保护</string>
-    <string name="retry_protection">重试保护</string>
-    <string name="observer_failure_detail">自动保护未运行，监听注册失败：%1$s\n请点击“重试保护”。若仍失败，请提供此错误信息及 Android / HyperOS 版本。</string>
-    <string name="fcm_apps_counts">共扫描到 %1$d 个声明 FCM/GCM 接收组件的应用\n已开启 %2$d 个 · 未开启 %3$d 个\n部分开启 %4$d 个 · 无法读取 %5$d 个\n未开启的应用优先展示，点击应用即可设置。</string>
-    <string name="keep_alive_title">保活方式</string>
-    <string name="keep_alive_tile">快捷开关唤起 · 无常驻通知</string>
-    <string name="keep_alive_notification">常驻通知 · 持续监听更可靠</string>
-    <string name="tile_mode_summary">不显示常驻通知，也无需通知权限。请将 FCM Guard 添加到下拉即可看到的快捷开关位置，系统绑定可见磁贴时会尝试恢复应用。进程被系统冻结或回收后，监听可能暂停；可下拉快捷面板、点击磁贴或打开应用恢复，无法保证全天持续保护。</string>
-    <string name="add_quick_settings_tile">添加快捷开关</string>
-    <string name="tile_setup_title">快捷开关唤起设置方法</string>
-    <string name="tile_setup_steps">1. 下拉通知栏，进入快捷开关编辑界面。\n\n2. 找到「FCM Guard」，将它添加到下拉即可看到的位置。\n\n3. 在应用内开启自动保护。快捷开关可见时，系统有机会唤起监听；如果未恢复，请点击磁贴或打开应用。\n\n磁贴亮起表示当前正在监听，点击可关闭；未亮起时点击可启动或重试。需要 Shizuku 授权时会打开应用，长按磁贴也可进入应用设置。\n\n此模式不显示常驻通知。进程被系统冻结或回收后，到应用恢复之前可能存在保护空档。</string>
-    <string name="tile_added">快捷开关已添加，请将 FCM Guard 放在下拉即可看到的位置。</string>
-    <string name="status_tile_listening">监听中 · 快捷唤起</string>
-    <string name="tile_protection_active">当前进程正在监听白名单变化。被系统冻结或回收后监听可能暂停，可下拉快捷面板、点击磁贴或打开应用恢复。</string>
-    <string name="tile_listening">监听中</string>
-    <string name="tile_off">已关闭</string>
-    <string name="tile_needs_shizuku">需要 Shizuku</string>
-    <string name="tile_tap_to_resume">点击恢复</string>
+<string name="add_quick_settings_tile">添加快捷开关</string>
 </resources>

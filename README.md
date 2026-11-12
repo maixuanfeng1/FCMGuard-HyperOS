@@ -14,6 +14,10 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
 
+## Version 3.1.2: project audit
+
+Fixed stale callbacks/results, helper lifecycle and recovery-request handling; bounded duplicate refresh work; reduced per-app scan overhead; removed obsolete socket/repair resources and strengthened release verification. [Full audit and remaining review items](docs/PROJECT_AUDIT.md).
+
 ## Version 3.1.1: automatic checks without manual records
 
 Remove diagnostic recording, the confirmation dialog on return, historical user-reported connection state and per-app confirmation checklists. Upgrades clear old records and pending-dialog flags while retaining selected apps, Shizuku preferences, themes and request rate limits. Connection status comes only from automatic reads; unreadable state stays unknown.

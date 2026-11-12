@@ -24,6 +24,8 @@ public class MaterialUiScreenshotTest {
                 .getString("captureScreenshots", "false")));
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
         Context context = instrumentation.getTargetContext();
+        assertEquals("Visual captures modify display settings; use a disposable emulator", "1",
+                shell(instrumentation, "getprop ro.kernel.qemu").trim());
         String oldTheme = ThemeHelper.getMode(context);
         float oldFont = Settings.System.getFloat(context.getContentResolver(), Settings.System.FONT_SCALE, 1f);
         try {

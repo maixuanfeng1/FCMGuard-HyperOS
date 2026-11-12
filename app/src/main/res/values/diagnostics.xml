@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- New diagnostic copy is localized in Chinese; other system locales use English. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="dashboard_title">Push diagnostics</string>
-    <string name="connection_unknown">FCM connection: unknown</string>
+<string name="connection_unknown">FCM connection: unknown</string>
     <string name="connection_summary">Automatic status needs optional Shizuku and readable current GMS state. Otherwise confirm in Google diagnostics.</string>
     <string name="check_now">Check now</string>
     <string name="request_reconnect">Try a heartbeat request</string>
@@ -17,9 +16,7 @@
     <string name="gms_present">Google Play services: installed and enabled</string>
     <string name="gms_missing">Google Play services: unavailable or disabled</string>
     <string name="helper_evidence">Optional Shizuku evidence: %1$s</string>
-    <string name="socket_observed">An established GMS socket on a standard push port was observed. This is transport evidence, not a Diagnostics verdict.</string>
-    <string name="socket_absent">No UID-attributed standard-port socket observed; the connection may use another port or be hidden.</string>
-    <string name="request_note">Requests may be ignored. Confirm the result in diagnostics. Limited to once per minute.</string>
+<string name="request_note">Requests may be ignored. Confirm the result in diagnostics. Limited to once per minute.</string>
     <string name="request_time">Last request attempt: %1$s</string>
     <string name="network_settings">Network settings</string>
     <string name="watch_title">My notification apps</string>
@@ -28,7 +25,7 @@
     <string name="all_apps">Show all apps</string>
     <string name="watched_apps">Show chosen apps</string>
     <string name="scan_apps">Refresh app checks</string>
-    <string name="apps_counts">%1$d apps scanned · %2$d declare FCM/GCM · %3$d chosen\nAutostart in this list: %4$d enabled · %5$d disabled · %6$d partial · %7$d unknown\nApps with detected issues appear first. Tap a row for checks and settings.</string>
+    <string name="apps_counts">Apps scanned: %1$d · FCM/GCM: %2$d · Chosen: %3$d\nAutostart — Enabled: %4$d · Disabled: %5$d · Partial: %6$d · Unknown: %7$d\nApps with detected issues appear first. Tap a row for checks and settings.</string>
     <string name="no_chosen">Choose the apps whose notifications matter to you.</string>
     <string name="fcm_detected">FCM/GCM components detected</string>
     <string name="fcm_not_detected">No FCM/GCM components detected; another push channel may be used</string>
@@ -60,8 +57,7 @@
     <string name="enhanced_title">Optional Shizuku evidence</string>
     <string name="enhanced_note">Off by default. Reads current GMS connection state for the dashboard and tile without changing settings.</string>
     <string name="authorize_optional">Connect / authorize optional Shizuku</string>
-    <string name="optional_disabled">Shizuku is optional and disabled</string>
-    <string name="raw_list_title">View system no-restrictions list (read-only)</string>
+<string name="raw_list_title">View system no-restrictions list (read-only)</string>
     <string name="raw_unavailable">The system setting is absent or cannot be read</string>
     <string name="raw_empty">The system returned an empty list</string>
     <string name="architecture">App: %1$d-bit · optional helper: %2$s</string>
@@ -71,8 +67,7 @@
     <string name="busy_message">A check is already running</string>
     <string name="request_started">Attempting a heartbeat request and network check. Verify the result in diagnostics.</string>
     <string name="no_auth_service">Start Shizuku first, or leave the optional feature off</string>
-    <string name="no_timer">Check and open diagnostics</string>
-    <string name="appearance_title_v3">Appearance</string>
+<string name="appearance_title_v3">Appearance</string>
 <string name="tile_setup_message">Lit with Connected means GMS was just observed connected. A grey disconnected icon with Disconnected means GMS was just observed disconnected. A question mark with Unknown means unreadable, not off. Enable optional Shizuku. Refreshes every 5 seconds while visible, with no polling when hidden. Tap to try a heartbeat and open diagnostics; this does not turn off GMS push.</string>
 <string name="diagnostic_observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
     <string name="helper_access_status">Shizuku: %1$s</string>
@@ -87,8 +82,7 @@
     <string name="enhanced_restricted">Authorized, but the system restricts reading connection information. FCM status cannot be confirmed.</string>
     <string name="enhanced_command_unsupported">This system does not support the connection query command.</string>
     <string name="enhanced_format_unsupported">The connection information format is not supported on this system.</string>
-    <string name="enhanced_owners_hidden">The system hides connection ownership; GMS connections cannot be identified.</string>
-    <string name="enhanced_timeout">Connection information timed out. Try checking again.</string>
+<string name="enhanced_timeout">Connection information timed out. Try checking again.</string>
     <string name="enhanced_read_failed">The helper is connected, but this query failed. Try checking again.</string>
     <string name="enhanced_no_data">Authorized, but the system did not provide usable connection information.</string>
     <string name="enhanced_checked_at">Connection information checked: %1$s</string>
@@ -104,4 +98,5 @@
     <string name="tile_unknown_note">Unconfirmed · tap for diagnostics</string>
     <string name="tile_requires_shizuku">Enable Shizuku checks</string>
     <string name="tile_stale">Refresh needed · tap for diagnostics</string>
+    <string name="scan_failed">Could not refresh app checks. Please try again.</string>
 </resources>

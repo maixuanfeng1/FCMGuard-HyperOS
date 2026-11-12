@@ -33,25 +33,6 @@ public final class SettingsUserService extends ISettingsService.Stub {
                 "get", "system", SettingsGuard.KEY).trim();
         return "null".equals(value) ? null : value;
     }
-    @Override public synchronized String fcmSocketEvidence(int userId) {
-        validate(userId);
-        try {
-            String packages = run("/system/bin/cmd", "package", "list", "packages", "-U",
-                    "--user", Integer.toString(userId), "com.google.android.gms");
-            EnhancedStatus.Result denied = SocketEvidence.commandFailure(packages);
-            if (denied != null) return denied.name();
-            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
-                    "(?m)^package:com\\.google\\.android\\.gms uid:(\\d+)\\s*$").matcher(packages);
-            if (!matcher.find()) return (packages.contains("package:com.google.android.gms")
-                    ? EnhancedStatus.Result.FORMAT_UNSUPPORTED : EnhancedStatus.Result.GMS_MISSING).name();
-            int uid = Integer.parseInt(matcher.group(1));
-            // -e supplies kernel UIDs. -p needlessly scans other processes' file
-            // descriptors and may fail on modern Android despite Shizuku authorization.
-            return SocketEvidence.classify(run("/system/bin/ss", "-tne"), uid);
-        } catch (CommandFailure e) { return e.result.name(); }
-        catch (RuntimeException e) { return EnhancedStatus.Result.READ_FAILED.name(); }
-    }
-
     private static final class CommandFailure extends IllegalStateException {
         final EnhancedStatus.Result result;
         CommandFailure(EnhancedStatus.Result result) { super(result.name()); this.result = result; }
@@ -68,6 +49,7 @@ public final class SettingsUserService extends ISettingsService.Stub {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             CountDownLatch drained = new CountDownLatch(1);
             java.util.concurrent.atomic.AtomicBoolean truncated = new java.util.concurrent.atomic.AtomicBoolean();
+            java.util.concurrent.atomic.AtomicBoolean readFailed = new java.util.concurrent.atomic.AtomicBoolean();
             Thread reader = new Thread(() -> {
                 try (InputStream stream = input) {
                     byte[] buffer = new byte[1024];
@@ -77,6 +59,7 @@ public final class SettingsUserService extends ISettingsService.Stub {
                         output.write(buffer, 0, count);
                     }
                 } catch (java.io.IOException ignored) {
+                    readFailed.set(true);
                 } finally {
                     drained.countDown();
                 }
@@ -89,9 +72,9 @@ public final class SettingsUserService extends ISettingsService.Stub {
                     int exit = process.exitValue();
                     if (!drained.await(1, TimeUnit.SECONDS)) throw new CommandFailure(EnhancedStatus.Result.TIMEOUT);
                     String result = new String(output.toByteArray(), StandardCharsets.UTF_8);
-                    if (truncated.get()) throw new CommandFailure(EnhancedStatus.Result.READ_FAILED);
+                    if (truncated.get() || readFailed.get()) throw new CommandFailure(EnhancedStatus.Result.READ_FAILED);
                     if (exit != 0) {
-                        EnhancedStatus.Result reason = SocketEvidence.commandFailure(result);
+                        EnhancedStatus.Result reason = CommandOutput.failure(result);
                         throw new CommandFailure(reason == null ? EnhancedStatus.Result.READ_FAILED : reason);
                     }
                     return result;

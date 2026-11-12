@@ -49,10 +49,14 @@ public final class FcmAppScanner {
         try {
             for (ResolveInfo resolve : pm.queryIntentActivities(launcher, 0)) {
                 ActivityInfo info = resolve.activityInfo;
-                if (info == null || result.containsKey(info.packageName) ||
+                if (info == null || info.applicationInfo == null || result.containsKey(info.packageName) ||
                         info.packageName.equals(context.getPackageName()) || !info.applicationInfo.enabled) continue;
-                result.put(info.packageName, new AppEntry(info.packageName,
-                        pm.getApplicationLabel(info.applicationInfo).toString(), false));
+                try {
+                    CharSequence label = pm.getApplicationLabel(info.applicationInfo);
+                    String name = label == null ? info.packageName : label.toString().trim();
+                    result.put(info.packageName, new AppEntry(info.packageName, name.isEmpty() ? info.packageName : name, false));
+                } catch (RuntimeException ignored) { }
+
             }
         } catch (RuntimeException ignored) { }
         List<AppEntry> apps = new ArrayList<>(result.values());
@@ -76,7 +80,7 @@ public final class FcmAppScanner {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (RuntimeException ignored) {}
 
         // Legacy GCM / compatibility path still used by some apps and libraries.
         try {
@@ -90,7 +94,7 @@ public final class FcmAppScanner {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (RuntimeException ignored) {}
 
         List<AppEntry> result = new ArrayList<>();
         for (String packageName : packages.keySet()) {
@@ -109,7 +113,7 @@ public final class FcmAppScanner {
                 String label = labelCs == null ? packageName : labelCs.toString().trim();
                 if (label.isEmpty()) label = packageName;
                 result.add(new AppEntry(packageName, label));
-            } catch (Throwable ignored) {}
+            } catch (PackageManager.NameNotFoundException | RuntimeException ignored) {}
         }
 
         Collections.sort(result, (a, b) -> {

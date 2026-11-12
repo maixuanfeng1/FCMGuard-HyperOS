@@ -12,7 +12,8 @@ def check(apk):
         for name in archive.namelist():
             if not name.endswith('.so'):
                 continue
-            header = archive.read(name)[:20]
+            with archive.open(name) as library:
+                header = library.read(20)
             if len(header) < 20 or header[:4] != b'\x7fELF':
                 raise ValueError(f'{apk}: {name} is not an ELF library')
             if header[4] != 2:
@@ -20,6 +21,11 @@ def check(apk):
             endian = '<' if header[5] == 1 else '>' if header[5] == 2 else None
             if endian is None or struct.unpack(endian + 'H', header[18:20])[0] not in (62, 183):
                 raise ValueError(f'{apk}: {name} has an unsupported native architecture')
+            if name.startswith('lib/'):
+                machine = struct.unpack(endian + 'H', header[18:20])[0]
+                expected = 'arm64-v8a' if machine == 183 else 'x86_64'
+                if len(name.split('/')) != 3 or name.split('/')[1] != expected:
+                    raise ValueError(f'{apk}: {name} is stored under the wrong ABI directory')
             libraries.append(name)
     detail = ', '.join(libraries) if libraries else 'ABI-neutral DEX; no bundled native libraries'
     print(f'APK_SUPPORTS_64BIT {Path(apk).name}: {detail}')

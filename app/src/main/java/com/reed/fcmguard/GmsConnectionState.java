@@ -13,7 +13,7 @@ final class GmsConnectionState {
     private static final Pattern CLIENT = Pattern.compile("(?m)^\\s*Is client connected:\\s*(true|false)\\s*$");
 
     static EnhancedStatus.Result parse(String dump, int userId) {
-        EnhancedStatus.Result failure = SocketEvidence.commandFailure(dump);
+        EnhancedStatus.Result failure = CommandOutput.failure(dump);
         if (failure != null) return failure;
         if (dump == null || dump.length() > 262144) return EnhancedStatus.Result.NO_DATA;
         if (dump.contains("No services match:") || dump.contains("pid=(not running)"))
@@ -21,6 +21,8 @@ final class GmsConnectionState {
         if (dump.contains("DUMP TIMEOUT") || dump.contains("timed out")) return EnhancedStatus.Result.TIMEOUT;
         if (dump.contains("Failure while dumping") || dump.contains("RemoteException"))
             return EnhancedStatus.Result.READ_FAILED;
+        Matcher headers = Pattern.compile("(?m)^SERVICE ").matcher(dump);
+        if (!headers.find() || headers.find()) return EnhancedStatus.Result.FORMAT_UNSUPPORTED;
         Matcher service = SERVICE.matcher(dump);
         if (!service.find()) return EnhancedStatus.Result.FORMAT_UNSUPPORTED;
         if (!Integer.toString(userId).equals(service.group(2))) return EnhancedStatus.Result.FORMAT_UNSUPPORTED;
@@ -36,6 +38,11 @@ final class GmsConnectionState {
         if (client.find()) {
             boolean live = Boolean.parseBoolean(client.group(1));
             if (client.find()) return EnhancedStatus.Result.FORMAT_UNSUPPORTED;
+            Matcher oldState = MANAGER.matcher(current);
+            if (oldState.find()) {
+                if (live != "Connected".equals(oldState.group(1)) || oldState.find())
+                    return EnhancedStatus.Result.FORMAT_UNSUPPORTED;
+            }
             Matcher peer = ENDPOINT.matcher(current);
             String address = peer.find() ? peer.group(1).trim() : null;
             if (peer.find()) return EnhancedStatus.Result.FORMAT_UNSUPPORTED;

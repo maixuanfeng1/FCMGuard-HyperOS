@@ -31,6 +31,7 @@ public final class ShizukuBridge {
     private static final ServiceConnection CONNECTION = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
             MAIN.post(() -> {
+                if (!DiagnosticPreferences.enhanced(app) || !isAuthorized()) { disable(); return; }
                 MAIN.removeCallbacks(BIND_TIMEOUT);
                 binding = false;
                 if (binder != null && binder.pingBinder()) {
@@ -121,6 +122,7 @@ public final class ShizukuBridge {
 
     public static void connect() {
         if (app == null || !DiagnosticPreferences.enhanced(app) || !isAuthorized() || isReady() || binding) return;
+        MAIN.removeCallbacks(BIND_TIMEOUT);
         binding = true;
         try {
             Shizuku.bindUserService(args, CONNECTION);
@@ -137,12 +139,6 @@ public final class ShizukuBridge {
         if (isRunning()) Shizuku.requestPermission(REQUEST_CODE);
     }
 
-    public static int statusText() {
-        if (isReady()) return R.string.shizuku_ready;
-        if (!isRunning()) return R.string.shizuku_not_running;
-        return isAuthorized() ? R.string.shizuku_connecting : R.string.shizuku_permission_missing;
-    }
-
     public static void disable() {
         try { Shizuku.unbindUserService(args, CONNECTION, true); } catch (RuntimeException ignored) { }
         disconnected();
@@ -151,11 +147,6 @@ public final class ShizukuBridge {
         ISettingsService current = service;
         if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
         return current.readWhitelist(Process.myUid() / 100000);
-    }
-    public static String socketEvidence() throws RemoteException {
-        ISettingsService current = service;
-        if (!isReady() || current == null) return "unavailable";
-        return current.fcmSocketEvidence(Process.myUid() / 100000);
     }
     public static String gcmConnectionState() throws RemoteException {
         ISettingsService current = service;

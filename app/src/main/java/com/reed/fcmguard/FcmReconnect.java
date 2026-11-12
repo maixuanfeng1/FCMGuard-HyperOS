@@ -22,16 +22,14 @@ public final class FcmReconnect {
     private FcmReconnect() {}
 
     public static void requestHeartbeat(Context context) {
-        try {
-            context.sendBroadcast(new Intent("com.google.android.intent.action.GCM_RECONNECT")
-                    .setPackage("com.google.android.gms"));
-        } catch (RuntimeException ignored) { }
+        send(context, "com.google.android.intent.action.GCM_RECONNECT", "com.google.android.gms");
         for (String target : TARGET_PACKAGES) {
-            try {
-                context.sendBroadcast(new Intent(ACTION_GTALK_HEARTBEAT).setPackage(target));
-                context.sendBroadcast(new Intent(ACTION_MCS_HEARTBEAT).setPackage(target));
-            } catch (RuntimeException ignored) {
-            }
+            send(context, ACTION_GTALK_HEARTBEAT, target);
+            send(context, ACTION_MCS_HEARTBEAT, target);
         }
+    }
+    private static void send(Context context, String action, String target) {
+        try { context.sendBroadcast(new Intent(action).setPackage(target)); }
+        catch (RuntimeException ignored) { }
     }
 }

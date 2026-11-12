@@ -2,7 +2,6 @@ package com.reed.fcmguard;
 
 import android.app.AppOpsManager;
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
 
 import java.lang.reflect.Method;
 
@@ -15,6 +14,7 @@ import java.lang.reflect.Method;
 public final class AutostartStatusReader {
     private static final int OP_MIUI_AUTOSTART = 10008;
     private static final int OP_MIUI_AUTOSTART_SWITCH = 10053;
+    private static final Method CHECK_OP = findCheckMethod();
 
     public enum Status {
         ENABLED,
@@ -25,11 +25,10 @@ public final class AutostartStatusReader {
 
     private AutostartStatusReader() {}
 
-    public static Status check(Context context, String packageName) {
+    static Status check(Context context, String packageName, int uid) {
         try {
-            ApplicationInfo info = context.getPackageManager().getApplicationInfo(packageName, 0);
-            Integer primary = checkOp(context, OP_MIUI_AUTOSTART, info.uid, packageName);
-            Integer switchOp = checkOp(context, OP_MIUI_AUTOSTART_SWITCH, info.uid, packageName);
+            Integer primary = checkOp(context, OP_MIUI_AUTOSTART, uid, packageName);
+            Integer switchOp = checkOp(context, OP_MIUI_AUTOSTART_SWITCH, uid, packageName);
 
             if (isAllowed(primary) && isAllowed(switchOp)) return Status.ENABLED;
             if (isIgnored(primary) && isIgnored(switchOp)) return Status.DISABLED;
@@ -38,7 +37,7 @@ public final class AutostartStatusReader {
                 return Status.PARTIAL;
             }
             return Status.UNKNOWN;
-        } catch (Throwable ignored) {
+        } catch (RuntimeException ignored) {
             return Status.UNKNOWN;
         }
     }
@@ -53,24 +52,24 @@ public final class AutostartStatusReader {
 
     private static Integer checkOp(Context context, int op, int uid, String packageName) {
         AppOpsManager manager = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
-        if (manager == null) return null;
-
-        // Xiaomi keeps these vendor AppOps outside the public SDK constants. Reflection
-        // lets the app remain compileSdk-clean while preserving a strictly read-only path.
+        if (manager == null || CHECK_OP == null) return null;
         try {
-            Method method = AppOpsManager.class.getMethod(
-                    "checkOpNoThrow", int.class, int.class, String.class);
-            Object result = method.invoke(manager, op, uid, packageName);
+            Object result = CHECK_OP.invoke(manager, op, uid, packageName);
             return result instanceof Integer ? (Integer) result : null;
-        } catch (Throwable ignored) {}
+        } catch (ReflectiveOperationException | RuntimeException ignored) { return null; }
+    }
 
+    // Xiaomi keeps these vendor AppOps outside the public SDK constants. Reflection
+    // lets the app remain compileSdk-clean while preserving a strictly read-only path.
+    private static Method findCheckMethod() {
+        try { return AppOpsManager.class.getMethod("checkOpNoThrow", int.class, int.class, String.class); }
+        catch (ReflectiveOperationException | RuntimeException ignored) { }
         try {
             Method method = AppOpsManager.class.getDeclaredMethod(
                     "checkOpNoThrow", int.class, int.class, String.class);
             method.setAccessible(true);
-            Object result = method.invoke(manager, op, uid, packageName);
-            return result instanceof Integer ? (Integer) result : null;
-        } catch (Throwable ignored) {
+            return method;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
             return null;
         }
     }

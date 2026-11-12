@@ -13,13 +13,11 @@ public final class ShellSettingsProbe {
    int bits = service.runtimeBitness();
    if (args.length > 0 && bits != 64) throw new AssertionError("Expected 64-bit helper");
    service.readWhitelist(0);
-   String evidence = service.fcmSocketEvidence(0);
-   EnhancedStatus.Result.valueOf(evidence);
    String connection=service.gcmConnectionState(0);
    EnhancedStatus.Result.valueOf(connection);
    try { service.readWhitelist(-1); throw new AssertionError("Invalid user accepted"); }
    catch (IllegalArgumentException expected) { }
-   System.out.println("SHELL_SETTINGS_OK uid=" + Process.myUid() + " bitness=" + bits + " readOnly=true socketEvidence=" + evidence + " gmsState=" + connection);
+   System.out.println("SHELL_SETTINGS_OK uid=" + Process.myUid() + " bitness=" + bits + " readOnly=true gmsState=" + connection);
    System.exit(0);
   } catch (Throwable e) { e.printStackTrace(); System.exit(1); }
  }

@@ -42,7 +42,7 @@ public class PushDashboardTest {
    assertNotNull(activity.findViewById(R.id.chooseAppsBtn));
   });
  }
- @Test public void reachableNetworkAndSocketNeverClaimDiagnosticsConnected() {
+ @Test public void reachableNetworkNeverClaimsDiagnosticsConnected() {
   PushRuntime.network = NetworkProbe.State.REACHABLE;
   in.runOnMainSync(() -> {
    activity.renderConnection();
@@ -92,6 +92,49 @@ public class PushDashboardTest {
  }
  @Test public void repeatedHeartbeatRequestsAreRateLimited() {
   assertTrue(DiagnosticPreferences.requestAllowed(c)); assertFalse(DiagnosticPreferences.requestAllowed(c));
+ }
+ @Test public void deniedHeartbeatDoesNotSkipOtherRecoveryRequests() {
+  List<String> actions=new ArrayList<>();
+  ContextWrapper context=new ContextWrapper(c) {
+   @Override public void sendBroadcast(Intent intent) {
+    actions.add(intent.getPackage()+":"+intent.getAction());
+    if(intent.getAction().endsWith("GTALK_HEARTBEAT")) throw new SecurityException("blocked");
+   }
+  };
+  FcmReconnect.requestHeartbeat(context);
+  assertEquals(5,actions.size());
+  assertTrue(actions.contains("com.google.android.gms:com.google.android.intent.action.MCS_HEARTBEAT"));
+  assertTrue(actions.contains("com.google.android.gsf:com.google.android.intent.action.MCS_HEARTBEAT"));
+ }
+ @Test public void replacedNetworkListenersCannotPublishOldEvents() throws Exception {
+  for(int i=0;i<200 && PushRuntime.busy();i++) android.os.SystemClock.sleep(100);
+  assertFalse("Previous network checks must settle before replacing the callback",PushRuntime.busy());
+  in.waitForIdleSync();
+  AtomicReference<android.net.ConnectivityManager.NetworkCallback> old=new AtomicReference<>();
+  in.runOnMainSync(() -> {
+   DiagnosticPreferences.prefs(c).edit().putBoolean("observe",true).commit();PushRuntime.configure(c);
+   try { Field f=PushRuntime.class.getDeclaredField("callback");f.setAccessible(true);old.set((android.net.ConnectivityManager.NetworkCallback)f.get(null)); }
+   catch(Exception e) { throw new AssertionError(e); }
+   DiagnosticPreferences.prefs(c).edit().putBoolean("observe",false).commit();PushRuntime.configure(c);
+   PushRuntime.network=NetworkProbe.State.REACHABLE;
+   old.get().onLost(null);old.get().onCapabilitiesChanged(null,null);
+  });
+  in.waitForIdleSync();
+  assertEquals(NetworkProbe.State.REACHABLE,PushRuntime.network);
+ }
+ @Test public void lateHelperCallbackCannotAttachAfterEnhancedChecksAreDisabled() throws Exception {
+  Field connection=ShizukuBridge.class.getDeclaredField("CONNECTION");connection.setAccessible(true);
+  ServiceConnection callback=(ServiceConnection)connection.get(null);
+  in.runOnMainSync(() -> callback.onServiceConnected(new ComponentName(c,SettingsUserService.class),new android.os.Binder()));
+  in.waitForIdleSync();
+  assertNull(ShizukuBridge.sessionBinder());
+ }
+ @Test public void recoveryLaunchIsConsumedImmediatelyWithoutWaitingForAnObserver() {
+  in.runOnMainSync(() -> {
+   Intent intent=new Intent(c,MainActivity.class).putExtra("request_recovery",true);
+   in.callActivityOnNewIntent(activity,intent);
+   assertFalse(activity.getIntent().hasExtra("request_recovery"));
+  });
  }
  @Test public void appProcessRuns64BitWhenRequested() {
   if (Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("require64Bit", "false"))) assertTrue(android.os.Process.is64Bit());
@@ -154,10 +197,10 @@ public class PushDashboardTest {
  @Test public void lostGrantHidesFormerConnectionEvidence() {
   in.runOnMainSync(() -> {
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.NOT_AUTHORIZED,
-       EnhancedStatus.Result.OBSERVED, 64, 1234567890000L));
+       EnhancedStatus.Result.CONNECTED, 64, 1234567890000L, android.os.SystemClock.elapsedRealtime()));
    String top = ((TextView)activity.findViewById(R.id.evidenceText)).getText().toString();
    assertTrue(top.contains(c.getString(R.string.enhanced_needs_grant)));
-   assertFalse(top.contains(c.getString(R.string.socket_observed)));
+   assertFalse(top.contains(c.getString(R.string.gms_connected)));
    assertTrue(((TextView)activity.findViewById(R.id.runtimeInfoText)).getText().toString().contains(c.getString(R.string.helper_bits_unknown)));
   });
  }
@@ -185,14 +228,14 @@ public class PushDashboardTest {
    assertNotEquals(c.getString(R.string.tile_disconnected),tile.getLabel());
   });
  }
- @Test public void staleResultsSocketsAndLostGrantCannotLightTile() {
+ @Test public void staleUnknownAndLostGrantCannotLightTile() {
   in.runOnMainSync(() -> {
    long now=android.os.SystemClock.elapsedRealtime();
    android.service.quicksettings.Tile tile=emptyPlatformTile();
    EnhancedStatus.Snapshot[] invalid={
     new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.CONNECTED,64,42,now-15000),
     new EnhancedStatus.Snapshot(EnhancedStatus.Access.NOT_AUTHORIZED,EnhancedStatus.Result.CONNECTED,64,42,now),
-    new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.OBSERVED,64,42,now)};
+    new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.NO_DATA,64,42,now)};
    for(EnhancedStatus.Snapshot state:invalid) {
     GuardTileService.applyState(c,tile,state,now);
     assertNotEquals(android.service.quicksettings.Tile.STATE_ACTIVE,tile.getState());
@@ -227,7 +270,7 @@ public class PushDashboardTest {
    AutostartStatusReader.Status[] states={AutostartStatusReader.Status.DISABLED,AutostartStatusReader.Status.PARTIAL,AutostartStatusReader.Status.UNKNOWN,AutostartStatusReader.Status.ENABLED};
    for(int i=0;i<4;i++) {
     FcmAppScanner.AppEntry app=new FcmAppScanner.AppEntry("com.example."+labels[i],"Example "+labels[i],i!=2);
-    AppDiagnostics row=new AppDiagnostics(a,app,"");
+    AppDiagnostics row=new AppDiagnostics(a,app,Collections.emptySet());
     Field field=AppDiagnostics.class.getDeclaredField("autostart");field.setAccessible(true);field.set(row,states[i]);
     field=AppDiagnostics.class.getDeclaredField("inSystemList");field.setAccessible(true);field.set(row,i==3?Boolean.TRUE:null);
     field=AppDiagnostics.class.getDeclaredField("notificationPermission");field.setAccessible(true);field.set(row,null);

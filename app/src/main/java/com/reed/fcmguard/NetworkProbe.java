@@ -6,6 +6,9 @@ import android.net.NetworkCapabilities;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.Inet4Address;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 
 /** Tests this app's network path, never the private GMS connection or message delivery. */
@@ -25,13 +28,13 @@ final class NetworkProbe {
         Future<State> future;
         try {
             future = IO.submit(() -> {
-                InetAddress[] addresses = InetAddress.getAllByName("mtalk.google.com");
+                List<InetAddress> addresses = candidates(InetAddress.getAllByName("mtalk.google.com"));
                 // Bound work and test the normal push port and documented 443 fallback.
                 for (int port : new int[]{5228, 443}) {
-                    for (int i = 0; i < Math.min(2, addresses.length); i++) {
+                    for (InetAddress address : addresses) {
                         if (Thread.currentThread().isInterrupted()) return State.UNAVAILABLE;
                         try (Socket socket = new Socket()) {
-                            socket.connect(new InetSocketAddress(addresses[i], port), 1500);
+                            socket.connect(new InetSocketAddress(address, port), 1500);
                             return State.REACHABLE;
                         } catch (java.io.IOException ignored) { }
                     }
@@ -44,5 +47,17 @@ final class NetworkProbe {
         catch (ExecutionException e) { return State.UNREACHABLE; }
         catch (TimeoutException e) { return State.UNAVAILABLE; }
         finally { future.cancel(true); }
+    }
+    static List<InetAddress> candidates(InetAddress[] resolved) {
+        List<InetAddress> result = new ArrayList<>(2);
+        boolean ipv4 = false, ipv6 = false;
+        for (InetAddress address : resolved) {
+            boolean v4 = address instanceof Inet4Address;
+            if (v4 ? ipv4 : ipv6) continue;
+            result.add(address);
+            if (v4) ipv4 = true; else ipv6 = true;
+            if (ipv4 && ipv6) break;
+        }
+        return result;
     }
 }

@@ -6,6 +6,14 @@ import static org.junit.Assert.*;
 public class GmsConnectionStateTest {
     private static final String HEADER = "SERVICE com.google.android.gms/.gcm.GcmService abc123 pid=1234 user=0\n  Client:\n";
     private static final String LIVE = "    connected=mtalk.google.com/192.0.2.1,port=5228\n    streamId=2/1\n    ReconnectManager OFF Connected\n";
+    @Test public void aDifferentServiceBeforeGmsCannotBypassTheSingleServiceRule() {
+        assertEquals(EnhancedStatus.Result.FORMAT_UNSUPPORTED,GmsConnectionState.parse(
+                "SERVICE com.example/.Other abcd pid=999 user=0\nClient:\n"+HEADER+LIVE,0));
+    }
+    @Test public void modernAndLegacyCurrentFieldsMustAgree() {
+        assertEquals(EnhancedStatus.Result.FORMAT_UNSUPPORTED,GmsConnectionState.parse(
+                HEADER+LIVE.replace("OFF Connected","ON Disconnected")+"Is client connected: true\n",0));
+    }
     @Test public void currentEndpointAndManagerConfirmConnection() {
         assertEquals(EnhancedStatus.Result.CONNECTED, GmsConnectionState.parse(HEADER + LIVE, 0));
         assertEquals(EnhancedStatus.Result.CONNECTED, GmsConnectionState.parse(HEADER + LIVE.replace("OFF", "ON"), 0));

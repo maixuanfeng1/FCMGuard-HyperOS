@@ -14,7 +14,7 @@ final class PushRuntime {
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
     private static final CopyOnWriteArraySet<Runnable> LISTENERS = new CopyOnWriteArraySet<>();
-    private static boolean initialized, busy, pendingCheck, pendingRecovery;
+    private static boolean initialized, busy, pendingCheck, pendingRecovery, refreshing, refreshPending;
     private static volatile int networkRevision;
     private static SettingsChangeMonitor observer;
     private static ConnectivityManager.NetworkCallback callback;
@@ -38,18 +38,28 @@ final class PushRuntime {
                 try {
                     callback = new ConnectivityManager.NetworkCallback() {
                         private String last;
+                        private Network active;
                         @Override public void onCapabilitiesChanged(Network net, NetworkCapabilities caps) {
+                          MAIN.post(() -> {
+                            if (callback != this) return;
                             String now = net.toString() + ":" + caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
                             if (now.equals(last)) return;
-                            last = now;
+                            last = now; active = net;
                             networkRevision++;
+                            network = NetworkProbe.State.NOT_CHECKED;
                             EnhancedRuntime.invalidate(c);
-                            MAIN.post(() -> check(c, false));
+                            check(c, false);
+                          });
                         }
                         @Override public void onLost(Network net) {
+                          MAIN.post(() -> {
+                            if (callback != this || active != null && !active.equals(net)) return;
+                            active = null; last = null;
                             networkRevision++;
                             EnhancedRuntime.invalidate(c);
-                            network = NetworkProbe.State.OFFLINE; changed();
+                            network = NetworkProbe.State.OFFLINE;
+                            checkedAt = System.currentTimeMillis(); changed();
+                          });
                         }
                     };
                     c.getSystemService(ConnectivityManager.class).registerDefaultNetworkCallback(callback);
@@ -58,13 +68,21 @@ final class PushRuntime {
         }
         refresh(c);
     }
-    static void refresh(Context context) {
+    static synchronized void refresh(Context context) {
+        if (refreshing) { refreshPending = true; return; }
+        refreshing = true;
         Context c = context.getApplicationContext();
         WORKER.execute(() -> {
+          try {
             whitelist = SettingsGuard.read(c);
             try { gmsAvailable = c.getPackageManager().getApplicationInfo("com.google.android.gms", 0).enabled; }
             catch (Exception e) { gmsAvailable = false; }
+          } finally {
+            boolean again;
+            synchronized (PushRuntime.class) { refreshing = false; again = refreshPending; refreshPending = false; }
             changed();
+            if (again) MAIN.post(() -> refresh(c));
+          }
         });
     }
     static synchronized boolean check(Context context, boolean requestRecovery) {
@@ -86,10 +104,13 @@ final class PushRuntime {
                     FcmReconnect.requestHeartbeat(c);
                     DiagnosticPreferences.prefs(c).edit().putLong("request_time", System.currentTimeMillis()).apply();
                 }
-                network = NetworkProbe.check(c);
-                checkedAt = System.currentTimeMillis();
+                NetworkProbe.State measured = NetworkProbe.check(c);
+                long measuredAt = System.currentTimeMillis();
+                // A result for an old network must never overwrite a newer loss/capability event.
+                MAIN.post(() -> {
+                    if (revision == networkRevision) { network = measured; checkedAt = measuredAt; }
+                });
             } finally {
-                if (revision != networkRevision) { network = NetworkProbe.State.NOT_CHECKED; }
                 boolean again, recovery;
                 synchronized (PushRuntime.class) {
                     busy = false; again = pendingCheck || revision != networkRevision; recovery = pendingRecovery;

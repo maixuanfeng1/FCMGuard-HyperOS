@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+if [[ "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" != "1" ]]; then
+  echo 'Device checks modify settings and install test APKs. Use a disposable emulator.' >&2
+  exit 1
+fi
 mkdir -p artifacts/screenshots
 trap 'adb logcat -d -b crash > artifacts/emulator-crash.log 2>/dev/null || true' EXIT
 
@@ -55,7 +59,7 @@ for report in reports:
     tests += int(root.get('tests', '0'))
     for attribute in ('failures', 'errors', 'skipped'):
         assert int(root.get(attribute, '0')) == 0, f'{report}: {attribute}={root.get(attribute)}'
-assert tests >= 26, f'Expected the full device suite; only {tests} tests ran'
+assert tests >= 30, f'Expected the full device suite; only {tests} tests ran'
 print(f'Verified {tests} device tests passed')
 PY
 adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/

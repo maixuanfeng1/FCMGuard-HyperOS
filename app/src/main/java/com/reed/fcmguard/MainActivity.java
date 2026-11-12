@@ -27,6 +27,7 @@ public class MainActivity extends AppCompatActivity {
     private List<AppDiagnostics> rows = new ArrayList<>();
     private boolean showAll;
     private volatile boolean scanning;
+    private boolean scanPending;
     private String lastWhitelist;
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
     private final Runnable connectionRefresh = new Runnable() {
@@ -39,10 +40,6 @@ public class MainActivity extends AppCompatActivity {
     private final Runnable stateListener = () -> {
         if (isDestroyed()) return;
         renderConnection();
-        if (getIntent().getBooleanExtra("request_recovery", false)) {
-            getIntent().removeExtra("request_recovery");
-            PushRuntime.check(this, true);
-        }
         if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)) refreshApps();
     };
 
@@ -95,14 +92,23 @@ public class MainActivity extends AppCompatActivity {
             String next = id == R.id.themeDark ? ThemeHelper.MODE_DARK : id == R.id.themeLight ? ThemeHelper.MODE_LIGHT : ThemeHelper.MODE_SYSTEM;
             if (!next.equals(ThemeHelper.getMode(this))) { ThemeHelper.setMode(this, next); recreate(); }
         });
-        PushRuntime.add(stateListener);
         PushRuntime.start(this);
         renderConnection();
+        handleLaunchActions();
+    }
+    private void handleLaunchActions() {
+        if (getIntent().getBooleanExtra("request_recovery", false)) {
+            getIntent().removeExtra("request_recovery");
+            PushRuntime.check(this, true);
+        }
         if (getIntent().getBooleanExtra("open_diagnostics", false)) {
             getIntent().removeExtra("open_diagnostics");
             findViewById(R.id.diagBtn).post(this::openDiagnostics);
         }
     }
+    @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleLaunchActions(); }
+    @Override protected void onStart() { super.onStart(); PushRuntime.add(stateListener); }
+    @Override protected void onStop() { PushRuntime.remove(stateListener); super.onStop(); }
     @Override protected void onResume() {
         super.onResume();
         WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
@@ -176,13 +182,9 @@ public class MainActivity extends AppCompatActivity {
             case SERVICE_UNAVAILABLE: return R.string.gms_service_unavailable;
             case STALE: return R.string.gms_state_stale;
             case CHECKING: return R.string.enhanced_checking;
-            case OBSERVED: return R.string.socket_observed;
-            case NOT_OBSERVED: return R.string.socket_absent;
             case SYSTEM_RESTRICTED: return R.string.enhanced_restricted;
             case COMMAND_UNSUPPORTED: return R.string.enhanced_command_unsupported;
             case FORMAT_UNSUPPORTED: return R.string.enhanced_format_unsupported;
-            case OWNERS_HIDDEN: return R.string.enhanced_owners_hidden;
-            case GMS_MISSING: return R.string.gms_missing;
             case TIMEOUT: return R.string.enhanced_timeout;
             case READ_FAILED: return R.string.enhanced_read_failed;
             case NO_DATA: return R.string.enhanced_no_data;
@@ -208,20 +210,30 @@ public class MainActivity extends AppCompatActivity {
         } catch (RuntimeException e) { return false; }
     }
     void refreshApps() {
-        if (scanning || worker.isShutdown()) return;
+        if (worker.isShutdown()) return;
+        if (scanning) { scanPending = true; return; }
         scanning = true;
         worker.execute(() -> {
+          try {
             List<FcmAppScanner.AppEntry> found = FcmAppScanner.scanAll(this);
             String list = SettingsGuard.read(this);
+            Set<String> packages = list == null ? null : PackageList.parse(list);
             List<AppDiagnostics> result = new ArrayList<>();
-            for (FcmAppScanner.AppEntry app : found) result.add(new AppDiagnostics(this, app, list));
+            for (FcmAppScanner.AppEntry app : found) result.add(new AppDiagnostics(this, app, packages));
             runOnUiThread(() -> {
                 scanning = false;
                 if (isDestroyed()) return;
                 apps = found; rows = result; lastWhitelist = list; renderApps();
                 // An event received during scanning must not be lost.
                 if (!Objects.equals(list, PushRuntime.whitelist)) PushRuntime.refresh(this);
+                if (scanPending) { scanPending = false; refreshApps(); }
             });
+          } catch (RuntimeException e) {
+            runOnUiThread(() -> {
+                scanning = false; scanPending = false;
+                if (!isDestroyed()) message(getString(R.string.scan_failed));
+            });
+          }
         });
     }
     void renderApps() {

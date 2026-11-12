@@ -13,14 +13,14 @@ public class EnhancedStatusTest {
  }
  @Test public void legacyUnavailableDoesNotMeanUnauthorized() {
   assertEquals(EnhancedStatus.Result.NO_DATA, EnhancedStatus.Result.fromWire("unavailable"));
-  assertEquals(EnhancedStatus.Result.OBSERVED, EnhancedStatus.Result.fromWire("observed"));
+  assertEquals(EnhancedStatus.Result.NO_DATA, EnhancedStatus.Result.fromWire("observed"));
   assertEquals(EnhancedStatus.Result.NO_DATA, EnhancedStatus.Result.fromWire("new-unknown-format"));
  }
  @Test public void disabledEnhancementRejectsLateSuccessfulReply() {
   EnhancedStatus state=new EnhancedStatus();Object binder=new Object();
   state.access(EnhancedStatus.Access.READY,binder);EnhancedStatus.Ticket old=state.begin();
   state.access(EnhancedStatus.Access.DISABLED,binder);
-  assertFalse(state.finish(old,EnhancedStatus.Result.OBSERVED,64,42, 1000));
+  assertFalse(state.finish(old,EnhancedStatus.Result.CONNECTED,64,42, 1000));
   assertEquals(0,state.access(EnhancedStatus.Access.DISABLED,binder).bits);
  }
  @Test public void rebindingCannotAcceptOldHelperResults() {
@@ -28,25 +28,25 @@ public class EnhancedStatusTest {
   state.access(EnhancedStatus.Access.READY,first);EnhancedStatus.Ticket old=state.begin();
   state.access(EnhancedStatus.Access.READY,second);
   EnhancedStatus.Ticket fresh=state.begin();
-  assertTrue(state.finish(fresh,EnhancedStatus.Result.NOT_OBSERVED,64,43, 1000));
-  assertFalse(state.finish(old,EnhancedStatus.Result.OBSERVED,32,42, 1000));
-  assertEquals(EnhancedStatus.Result.NOT_OBSERVED,state.access(EnhancedStatus.Access.READY,second).result);
+  assertTrue(state.finish(fresh,EnhancedStatus.Result.DISCONNECTED,64,43, 1000));
+  assertFalse(state.finish(old,EnhancedStatus.Result.CONNECTED,32,42, 1000));
+  assertEquals(EnhancedStatus.Result.DISCONNECTED,state.access(EnhancedStatus.Access.READY,second).result);
  }
  @Test public void networkChangeInvalidatesInFlightQuery() {
   EnhancedStatus state=new EnhancedStatus();Object binder=new Object();
   state.access(EnhancedStatus.Access.READY,binder);EnhancedStatus.Ticket old=state.begin();
   state.invalidate();
-  assertFalse(state.finish(old,EnhancedStatus.Result.OBSERVED,64,42, 1000));
+  assertFalse(state.finish(old,EnhancedStatus.Result.CONNECTED,64,42, 1000));
  }
  @Test public void disablingAndReenablingSameHelperDoesNotResurrectOldEvidence() {
   EnhancedStatus state=new EnhancedStatus();Object binder=new Object();
   state.access(EnhancedStatus.Access.READY,binder);EnhancedStatus.Ticket old=state.begin();
   state.access(EnhancedStatus.Access.DISABLED,null);state.access(EnhancedStatus.Access.READY,binder);
-  assertFalse(state.finish(old,EnhancedStatus.Result.OBSERVED,64,42, 1000));
+  assertFalse(state.finish(old,EnhancedStatus.Result.CONNECTED,64,42, 1000));
  }
  @Test public void revokedGrantClearsBitnessAndResults() {
   EnhancedStatus state=new EnhancedStatus();Object binder=new Object();
-  state.access(EnhancedStatus.Access.READY,binder);state.finish(state.begin(),EnhancedStatus.Result.OBSERVED,64,42, 1000);
+  state.access(EnhancedStatus.Access.READY,binder);state.finish(state.begin(),EnhancedStatus.Result.CONNECTED,64,42, 1000);
   EnhancedStatus.Snapshot revoked=state.access(EnhancedStatus.Access.NOT_AUTHORIZED,binder);
   assertEquals(0,revoked.bits);assertEquals(0,revoked.checkedAt);assertEquals(EnhancedStatus.Result.NOT_CHECKED,revoked.result);
  }

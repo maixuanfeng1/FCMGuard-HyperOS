@@ -37,6 +37,8 @@ def no_foreground_service():
     assert not re.search(r'NotificationRecord[^\n]*pkg=com\.reed\.fcmguard\b', notifications)
 
 
+assert adb('shell','getprop','ro.kernel.qemu') == '1', 'Use only on disposable emulator images'
+
 try:
     adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk')
     adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
