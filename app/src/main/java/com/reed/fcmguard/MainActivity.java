@@ -11,7 +11,6 @@ import android.widget.*;
 import androidx.appcompat.app.*;
 import androidx.core.view.*;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.color.*;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -62,7 +61,6 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
         findViewById(R.id.diagBtn).setOnClickListener(v -> openDiagnostics());
-        findViewById(R.id.reportBtn).setOnClickListener(v -> recordResult());
         findViewById(R.id.checkBtn).setOnClickListener(v -> check(false));
         findViewById(R.id.reconnectBtn).setOnClickListener(v -> check(true));
         findViewById(R.id.chooseAppsBtn).setOnClickListener(v -> chooseApps());
@@ -114,10 +112,6 @@ public class MainActivity extends AppCompatActivity {
         EnhancedRuntime.request(this);
         connectionHandler.removeCallbacks(connectionRefresh);
         connectionHandler.postDelayed(connectionRefresh, 5000L);
-        if (DiagnosticPreferences.prefs(this).getBoolean("awaiting_report", false)) {
-            DiagnosticPreferences.prefs(this).edit().remove("awaiting_report").apply();
-            findViewById(R.id.reportBtn).post(this::recordResult);
-        }
     }
     @Override protected void onPause() { connectionHandler.removeCallbacks(connectionRefresh); super.onPause(); }
     @Override protected void onDestroy() { connectionHandler.removeCallbacks(connectionRefresh); PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy(); }
@@ -130,14 +124,10 @@ public class MainActivity extends AppCompatActivity {
         else if (recovery) message(getString(R.string.request_started));
         renderConnection();
     }
-    private String time(long date) { return date <= 0 ? getString(R.string.not_confirmed) : DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(date)); }
+    private String time(long date) { return date <= 0 ? getString(R.string.network_none) : DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(date)); }
     private void set(int id, String value) { ((TextView) findViewById(id)).setText(value); }
     void renderConnection() {
         set(R.id.statusHeadline, getString(R.string.connection_unknown));
-        String report = DiagnosticPreferences.report(this);
-        int reportLabel = "connected".equals(report) ? R.string.connected_report : "disconnected".equals(report) ? R.string.disconnected_report : R.string.not_confirmed;
-        set(R.id.reportText, DiagnosticPreferences.reportTime(this) == 0 ? getString(R.string.not_confirmed) :
-                getString(R.string.last_report, getString(reportLabel), time(DiagnosticPreferences.reportTime(this))));
         int network = PushRuntime.network == NetworkProbe.State.REACHABLE ? R.string.network_reachable :
                 PushRuntime.network == NetworkProbe.State.OFFLINE ? R.string.network_offline :
                 PushRuntime.network == NetworkProbe.State.UNREACHABLE ? R.string.network_failed :
@@ -199,13 +189,6 @@ public class MainActivity extends AppCompatActivity {
             default: return R.string.enhanced_not_checked;
         }
     }
-    private void recordResult() {
-        if (isFinishing() || isDestroyed()) return;
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.confirm_diagnostics).setMessage(R.string.report_question)
-                .setPositiveButton(R.string.connected_report, (d, w) -> { DiagnosticPreferences.report(this, "connected"); renderConnection(); })
-                .setNegativeButton(R.string.disconnected_report, (d, w) -> { DiagnosticPreferences.report(this, "disconnected"); renderConnection(); })
-                .setNeutralButton(R.string.cancel_action, null).show();
-    }
     void openDiagnostics() {
         String[] names = {"com.google.android.gms.gcm.GcmDiagnostics", "com.google.android.gms.gtalkservice.diagnostics.GTalkServiceDiagnostics"};
         for (String name : names) if (openGms(name)) return;
@@ -221,7 +204,6 @@ public class MainActivity extends AppCompatActivity {
     private boolean openGms(String name) {
         try {
             startActivity(new Intent().setClassName("com.google.android.gms", name));
-            DiagnosticPreferences.prefs(this).edit().putBoolean("awaiting_report", true).apply();
             return true;
         } catch (RuntimeException e) { return false; }
     }
@@ -317,18 +299,6 @@ public class MainActivity extends AppCompatActivity {
         button(content, R.string.open_app_notifications, () -> HyperOsSettings.openNotificationSettings(this, row.app.packageName));
         button(content, R.string.open_app_battery, () -> HyperOsSettings.openBatterySettings(this, row.app.packageName));
         button(content, R.string.lock_instructions, () -> new MaterialAlertDialogBuilder(this).setMessage(R.string.lock_help).setPositiveButton(R.string.done_action, null).show());
-        text(content, getString(R.string.review_title), true);
-        text(content, getString(R.string.review_note), false);
-        String[] keys = {"notifications", "battery", "lock", "delivery"};
-        int[] labels = {R.string.review_notifications, R.string.review_battery, R.string.review_lock, R.string.review_delivery};
-        for (int i = 0; i < keys.length; i++) {
-            String key = keys[i]; long confirmed = DiagnosticPreferences.appConfirmation(this, row.app.packageName, key, row.updated);
-            MaterialCheckBox check = new MaterialCheckBox(this); check.setText(labels[i]); check.setMinHeight(dp(48)); check.setChecked(confirmed > 0);
-            check.setOnCheckedChangeListener((v, value) -> DiagnosticPreferences.confirmApp(this, row.app.packageName, key, row.updated, value));
-            content.addView(check);
-            if (confirmed > 0) text(content, getString(R.string.review_time, time(confirmed)), false);
-        }
-        text(content, getString(R.string.manual_delivery_help), false);
         dialog.setContentView(scroll); dialog.show();
     }
     private void addTile() {

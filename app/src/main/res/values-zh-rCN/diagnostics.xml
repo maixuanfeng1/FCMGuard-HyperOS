@@ -5,12 +5,6 @@
     <string name="connection_summary">自动状态需要开启 Shizuku 增强检查并成功读取 GMS 当前状态；无法读取时，请打开 Google 诊断确认。</string>
     <string name="check_now">立即检查</string>
     <string name="request_reconnect">尝试请求重连</string>
-    <string name="confirm_diagnostics">记录诊断页结果</string>
-    <string name="report_question">Google 诊断页显示什么？此处记录的是带时间的人工观察，不代表持续监测。</string>
-    <string name="connected_report">Connected（手动确认）</string>
-    <string name="disconnected_report">Disconnected（手动确认）</string>
-    <string name="not_confirmed">尚未确认</string>
-    <string name="last_report">上次手动观察：%1$s · %2$s</string>
     <string name="network_label">网络状况</string>
     <string name="network_none">未检查</string>
     <string name="network_offline">当前无可用网络</string>
@@ -59,13 +53,6 @@
     <string name="open_app_battery">电池设置</string>
     <string name="lock_instructions">如何锁定后台</string>
     <string name="lock_help">打开目标应用，进入最近任务，在任务卡片上使用 HyperOS 的锁定操作（通常可长按卡片找到）。不同桌面操作可能不同；锁定是可选措施，不保证通知必达。</string>
-    <string name="review_title">人工检查记录（由你确认）</string>
-    <string name="review_notifications">我已检查通知总开关、通知类别和应用内静音／勿扰设置</string>
-    <string name="review_battery">我已在该应用的 HyperOS 电池设置中确认无限制</string>
-    <string name="review_lock">我已确认最近任务卡片已锁定</string>
-    <string name="review_delivery">我锁屏后收到了该应用的真实测试消息</string>
-    <string name="review_time">上次人工确认：%1$s</string>
-    <string name="review_note">人工记录，不代表自动检测；应用更新后失效，修改设置后请复查。</string>
     <string name="settings_title">检查方式与偏好</string>
     <string name="observe_events">随系统名单和网络变化刷新</string>
     <string name="observe_note">无常驻通知或定时唤醒。进程无法运行时检查会暂停，可通过磁贴唤起。</string>
@@ -85,7 +72,6 @@
     <string name="no_auth_service">请先启动 Shizuku，也可以保持增强功能关闭</string>
     <string name="no_timer">检查并打开诊断</string>
     <string name="appearance_title_v3">外观</string>
-    <string name="manual_delivery_help">从另一账号／设备向目标应用发送真实消息，分别测试亮屏和锁屏待机 10–30 分钟后的收信。只记录实际收到的结果。</string>
 <string name="tile_setup_message">磁贴亮起且显示 Connected，表示刚刚读取到 GMS 已连接；灰色断开图标并显示 Disconnected，表示刚刚读取到未连接。问号和“未知”表示无法读取，不是关闭。请开启可选 Shizuku 增强检查。面板可见时每 5 秒刷新，收起后不轮询。点击尝试心跳并打开诊断，不会关闭 GMS 推送。</string>
 <string name="diagnostic_observer_unavailable">部分变化无法自动监听，请返回首页或点击刷新重新检查。</string>
     <string name="helper_access_status">Shizuku：%1$s</string>

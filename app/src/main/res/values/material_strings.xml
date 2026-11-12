@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="manual_repair_summary">Checks the HyperOS whitelist, restores the configured app if missing, and verifies the result through Shizuku. This does not confirm an FCM network connection.</string>
     <string name="runtime_architecture">App process: %1$d-bit\nShizuku helper: %2$s</string>
     <string name="runtime_bits">%1$d-bit</string>
     <string name="runtime_helper_unavailable">Not connected / unavailable</string>

@@ -49,23 +49,40 @@ public class PushDashboardTest {
    assertEquals(c.getString(R.string.connection_unknown), ((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
    assertTrue(((TextView)activity.findViewById(R.id.networkText)).getText().toString().contains(c.getString(R.string.network_reachable)));
   });
-  assertEquals("unknown", DiagnosticPreferences.report(c));
  }
- @Test public void observationInvalidationDoesNotLeaveAConnectedClaim() {
-  DiagnosticPreferences.report(c, "connected");
-  assertTrue(DiagnosticPreferences.reportTime(c) > 0);
-  DiagnosticPreferences.invalidateReport(c);
-  assertEquals("unknown", DiagnosticPreferences.report(c)); assertEquals(0, DiagnosticPreferences.reportTime(c));
+ @Test public void upgradeRemovesManualRecordsButPreservesUserPreferences() {
+  Set<String> chosen=new HashSet<>(Arrays.asList("com.example.chat"));
+  DiagnosticPreferences.selected(c,chosen);
+  DiagnosticPreferences.enhanced(c,true);
+  android.content.SharedPreferences.Editor old=DiagnosticPreferences.prefs(c).edit()
+   .putString("report","connected").putLong("report_time",123).putBoolean("awaiting_report",true)
+   .putLong("request_time",456).putLong("request_elapsed",789);
+  for(String item:new String[]{"notifications","battery","lock","delivery"}) {
+   old.putLong("com.example.chat:"+item,123).putLong("com.example.chat:"+item+":version",321);
+  }
+  old.commit();
+  DiagnosticPreferences.removeLegacyManualRecords(c);
+  DiagnosticPreferences.removeLegacyManualRecords(c);
+  assertEquals(chosen,DiagnosticPreferences.selected(c));
+  assertTrue(DiagnosticPreferences.enhanced(c));
+  assertFalse(DiagnosticPreferences.observe(c));
+  assertEquals(456,DiagnosticPreferences.prefs(c).getLong("request_time",0));
+  assertEquals(789,DiagnosticPreferences.prefs(c).getLong("request_elapsed",0));
+  for(String key:DiagnosticPreferences.prefs(c).getAll().keySet()) {
+   assertFalse(key.startsWith("com.example.chat:"));
+   assertNotEquals("report",key);assertNotEquals("report_time",key);assertNotEquals("awaiting_report",key);
+  }
  }
- @Test public void manualChecksAreVersionedAndRemainSeparateFromDetection() {
-  DiagnosticPreferences.confirmApp(c, "com.example.chat", "lock", 123, true);
-  assertTrue(DiagnosticPreferences.appConfirmation(c, "com.example.chat", "lock", 123) > 0);
-  assertEquals(0, DiagnosticPreferences.appConfirmation(c, "com.example.chat", "lock", 124));
-  assertEquals(0, DiagnosticPreferences.appConfirmation(c, "com.example.chat", "notifications", 123));
-  DiagnosticPreferences.confirmApp(c, "com.example.chat", "notifications", 124, true);
-  assertEquals(0, DiagnosticPreferences.appConfirmation(c, "com.example.chat", "lock", 124));
-  DiagnosticPreferences.confirmApp(c, "com.example.chat", "lock", 123, false);
-  assertEquals(0, DiagnosticPreferences.appConfirmation(c, "com.example.chat", "lock", 123));
+ @Test public void returningFromDiagnosticsIgnoresOldPendingRecordAndShowsNoDialog() {
+  DiagnosticPreferences.prefs(c).edit().putBoolean("awaiting_report",true).putString("report","connected").commit();
+  for(int repeat=0;repeat<2;repeat++) {
+   in.runOnMainSync(() -> { in.callActivityOnPause(activity); in.callActivityOnResume(activity); });
+   in.waitForIdleSync();android.os.SystemClock.sleep(200);
+   in.runOnMainSync(() -> {
+    assertTrue("Returning to diagnostics must leave the dashboard focused, without a confirmation dialog",activity.hasWindowFocus());
+    assertEquals(c.getString(R.string.connection_unknown),((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
+   });
+  }
  }
  @Test public void chosenAppsPersistIndependentlyOfShizuku() {
   DiagnosticPreferences.selected(c, new HashSet<>(Arrays.asList("com.example.chat")));
@@ -96,7 +113,8 @@ public class PushDashboardTest {
    in.waitForIdleSync(); android.os.SystemClock.sleep(400);
    in.runOnMainSync(() -> { Rect after = new Rect(); assertTrue(activity.findViewById(R.id.diagBtn).getGlobalVisibleRect(after)); assertEquals(before, after); activity.findViewById(R.id.diagBtn).performClick(); });
    assertNotNull(opened.get()); assertEquals("com.google.android.gms.gcm.GcmDiagnostics", opened.get().getComponent().getClassName());
-  } finally { in.removeMonitor(monitor); DiagnosticPreferences.prefs(c).edit().remove("awaiting_report").commit(); }
+   assertFalse(DiagnosticPreferences.prefs(c).contains("awaiting_report"));
+  } finally { in.removeMonitor(monitor); }
  }
  @Test public void disabledAppsSortBeforeEnabledAndCountsUseRenderedList() {
   in.runOnMainSync(() -> {

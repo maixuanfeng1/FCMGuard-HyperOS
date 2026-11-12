@@ -8,15 +8,19 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 
 ## Workflow
 
-1. Open Google Play services' FCM diagnostics using the fixed home-screen button. Record Connected or Disconnected as a dated **manual observation**. Network changes invalidate that observation. This is not a continuously verified connection status.
+1. View the recent automatically read GMS connection state. Open Google Play services’ FCM diagnostics using the fixed home-screen button when needed; returning resumes automatic checks without a recording or confirmation dialog.
 2. Choose your notification apps from launchable apps, including those without detected FCM/GCM declarations. Components establish capability, not a working token, actual message route or guaranteed delivery.
 3. Inspect Autostart, read-only `MILLET_NO_RESTRICT_APP` membership, Android notification permission, stopped flag and AOSP Doze exemption. Unknown is distinct from enabled. Notification master switches/channels, in-app mute settings and recents locking require review where a supported query is unavailable. System-list membership and the HyperOS UI's complete battery policy are not treated as interchangeable.
-4. Open the exact selected app's notification, battery or app-details settings. Record manual checks separately, including a real message received after locking the phone. App updates invalidate app-specific confirmation records. Retest after settings/network changes.
+4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
+
+## Version 3.1.1: automatic checks without manual records
+
+Remove diagnostic recording, the confirmation dialog on return, historical user-reported connection state and per-app confirmation checklists. Upgrades clear old records and pending-dialog flags while retaining selected apps, Shizuku preferences, themes and request rate limits. Connection status comes only from automatic reads; unreadable state stays unknown.
 
 ## Version 3.1: connection tile
 
-Only a successful read of the correct profile and current GMS connection fields supplies Connected/Disconnected. Historical events, manual reports, reachability, sockets and authorization cannot light the tile. The dashboard and tile share the same snapshot.
+Only a successful read of the correct profile and current GMS connection fields supplies Connected/Disconnected. Historical events, reachability, sockets and authorization cannot light the tile. The dashboard and tile share the same snapshot.
 
 Reads refresh every five seconds only while the dashboard or quick-settings panel is visible. Hidden surfaces stop their refresh callbacks. Verdicts expire after 15 monotonic seconds and invalidate immediately on network, authorization or helper changes. Hiding the panel clears its lit state so SystemUI cannot cache a stale connection claim. Tapping still checks, attempts a heartbeat and opens diagnostics; it does not turn off GMS push.
 

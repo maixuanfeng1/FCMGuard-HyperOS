@@ -44,13 +44,11 @@ final class PushRuntime {
                             last = now;
                             networkRevision++;
                             EnhancedRuntime.invalidate(c);
-                            DiagnosticPreferences.invalidateReport(c);
                             MAIN.post(() -> check(c, false));
                         }
                         @Override public void onLost(Network net) {
                             networkRevision++;
                             EnhancedRuntime.invalidate(c);
-                            DiagnosticPreferences.invalidateReport(c);
                             network = NetworkProbe.State.OFFLINE; changed();
                         }
                     };

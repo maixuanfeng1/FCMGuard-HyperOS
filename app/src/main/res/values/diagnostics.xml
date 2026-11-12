@@ -6,12 +6,6 @@
     <string name="connection_summary">Automatic status needs optional Shizuku and readable current GMS state. Otherwise confirm in Google diagnostics.</string>
     <string name="check_now">Check now</string>
     <string name="request_reconnect">Try a heartbeat request</string>
-    <string name="confirm_diagnostics">Record diagnostics result</string>
-    <string name="report_question">What does the Google diagnostics page show? This is a dated manual observation, not continuous monitoring.</string>
-    <string name="connected_report">Connected (manually observed)</string>
-    <string name="disconnected_report">Disconnected (manually observed)</string>
-    <string name="not_confirmed">Not confirmed</string>
-    <string name="last_report">Last manual observation: %1$s · %2$s</string>
     <string name="network_label">Network check</string>
     <string name="network_none">Not checked</string>
     <string name="network_offline">No active Internet network</string>
@@ -60,13 +54,6 @@
     <string name="open_app_battery">Battery settings</string>
     <string name="lock_instructions">How to lock in recents</string>
     <string name="lock_help">Open the target app, return to recents, then use HyperOS’s lock action on its task card (often by long-pressing the card). Availability varies by launcher. Locking is optional and does not guarantee delivery.</string>
-    <string name="review_title">Manual checks — user reported</string>
-    <string name="review_notifications">I checked the notification master switch, categories, and in-app mute / DND settings</string>
-    <string name="review_battery">I confirmed No restrictions in this app’s HyperOS battery settings</string>
-    <string name="review_lock">I confirmed the recents task is locked</string>
-    <string name="review_delivery">I received a real test message after locking the phone</string>
-    <string name="review_time">Last user confirmation: %1$s</string>
-    <string name="review_note">User reports, not automatic detections. App updates invalidate records. Review again after changing settings.</string>
     <string name="settings_title">Checks and preferences</string>
     <string name="observe_events">Refresh on system-list and network changes</string>
     <string name="observe_note">No persistent notification or scheduled wakeups. Checks pause when the process cannot run; use the tile to resume.</string>
@@ -86,7 +73,6 @@
     <string name="no_auth_service">Start Shizuku first, or leave the optional feature off</string>
     <string name="no_timer">Check and open diagnostics</string>
     <string name="appearance_title_v3">Appearance</string>
-    <string name="manual_delivery_help">Send a message to the chosen app from another account/device. Test while unlocked, then after locking for 10–30 minutes. Record only what you actually received.</string>
 <string name="tile_setup_message">Lit with Connected means GMS was just observed connected. A grey disconnected icon with Disconnected means GMS was just observed disconnected. A question mark with Unknown means unreadable, not off. Enable optional Shizuku. Refreshes every 5 seconds while visible, with no polling when hidden. Tap to try a heartbeat and open diagnostics; this does not turn off GMS push.</string>
 <string name="diagnostic_observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
     <string name="helper_access_status">Shizuku: %1$s</string>
