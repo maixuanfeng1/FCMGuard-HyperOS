@@ -117,3 +117,4 @@ jobs:
             artifacts/quick-settings-smoke.log
             artifacts/gms-connection-smoke.log
             artifacts/launcher-shortcut-smoke.log
+            artifacts/launcher-shortcut-ui.xml

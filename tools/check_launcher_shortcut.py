@@ -52,14 +52,22 @@ try:
         time.sleep(.5)
     assert icon, 'FCM Guard icon was not found in the native launcher'
     x, y = map(str, icon)
+    # Put the application icon on the home screen, matching the requested flow.
+    # An app-drawer long press may start drag/drop rather than leave its menu open.
+    adb('shell', 'input', 'draganddrop', x, y, str(width // 2), str(height * 55 // 100), '1000')
+    adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
+    time.sleep(1)
+    icon = find({'FCM Guard'})
+    assert icon, 'FCM Guard application icon was not placed on the home screen'
+    x, y = map(str, icon)
     adb('shell', 'input', 'swipe', x, y, x, y, '1000')
     time.sleep(.7)
-    target = find({'FCM diagnostics', 'Open FCM diagnostics'})
-    assert target, 'Native long-press menu did not expose FCM diagnostics'
     directory = Path('artifacts/screenshots')
     directory.mkdir(parents=True, exist_ok=True)
     (directory / '05-launcher-fcm-shortcut.png').write_bytes(
         subprocess.check_output(['adb', 'exec-out', 'screencap', '-p'], timeout=15))
+    target = find({'FCM diagnostics', 'Open FCM diagnostics'})
+    assert target, 'Native long-press menu did not expose FCM diagnostics'
     lines.append('Native launcher long-press exposes FCM diagnostics: OK')
     adb('shell', 'input', 'tap', *map(str, target))
     deadline = time.monotonic() + 20
@@ -75,6 +83,16 @@ try:
     print('\n'.join(lines))
 finally:
     Path('artifacts').mkdir(exist_ok=True)
+    if installed and not any('LAUNCHER_SHORTCUT_OK' in line for line in lines):
+        try:
+            path = '/data/local/tmp/fcmguard-launcher-ui.xml'
+            adb('shell', 'uiautomator', 'dump', path)
+            Path('artifacts/launcher-shortcut-ui.xml').write_text(adb('shell','cat',path))
+            Path('artifacts/screenshots').mkdir(exist_ok=True)
+            Path('artifacts/screenshots/launcher-shortcut-failure.png').write_bytes(
+                subprocess.check_output(['adb','exec-out','screencap','-p'],timeout=15))
+        except subprocess.SubprocessError:
+            pass
     Path('artifacts/launcher-shortcut-smoke.log').write_text('\n'.join(lines) + '\n')
     if installed:
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
