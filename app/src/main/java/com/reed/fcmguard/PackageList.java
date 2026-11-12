@@ -1,7 +1,6 @@
 package com.reed.fcmguard;
 
 import java.util.LinkedHashSet;
-import java.util.Set;
 
 /** Pure list operations shared by the ordinary and privileged processes. */
 final class PackageList {
@@ -25,15 +24,4 @@ final class PackageList {
         return result;
     }
 
-    static String append(String current, String required) {
-        if (!validPackage(required)) throw new IllegalArgumentException("Invalid package name");
-        Set<String> packages = parse(current);
-        packages.add(required);
-        StringBuilder result = new StringBuilder();
-        for (String item : packages) {
-            if (result.length() > 0) result.append(',');
-            result.append(item);
-        }
-        return result.toString();
-    }
 }

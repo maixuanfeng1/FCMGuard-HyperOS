@@ -1,21 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
-    <string name="event_protection_summary">监听 HyperOS 白名单变化，仅在需要时修复。不进行定时检查，也不会定时唤醒手机。</string>
-    <string name="event_notification_summary">静音通知用于让 Android 保留正在运行的守护服务，并不代表应用正在定时轮询。</string>
-    <string name="event_protection_active">正在监听白名单变化。目标应用被移除时，会自动进行修复。</string>
-    <string name="event_protection_needs_authorization">请启动 Shizuku 并授权访问，以启用自动保护。</string>
-    <string name="event_protection_needs_repair">白名单中缺少目标应用，请先修复，再开启自动保护。</string>
-    <string name="event_protection_waiting">正在等待白名单监听连接。</string>
-    <string name="event_protection_off">白名单已就绪，开启自动保护即可持续监听变化。</string>
-    <string name="fcm_apps_direct_summary">查找声明了 FCM 或 GCM 接收组件的应用。点击任一应用即可进入它自己的设置页。</string>
-    <string name="fcm_apps_direct_note">部分 ROM 无法读取自启动状态。你仍可逐个打开应用设置，调整后台、电池和通知权限。</string>
-    <string name="fcm_apps_tap_to_configure">找到 %1$d 个应用 · 点击应用即可设置</string>
-    <string name="app_autostart_status">自启动：%1$s</string>
-    <string name="open_app_settings_for">打开%1$s的应用设置</string>
-    <string name="scanning_fcm_apps">正在扫描已安装的应用…</string>
-    <string name="advanced_configuration_help">除非当前 ROM 使用了其他白名单设置，否则请保留默认值。修复时会保留名单中的已有应用。</string>
-    <string name="expanded">已展开</string>
-    <string name="collapsed">已收起</string>
-    <string name="observer_unavailable">无法注册白名单监听，自动保护未运行。请重新连接 Shizuku 后重试。</string>
-    <string name="notification_observing">自动保护中 · 监听白名单变化</string>
+<string name="add_quick_settings_tile">添加快捷开关</string>
 </resources>

@@ -13,22 +13,6 @@ public final class ThemeHelper {
 
     private ThemeHelper() {}
 
-    /**
-     * Applies only a local Configuration override. No service, timer, receiver, or
-     * background task is involved; system mode remains the default.
-     */
-    public static Context apply(Context context) {
-        String mode = getMode(context);
-        if (MODE_SYSTEM.equals(mode)) return context;
-
-        Configuration config = new Configuration(context.getResources().getConfiguration());
-        int night = MODE_DARK.equals(mode)
-                ? Configuration.UI_MODE_NIGHT_YES
-                : Configuration.UI_MODE_NIGHT_NO;
-        config.uiMode = (config.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | night;
-        return context.createConfigurationContext(config);
-    }
-
     public static String getMode(Context context) {
         String mode = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_MODE, MODE_SYSTEM);

@@ -16,3 +16,7 @@ local.properties
 # Signing
 *.jks
 *.keystore
+
+# Generated Python bytecode
+__pycache__/
+*.pyc

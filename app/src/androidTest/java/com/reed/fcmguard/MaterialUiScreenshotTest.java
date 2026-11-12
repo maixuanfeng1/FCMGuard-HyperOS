@@ -24,10 +24,12 @@ public class MaterialUiScreenshotTest {
                 .getString("captureScreenshots", "false")));
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
         Context context = instrumentation.getTargetContext();
+        assertEquals("Visual captures modify display settings; use a disposable emulator", "1",
+                shell(instrumentation, "getprop ro.kernel.qemu").trim());
         String oldTheme = ThemeHelper.getMode(context);
         float oldFont = Settings.System.getFloat(context.getContentResolver(), Settings.System.FONT_SCALE, 1f);
         try {
-            SettingsGuard.setProtectionEnabled(context, false);
+            DiagnosticPreferences.enhanced(context, false);
             capture(instrumentation, context, "01-light", ThemeHelper.MODE_LIGHT);
             capture(instrumentation, context, "02-dark", ThemeHelper.MODE_DARK);
             shell(instrumentation, "wm size 960x2160");
@@ -50,6 +52,7 @@ public class MaterialUiScreenshotTest {
                 new Intent(context, MainActivity.class)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         instrumentation.waitForIdleSync();
+        PushDashboardTest.awaitApps(activity);
         SystemClock.sleep(400);
         saveScreenshot(instrumentation, context, name);
         if ("01-light".equals(name) || "02-dark".equals(name)) {
@@ -61,6 +64,27 @@ public class MaterialUiScreenshotTest {
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-advanced");
+            instrumentation.runOnMainSync(() -> {
+                PushDashboardTest.showExamples(activity);
+                androidx.core.widget.NestedScrollView scroll = activity.findViewById(R.id.scroll);
+                scroll.post(() -> scroll.scrollTo(0,
+                        activity.findViewById(R.id.fcmAppsStatusText).getTop()));
+            });
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-app-list-examples");
+            instrumentation.runOnMainSync(() -> {
+                try {
+                    java.lang.reflect.Field field = MainActivity.class.getDeclaredField("rows"); field.setAccessible(true);
+                    java.util.List<AppDiagnostics> rows = (java.util.List<AppDiagnostics>) field.get(activity);
+                    activity.showApp(rows.get(0));
+                } catch (Exception e) { throw new AssertionError(e); }
+            });
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-app-checks");
+            shell(instrumentation, "input keyevent KEYCODE_BACK");
+
         }
         instrumentation.runOnMainSync(activity::finish);
         instrumentation.waitForIdleSync();

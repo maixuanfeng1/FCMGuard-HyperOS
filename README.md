@@ -1,63 +1,55 @@
 <p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
-<p align="center"><img src="docs/icon.svg" width="160" alt="FCM Guard icon" /></p>
 
-# FCM Guard for HyperOS · Modern API fork
+# FCM Guard · Push diagnostics
 
-A Google Play services whitelist guard for China-ROM HyperOS 3, based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS). This fork upgrades **target SDK 22 to API 37**, with **compile SDK 37.2**, AGP 9.5.1 and Gradle 9.6.0. Minimum Android version: 7.0 / API 24.
+[Download APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
 
-**Version 2.0 requires Shizuku authorization.** Modern-target applications cannot rely on the original legacy path for writing Xiaomi private system settings with only WRITE_SETTINGS.
+Version 3 refocuses this HyperOS tool on the apps whose notifications matter to you. The dashboard, system-list reader, component scan, app settings links and Quick Settings entry work without Shizuku authorization. No whitelist writes, persistent notification, foreground service, background periodic polling, wake lock, or scheduled wakeup is used.
 
-[Download APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk) · [Latest release](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest)
+## Workflow
 
-## Use
+1. View the recent automatically read GMS connection state. Open Google Play services’ FCM diagnostics using the fixed home-screen button when needed; returning resumes automatic checks without a recording or confirmation dialog.
+2. Choose your notification apps from launchable apps, including those without detected FCM/GCM declarations. Components establish capability, not a working token, actual message route or guaranteed delivery.
+3. Inspect Autostart, read-only `MILLET_NO_RESTRICT_APP` membership, Android notification permission, stopped flag and AOSP Doze exemption. Unknown is distinct from enabled. Notification master switches/channels, in-app mute settings and recents locking require review where a supported query is unavailable. System-list membership and the HyperOS UI's complete battery policy are not treated as interchangeable.
+4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
+5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
 
-1. Install the release APK. Upstream builds use a different signing key: uninstall the old build first if Android reports a signature mismatch. Uninstalling removes its settings. Future releases from this fork use the same independent release key.
-2. Install and start [Shizuku](https://shizuku.rikka.app/download/). Android 11+ supports wireless debugging; older Android requires computer ADB or optional root.
-3. Open FCM Guard, tap **Authorize Shizuku**, approve access, wait for the helper to connect, then tap **Repair now**.
-4. Enable **Automatic protection** and allow notifications. A silent foreground notification includes a **Stop protection** action. Long-running silent background mode has been removed.
-5. Enable Autostart and unrestricted battery use for both apps. **Restart Shizuku after a reboot**. Until the authorized connection is ready, the app reports that protection is waiting.
+## Version 3.1.3: launcher shortcut
 
-Follow Shizuku's official startup instructions. Whether its service survives disabling debugging depends on the ROM. FCM heartbeat requests, diagnostics and app detection remain best-effort features.
+Long-press the FCM Guard launcher icon and choose **FCM diagnostics** to open Google diagnostics directly. This is a native Android app shortcut, with menu styling supplied by the launcher and no Shizuku/extra permission requirement. Cold launches and existing activities use the same diagnostic routing without a recording prompt on return.
 
-## Version 2.1
+## Version 3.1.2: project audit
 
-- Official [Material Components for Android](https://github.com/material-components/material-components-android) 1.14.0 with Material 3 themes, dynamic colors, standard switches/buttons/text fields and a simpler settings-style hierarchy. The existing Java/Views app uses the official Views library; this is not a full Compose migration.
-- Language follows Android automatically; the in-app language selector is removed and existing language overrides are cleared on upgrade.
-- Entirely event-driven protection through a privileged settings observer; the previous 30-minute fallback has been removed. Repairs run on enable, configuration/reconnection and whitelist change events.
-- A silent foreground-service notification remains for process reliability and includes Stop protection. Android requires foreground-service visibility; silently hiding that notification would not make monitoring more reliable.
-- Every detected FCM/GCM app remains visible, including when its Autostart status is unknown. Tap its row to open its own settings page, using Xiaomi's app-specific route when available and the standard Android app-details page otherwise. The app does not promise that every ROM exposes a direct per-app Autostart toggle.
+Fixed stale callbacks/results, helper lifecycle and recovery-request handling; bounded duplicate refresh work; reduced per-app scan overhead; removed obsolete socket/repair resources and strengthened release verification. [Full audit and remaining review items](docs/PROJECT_AUDIT.md).
 
-## Core behavior
+## Version 3.1.1: automatic checks without manual records
 
-- Modern SDK, explicit `specialUse` foreground-service declaration, Android 13+ notification permission and display/keyboard inset handling.
-- Shizuku user service exposes validated settings operations, with argument-array commands, timeouts and bounded output; no arbitrary shell interface.
-- Preserves the current `Settings.System.MILLET_NO_RESTRICT_APP` list and appends only the configured package (default `com.google.android.gms`). Empty lists no longer invent unrelated entries or restore stale snapshots.
-- Verifies writes by reading the setting back. Missing settings, denied access and disconnected Shizuku are reported accurately.
-- Settings operations run off the UI thread. The Shizuku process observes the exact settings URI and sends change callbacks to the guard, with a 400ms debounce after event delivery. There are no periodic checks or scheduled wakeups. Observer registration and an initial repair must both succeed before protection is reported as active.
-- Retains theme controls and system language, responsive layouts and best-effort read-only Autostart status.
-- Real release builds, private signing and APK SHA-256 checksums replace debug APK publication.
+Remove diagnostic recording, the confirmation dialog on return, historical user-reported connection state and per-app confirmation checklists. Upgrades clear old records and pending-dialog flags while retaining selected apps, Shizuku preferences, themes and request rate limits. Connection status comes only from automatic reads; unreadable state stays unknown.
 
-## Limitations and validation
+## Version 3.1: connection tile
 
-The Xiaomi whitelist must exist on the device; the app will not create an ineffective replacement on unsupported ROMs. Some ROMs may reject even shell/root writes. Foreground services can still be stopped by the user or system. This guard cannot guarantee per-app background execution, network access or message delivery; individual apps such as WhatsApp may need their own unrestricted battery policy.
+Only a successful read of the correct profile and current GMS connection fields supplies Connected/Disconnected. Historical events, reachability, sockets and authorization cannot light the tile. The dashboard and tile share the same snapshot.
 
-FCM detection, vendor AppOps and diagnostics are best effort; unreadable Autostart status stays unknown. Automated tests cover list handling, settings observer change/unregister behavior, exact app-settings routing and safe startup/refusal without Shizuku. CI also captures real native light/dark and compact/large-font screens. **They do not replace HyperOS device testing of privileged writes, background survival or push delivery.**
+Reads refresh every five seconds only while the dashboard or quick-settings panel is visible. Hidden surfaces stop their refresh callbacks. Verdicts expire after 15 monotonic seconds and invalidate immediately on network, authorization or helper changes. Hiding the panel clears its lit state so SystemUI cannot cache a stale connection claim. Tapping still checks, attempts a heartbeat and opens diagnostics; it does not turn off GMS push.
 
-Android 17 / API 37 emulator runtime validation is incomplete: the CI images repeatedly failed during system startup, before reliable app testing. The app still targets API 37 and compiles against SDK 37.2.
+The private GMS dump format can change. Denied, unavailable, unsupported or timed-out reads remain Unknown. Permission-free mode retains the diagnostic shortcut; automatic connection indication needs Shizuku.
 
-## APK libraries
+## Version 3.0.1
 
-LibChecker may report no native libraries. That means the APK has no bundled C/C++ `.so` files. This app uses Java/Kotlin bytecode, the Android SDK and Shizuku, so no JNI library is required. It remains a native Android app and does not need a separate build for every CPU ABI.
+Authorization, helper readiness and socket-query results are displayed independently. An authorized helper with restricted or unsupported socket access is not called unauthorized. Checks refresh immediately after binding and independently of the network probe; replies from a disabled or replaced helper are discarded. The socket query uses kernel UID metadata without process-name scanning.
 
-## Build and release
+## Optional Shizuku
 
-See [docs/BUILDING.md](docs/BUILDING.md). CI runs compilation, unit tests, lint and Android 15 / Android 16 emulator smoke tests. The separate signed-release workflow requires private signing secrets and refuses to overwrite an existing version.
+Off by default, even after upgrading an older authorized installation. Enabling it explicitly allows fixed, read-only helper operations: read the system projection and current GMS push-service state for the correct user. Connection indication no longer depends on restricted socket UID enumeration. No arbitrary command or settings-write interface is exposed.
 
-## Credits and license
+## Background limits
 
-- Original application: [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS)
-- Whitelist investigation: [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix)
-- Design components: [Material Components for Android](https://github.com/material-components/material-components-android)
-- Privileged bridge: [Shizuku](https://github.com/RikkaApps/Shizuku) / [Shizuku API](https://github.com/RikkaApps/Shizuku-API)
+While Android lets the app process run, system-list and network callbacks refresh checks. Process freezing/reclamation can interrupt them until the tile or app is opened. There is no claim of continuous offline detection, permanent Connected state, or guaranteed delivery for Twitter/X, Telegram, Slack or other apps. Network/VPN conditions, Google services, platform delivery, notification channels and app-specific policies all matter. Telegram variants can use their own connection.
 
-MIT — see [LICENSE](LICENSE).
+## Build and validation
+
+AGP 9.5.1, SHA-256-verified Gradle 9.9.1, JDK 21 / Java 17, compile SDK 37.2, target API 37, minSdk 24. Official Material Components 1.14.0 and Material 3 Views; language follows the system. ABI-neutral DEX supports 64-bit devices without dummy native libraries. Only Android 17 images are used for device CI. See [BUILDING](docs/BUILDING.md).
+
+Releases attach one signed `FCMGuard-HyperOS.apk`; previews/test reports stay in CI and checksums are included in release notes. The signing key is unchanged from v2.x.
+
+Based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS). System-policy research: [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix). MIT, see [LICENSE](LICENSE).

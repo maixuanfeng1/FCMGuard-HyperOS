@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="fcm_diagnostics"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_diagnostics"
+        android:shortcutShortLabel="@string/shortcut_fcm_diagnostics"
+        android:shortcutLongLabel="@string/open_fcm_diag">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.reed.fcmguard"
+            android:targetClass="com.reed.fcmguard.MainActivity">
+            <extra android:name="open_diagnostics" android:value="true" />
+        </intent>
+    </shortcut>
+</shortcuts>

@@ -1,48 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FCM Guard</string>
-    <string name="subtitle">HyperOS 低功耗 FCM 保護</string>
-    <string name="label_key">設定項 Key</string>
-    <string name="label_item">必要項目</string>
-    <string name="save_configuration">儲存設定</string>
-    <string name="repair_now">立即修復</string>
-    <string name="wake_fcm">立即喚醒 FCM</string>
-    <string name="open_fcm_diag">開啟 FCM 診斷</string>
-    <string name="status_title">狀態</string>
-    <string name="current_value_title">目前白名單值</string>
-    <string name="language">語言</string>
-    <string name="follow_system">跟隨系統</string>
-    <string name="english">English</string>
-    <string name="simplified_chinese">简体中文</string>
-    <string name="default_key">MILLET_NO_RESTRICT_APP</string>
-    <string name="default_required_item">com.google.android.gms</string>
-
-    <string name="protection_title">保護設定</string>
-    <string name="automatic_protection">自動保護</string>
-    <string name="actions_title">工具</string>
-    <string name="advanced_title">進階設定</string>
-
-
-    <string name="status_protected">保護正常</string>
-    <string name="status_ready">已就緒</string>
-    <string name="status_attention">需要處理</string>
-    <string name="status_enabled">自動保護：已開啟</string>
-    <string name="status_disabled">自動保護：未開啟</string>
-    <string name="present_yes">必要項目存在：是</string>
-    <string name="present_no">必要項目存在：否</string>
-    <string name="notification_mode_foreground">背景模式：前景服務</string>
-
-    <string name="saved">設定已儲存</string>
-    <string name="repaired">已修復 / 已保護</string>
-    <string name="already_protected">目前已處於保護狀態</string>
-    <string name="missing_current">（缺失）</string>
-    <string name="service_stopped">自動保護已停止</string>
-    <string name="wake_sent">已送出心跳 / 重連廣播</string>
-    <string name="diagnostics_unavailable">找不到 FCM 診斷介面</string>
-    <string name="write_rejected">系統拒絕寫入</string>
-    <string name="write_failed">寫入失敗：%1$s</string>
-
-    <string name="notification_channel_name">FCM Guard 保護</string>
-    <string name="notification_channel_description">用於維持自動 FCM 保護可靠性的低優先級通知</string>
-    <string name="notification_active">保護已啟動 · 事件驅動</string>
+<string name="open_fcm_diag">開啟 FCM 診斷</string>
 </resources>

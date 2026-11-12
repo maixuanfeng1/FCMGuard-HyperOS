@@ -4,6 +4,8 @@ import android.app.Instrumentation;
 import android.content.Context;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
+import android.os.Handler;
+import android.os.HandlerThread;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.ByteArrayOutputStream;
@@ -38,17 +40,18 @@ public class SettingsObserverTest {
         String OTHER_KEY = "FCMGUARD_OBSERVER_OTHER_TEST_" + suffix;
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         int user = Process.myUid() / 100000;
-        SettingsUserService service = new SettingsUserService(context);
+        HandlerThread thread = new HandlerThread("observer-device-test");
+        thread.start();
+        SettingsChangeMonitor service = new SettingsChangeMonitor(context.getContentResolver(),
+                new Handler(thread.getLooper()));
         AtomicInteger events = new AtomicInteger();
         CountDownLatch firstEvent = new CountDownLatch(1);
-        ISettingsObserver callback = new ISettingsObserver.Stub() {
-            @Override public void onSettingChanged() {
-                events.incrementAndGet();
-                firstEvent.countDown();
-            }
+        Runnable callback = () -> {
+            events.incrementAndGet();
+            firstEvent.countDown();
         };
         try {
-            assertTrue(service.observe(KEY, user, callback));
+            service.start(KEY, user, callback);
             shell("settings --user " + user + " put system " + OTHER_KEY + " com.example.unrelated");
             assertFalse("An unrelated settings URI must not trigger the observer",
                     firstEvent.await(400, TimeUnit.MILLISECONDS));
@@ -56,13 +59,14 @@ public class SettingsObserverTest {
             assertTrue("Provider mutation should trigger an event without polling",
                     firstEvent.await(5, TimeUnit.SECONDS));
             assertEquals("com.example.after", shell("settings --user " + user + " get system " + KEY));
-            service.stopObserving(callback);
+            service.stop();
             int stoppedCount = events.get();
             shell("settings --user " + user + " put system " + KEY + " com.example.stopped");
             Thread.sleep(400);
             assertEquals("Stopped subscriptions must not deliver new events", stoppedCount, events.get());
         } finally {
-            service.stopObserving(callback);
+            service.stop();
+            thread.quitSafely();
             shell("settings --user " + user + " delete system " + KEY);
             shell("settings --user " + user + " delete system " + OTHER_KEY);
         }
@@ -74,20 +78,22 @@ public class SettingsObserverTest {
         String OTHER_KEY = "FCMGUARD_OBSERVER_OTHER_TEST_" + suffix;
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         int user = Process.myUid() / 100000;
-        SettingsUserService service = new SettingsUserService(context);
+        HandlerThread thread = new HandlerThread("observer-device-test");
+        thread.start();
+        SettingsChangeMonitor service = new SettingsChangeMonitor(context.getContentResolver(),
+                new Handler(thread.getLooper()));
         CountDownLatch event = new CountDownLatch(1);
-        ISettingsObserver callback = new ISettingsObserver.Stub() {
-            @Override public void onSettingChanged() { event.countDown(); }
-        };
+        Runnable callback = event::countDown;
         try {
-            assertTrue(service.observe(KEY, user, callback));
-            assertTrue(service.observe(OTHER_KEY, user, callback));
+            service.start(KEY, user, callback);
+            service.start(OTHER_KEY, user, callback);
             shell("settings --user " + user + " put system " + KEY + " com.example.old");
             assertFalse("The previous key must be unsubscribed", event.await(400, TimeUnit.MILLISECONDS));
             shell("settings --user " + user + " put system " + OTHER_KEY + " com.example.new");
             assertTrue(event.await(5, TimeUnit.SECONDS));
         } finally {
-            service.stopObserving(callback);
+            service.stop();
+            thread.quitSafely();
             shell("settings --user " + user + " delete system " + KEY);
             shell("settings --user " + user + " delete system " + OTHER_KEY);
         }

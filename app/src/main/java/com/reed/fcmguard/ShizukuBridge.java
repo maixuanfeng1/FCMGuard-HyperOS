@@ -19,6 +19,7 @@ public final class ShizukuBridge {
     private static final CopyOnWriteArraySet<Runnable> LISTENERS = new CopyOnWriteArraySet<>();
     private static volatile ISettingsService service;
     private static Shizuku.UserServiceArgs args;
+    private static Context app;
     private static boolean binding;
     private static boolean initialized;
     private static boolean automaticRebindUsed;
@@ -30,6 +31,7 @@ public final class ShizukuBridge {
     private static final ServiceConnection CONNECTION = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
             MAIN.post(() -> {
+                if (!DiagnosticPreferences.enhanced(app) || !isAuthorized()) { disable(); return; }
                 MAIN.removeCallbacks(BIND_TIMEOUT);
                 binding = false;
                 if (binder != null && binder.pingBinder()) {
@@ -51,6 +53,7 @@ public final class ShizukuBridge {
     public static void initialize(Context context) {
         if (initialized) return;
         initialized = true;
+        app = context.getApplicationContext();
         args = new Shizuku.UserServiceArgs(new ComponentName(context, SettingsUserService.class))
                 .daemon(false).processNameSuffix("settings").debuggable(false)
                 .version(BuildConfig.VERSION_CODE);
@@ -105,8 +108,21 @@ public final class ShizukuBridge {
         return isAuthorized() && current != null && current.asBinder().pingBinder();
     }
 
+    static IBinder sessionBinder() {
+        ISettingsService current = service;
+        return current == null ? null : current.asBinder();
+    }
+
+    static EnhancedStatus.Access accessState(Context context) {
+        if (!DiagnosticPreferences.enhanced(context)) return EnhancedStatus.Access.DISABLED;
+        if (!isRunning()) return EnhancedStatus.Access.NOT_RUNNING;
+        if (!isAuthorized()) return EnhancedStatus.Access.NOT_AUTHORIZED;
+        return isReady() ? EnhancedStatus.Access.READY : EnhancedStatus.Access.CONNECTING;
+    }
+
     public static void connect() {
-        if (!isAuthorized() || isReady() || binding) return;
+        if (app == null || !DiagnosticPreferences.enhanced(app) || !isAuthorized() || isReady() || binding) return;
+        MAIN.removeCallbacks(BIND_TIMEOUT);
         binding = true;
         try {
             Shizuku.bindUserService(args, CONNECTION);
@@ -123,43 +139,23 @@ public final class ShizukuBridge {
         if (isRunning()) Shizuku.requestPermission(REQUEST_CODE);
     }
 
-    public static int statusText() {
-        if (isReady()) return R.string.shizuku_ready;
-        if (!isRunning()) return R.string.shizuku_not_running;
-        return isAuthorized() ? R.string.shizuku_connecting : R.string.shizuku_permission_missing;
+    public static void disable() {
+        try { Shizuku.unbindUserService(args, CONNECTION, true); } catch (RuntimeException ignored) { }
+        disconnected();
     }
-
-    public static String read(String key) throws RemoteException {
+    public static String readWhitelist() throws RemoteException {
         ISettingsService current = service;
         if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
-        return current.read(key, Process.myUid() / 100000);
+        return current.readWhitelist(Process.myUid() / 100000);
     }
-
-    public static boolean write(String key, String value) throws RemoteException {
+    public static String gcmConnectionState() throws RemoteException {
         ISettingsService current = service;
-        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
-        return current.write(key, value, Process.myUid() / 100000);
+        if (!isReady() || current == null) return EnhancedStatus.Result.NO_DATA.name();
+        return current.gcmConnectionState(Process.myUid() / 100000);
     }
-
-    /** Subscribe before the initial read/repair so a concurrent settings change is not missed. */
-    public static ISettingsService observe(String key, ISettingsObserver observer) throws RemoteException {
+    public static int runtimeBitness() throws RemoteException {
         ISettingsService current = service;
-        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
-        if (!current.observe(key, Process.myUid() / 100000, observer)) {
-            throw new IllegalStateException("Whitelist observer rejected");
-        }
-        return current;
-    }
-
-    public static boolean isCurrentService(ISettingsService subscription) {
-        ISettingsService current = service;
-        return isReady() && subscription != null && current != null
-                && subscription.asBinder() == current.asBinder();
-    }
-
-    public static void stopObserving(ISettingsService subscription, ISettingsObserver observer) {
-        if (subscription == null) return;
-        try { subscription.stopObserving(observer); }
-        catch (RemoteException | RuntimeException ignored) {}
+        if (!isReady() || current == null) return 0;
+        return current.runtimeBitness();
     }
 }

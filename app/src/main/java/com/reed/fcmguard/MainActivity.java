@@ -1,454 +1,337 @@
 package com.reed.fcmguard;
 
-import android.Manifest;
-import android.content.Context;
-import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.net.Uri;
-import android.os.Build;
-import android.os.Bundle;
+import android.app.StatusBarManager;
+import android.content.*;
+import android.content.pm.*;
+import android.graphics.drawable.Icon;
+import android.os.*;
 import android.provider.Settings;
-import android.text.TextUtils;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.RadioGroup;
-import android.widget.TextView;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
+import android.view.*;
+import android.widget.*;
+import androidx.appcompat.app.*;
+import androidx.core.view.*;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.color.DynamicColors;
-import com.google.android.material.color.MaterialColors;
+import com.google.android.material.color.*;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.snackbar.Snackbar;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.text.DateFormat;
+import java.util.*;
+import java.util.concurrent.*;
 
-/** Native Material 3 dashboard. Background work is independent of the visible UI. */
+/** Permission-free checks first; optional read-only shell evidence is explicitly attributed. */
 public class MainActivity extends AppCompatActivity {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private EditText keyEdit;
-    private EditText itemEdit;
-    private TextView statusHeadline;
-    private TextView statusText;
-    private TextView protectionDetail;
-    private TextView currentValueText;
-    private TextView fcmAppsStatusText;
-    private LinearLayout fcmAppsContainer;
-    private MaterialButton scanFcmAppsBtn;
-    private MaterialButton permissionBtn;
-    private MaterialButton advancedToggle;
-    private MaterialSwitch protectionSwitch;
-    private boolean suppressSwitchCallbacks;
-    private boolean resumed;
-    private boolean repairInProgress;
-    private boolean scanInProgress;
-    private boolean fcmListExpanded;
-    private List<FcmAppScanner.AppEntry> scannedFcmApps;
-    private final Runnable serviceListener = () -> refreshStatus(null);
-    private final Runnable bridgeListener = () -> {
-        if (isDestroyed()) return;
-        if (resumed && ShizukuBridge.isReady() && SettingsGuard.isProtectionEnabled(this)) {
-            startProtectionService();
+    private List<FcmAppScanner.AppEntry> apps = new ArrayList<>();
+    private List<AppDiagnostics> rows = new ArrayList<>();
+    private boolean showAll;
+    private volatile boolean scanning;
+    private boolean scanPending;
+    private String lastWhitelist;
+    private final Handler connectionHandler = new Handler(Looper.getMainLooper());
+    private final Runnable connectionRefresh = new Runnable() {
+        @Override public void run() {
+            EnhancedRuntime.request(MainActivity.this);
+            renderConnection();
+            connectionHandler.postDelayed(this, 5000L);
         }
-        refreshStatus(null);
+    };
+    private final Runnable stateListener = () -> {
+        if (isDestroyed()) return;
+        renderConnection();
+        if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)) refreshApps();
     };
 
-    @Override protected void onCreate(Bundle savedInstanceState) {
+    @Override public void onCreate(Bundle state) {
         LocaleHelper.followSystem(this);
         String mode = ThemeHelper.getMode(this);
-        getDelegate().setLocalNightMode(ThemeHelper.MODE_DARK.equals(mode)
-                ? AppCompatDelegate.MODE_NIGHT_YES : ThemeHelper.MODE_LIGHT.equals(mode)
-                ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        getDelegate().setLocalNightMode(ThemeHelper.MODE_DARK.equals(mode) ? AppCompatDelegate.MODE_NIGHT_YES :
+                ThemeHelper.MODE_LIGHT.equals(mode) ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         DynamicColors.applyToActivityIfAvailable(this);
-        super.onCreate(savedInstanceState);
+        super.onCreate(state);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
-        setupInsets();
-        bindViews();
-        loadConfigIntoFields();
-        setupAppearance();
-        setupActions();
-        ShizukuBridge.addListener(bridgeListener);
-        GuardService.addStateListener(serviceListener);
-        setAdvancedExpanded(savedInstanceState != null && savedInstanceState.getBoolean("advanced_expanded"));
-        refreshStatus(null);
-    }
-
-    @Override protected void onResume() {
-        super.onResume();
-        resumed = true;
-        ShizukuBridge.connect();
-        WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this));
-        bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
-        if (SettingsGuard.isProtectionEnabled(this) && ShizukuBridge.isReady()) startProtectionService();
-        refreshStatus(null);
-        if (fcmListExpanded && scannedFcmApps != null) refreshAppStatuses(scannedFcmApps);
-    }
-
-    @Override protected void onPause() { resumed = false; super.onPause(); }
-
-    @Override protected void onSaveInstanceState(Bundle state) {
-        state.putBoolean("advanced_expanded", findViewById(R.id.advancedContent).getVisibility() == View.VISIBLE);
-        super.onSaveInstanceState(state);
-    }
-
-    @Override protected void onDestroy() {
-        ShizukuBridge.removeListener(bridgeListener);
-        GuardService.removeStateListener(serviceListener);
-        worker.shutdownNow();
-        super.onDestroy();
-    }
-
-    private void bindViews() {
-        keyEdit = findViewById(R.id.keyEdit);
-        itemEdit = findViewById(R.id.itemEdit);
-        statusHeadline = findViewById(R.id.statusHeadline);
-        statusText = findViewById(R.id.statusText);
-        protectionDetail = findViewById(R.id.protectionDetail);
-        currentValueText = findViewById(R.id.currentValueText);
-        fcmAppsStatusText = findViewById(R.id.fcmAppsStatusText);
-        fcmAppsContainer = findViewById(R.id.fcmAppsContainer);
-        scanFcmAppsBtn = findViewById(R.id.scanFcmAppsBtn);
-        protectionSwitch = findViewById(R.id.protectionSwitch);
-        permissionBtn = findViewById(R.id.permissionBtn);
-        advancedToggle = findViewById(R.id.advancedToggle);
-    }
-
-    private void setupInsets() {
-        View root = findViewById(R.id.root);
-        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-            androidx.core.graphics.Insets safe = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            int keyboard = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
-            v.setPadding(safe.left, safe.top, safe.right, Math.max(safe.bottom, keyboard));
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root), (v, insets) -> {
+            androidx.core.graphics.Insets safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            v.setPadding(safe.left, safe.top, safe.right, Math.max(safe.bottom, insets.getInsets(WindowInsetsCompat.Type.ime()).bottom));
             return insets;
         });
-        ViewCompat.requestApplyInsets(root);
+        findViewById(R.id.diagBtn).setOnClickListener(v -> openDiagnostics());
+        findViewById(R.id.checkBtn).setOnClickListener(v -> check(false));
+        findViewById(R.id.reconnectBtn).setOnClickListener(v -> check(true));
+        findViewById(R.id.chooseAppsBtn).setOnClickListener(v -> chooseApps());
+        findViewById(R.id.scanFcmAppsBtn).setOnClickListener(v -> refreshApps());
+        findViewById(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; renderApps(); });
+        findViewById(R.id.networkSettingsBtn).setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIRELESS_SETTINGS)));
+        findViewById(R.id.addTileBtn).setOnClickListener(v -> addTile());
+        findViewById(R.id.advancedToggle).setOnClickListener(v -> {
+            View content = findViewById(R.id.advancedContent);
+            boolean expanded = content.getVisibility() != View.VISIBLE;
+            content.setVisibility(expanded ? View.VISIBLE : View.GONE);
+            ((MaterialButton) v).setIconResource(expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
+        });
+        MaterialSwitch enhanced = findViewById(R.id.enhancedSwitch);
+        enhanced.setChecked(DiagnosticPreferences.enhanced(this));
+        enhanced.setOnCheckedChangeListener((v, checked) -> {
+            DiagnosticPreferences.enhanced(this, checked);
+            EnhancedRuntime.invalidate(this);
+            if (checked) authorize(); else ShizukuBridge.disable();
+            renderConnection();
+        });
+        findViewById(R.id.permissionBtn).setOnClickListener(v -> authorize());
+        MaterialSwitch observe = findViewById(R.id.observeSwitch);
+        observe.setChecked(DiagnosticPreferences.observe(this));
+        observe.setOnCheckedChangeListener((v, checked) -> {
+            DiagnosticPreferences.prefs(this).edit().putBoolean("observe", checked).apply();
+            PushRuntime.configure(this);
+        });
+        RadioGroup appearance = findViewById(R.id.appearanceGroup);
+        appearance.check(ThemeHelper.MODE_DARK.equals(mode) ? R.id.themeDark : ThemeHelper.MODE_LIGHT.equals(mode) ? R.id.themeLight : R.id.themeSystem);
+        appearance.setOnCheckedChangeListener((v, id) -> {
+            String next = id == R.id.themeDark ? ThemeHelper.MODE_DARK : id == R.id.themeLight ? ThemeHelper.MODE_LIGHT : ThemeHelper.MODE_SYSTEM;
+            if (!next.equals(ThemeHelper.getMode(this))) { ThemeHelper.setMode(this, next); recreate(); }
+        });
+        PushRuntime.start(this);
+        renderConnection();
+        handleLaunchActions();
     }
-
-    private void setupAppearance() {
-        RadioGroup group = findViewById(R.id.appearanceGroup);
-        String mode = ThemeHelper.getMode(this);
-        group.check(ThemeHelper.MODE_DARK.equals(mode) ? R.id.themeDark
-                : ThemeHelper.MODE_LIGHT.equals(mode) ? R.id.themeLight : R.id.themeSystem);
-        group.setOnCheckedChangeListener((view, id) -> {
-            String next = id == R.id.themeDark ? ThemeHelper.MODE_DARK
-                    : id == R.id.themeLight ? ThemeHelper.MODE_LIGHT : ThemeHelper.MODE_SYSTEM;
-            if (!next.equals(ThemeHelper.getMode(this))) {
-                ThemeHelper.setMode(this, next);
-                recreate();
+    private void handleLaunchActions() {
+        if (getIntent().getBooleanExtra("request_recovery", false)) {
+            getIntent().removeExtra("request_recovery");
+            PushRuntime.check(this, true);
+        }
+        if (getIntent().getBooleanExtra("open_diagnostics", false)) {
+            getIntent().removeExtra("open_diagnostics");
+            findViewById(R.id.diagBtn).post(this::openDiagnostics);
+        }
+    }
+    @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleLaunchActions(); }
+    @Override protected void onStart() { super.onStart(); PushRuntime.add(stateListener); }
+    @Override protected void onStop() { PushRuntime.remove(stateListener); super.onStop(); }
+    @Override protected void onResume() {
+        super.onResume();
+        WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this)); bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
+        PushRuntime.refresh(this); refreshApps();
+        if (DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
+        EnhancedRuntime.request(this);
+        connectionHandler.removeCallbacks(connectionRefresh);
+        connectionHandler.postDelayed(connectionRefresh, 5000L);
+    }
+    @Override protected void onPause() { connectionHandler.removeCallbacks(connectionRefresh); super.onPause(); }
+    @Override protected void onDestroy() { connectionHandler.removeCallbacks(connectionRefresh); PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy(); }
+    private void authorize() {
+        if (ShizukuBridge.isRunning()) ShizukuBridge.requestPermission();
+        else message(getString(R.string.no_auth_service));
+    }
+    private void check(boolean recovery) {
+        if (!PushRuntime.check(this, recovery)) message(getString(R.string.busy_message));
+        else if (recovery) message(getString(R.string.request_started));
+        renderConnection();
+    }
+    private String time(long date) { return date <= 0 ? getString(R.string.network_none) : DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(date)); }
+    private void set(int id, String value) { ((TextView) findViewById(id)).setText(value); }
+    void renderConnection() {
+        set(R.id.statusHeadline, getString(R.string.connection_unknown));
+        int network = PushRuntime.network == NetworkProbe.State.REACHABLE ? R.string.network_reachable :
+                PushRuntime.network == NetworkProbe.State.OFFLINE ? R.string.network_offline :
+                PushRuntime.network == NetworkProbe.State.UNREACHABLE ? R.string.network_failed :
+                PushRuntime.network == NetworkProbe.State.NOT_CHECKED ? R.string.network_none : R.string.network_unknown;
+        set(R.id.networkText, (PushRuntime.busy() ? getString(R.string.checking) + "\n" : "") + getString(network) + "\n" +
+                getString(R.string.last_check, time(PushRuntime.checkedAt)) + "\n" + getString(PushRuntime.gmsAvailable == null ? R.string.network_none : PushRuntime.gmsAvailable ? R.string.gms_present : R.string.gms_missing));
+        renderEnhanced(EnhancedRuntime.snapshot(this));
+        set(R.id.currentValueText, SettingsGuard.KEY + "\n\n" + (PushRuntime.whitelist == null ? getString(R.string.raw_unavailable) :
+                PushRuntime.whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : PushRuntime.whitelist.replace(",", "\n")));
+    }
+    void renderEnhanced(EnhancedStatus.Snapshot status) {
+        EnhancedStatus.Result current = status.currentResult(SystemClock.elapsedRealtime());
+        boolean verdict = current == EnhancedStatus.Result.CONNECTED || current == EnhancedStatus.Result.DISCONNECTED;
+        set(R.id.statusHeadline, getString(current == EnhancedStatus.Result.CONNECTED ? R.string.gms_connected :
+                current == EnhancedStatus.Result.DISCONNECTED ? R.string.gms_disconnected : R.string.connection_unknown));
+        set(R.id.connectionSource, verdict ? getString(R.string.gms_state_source, time(status.checkedAt)) : getString(R.string.connection_summary));
+        String access = getString(accessLabel(status.access));
+        String extra = status.access == EnhancedStatus.Access.DISABLED ? "" : getString(R.string.helper_evidence, access);
+        if (status.access == EnhancedStatus.Access.READY) {
+            extra += "\n" + getString(resultLabel(current));
+            if (status.checkedAt > 0) extra += "\n" + getString(R.string.enhanced_checked_at, time(status.checkedAt));
+        }
+        if (PushRuntime.monitorError != null) extra += "\n" + getString(R.string.diagnostic_observer_unavailable);
+        long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
+        if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
+        set(R.id.evidenceText, extra.trim());
+        findViewById(R.id.permissionBtn).setVisibility(status.access == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
+        set(R.id.helperText, getString(R.string.helper_access_status, access));
+        int bits = status.access == EnhancedStatus.Access.READY ? status.bits : 0;
+        set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
+                bits == 0 ? getString(R.string.helper_bits_unknown) : Integer.toString(bits)));
+    }
+    private int accessLabel(EnhancedStatus.Access access) {
+        switch (access) {
+            case READY: return R.string.enhanced_ready;
+            case CONNECTING: return R.string.enhanced_connecting;
+            case NOT_RUNNING: return R.string.enhanced_not_running;
+            case NOT_AUTHORIZED: return R.string.enhanced_needs_grant;
+            default: return R.string.enhanced_disabled;
+        }
+    }
+    private int resultLabel(EnhancedStatus.Result result) {
+        switch (result) {
+            case CONNECTED: return R.string.gms_connected;
+            case DISCONNECTED: return R.string.gms_disconnected;
+            case SERVICE_UNAVAILABLE: return R.string.gms_service_unavailable;
+            case STALE: return R.string.gms_state_stale;
+            case CHECKING: return R.string.enhanced_checking;
+            case SYSTEM_RESTRICTED: return R.string.enhanced_restricted;
+            case COMMAND_UNSUPPORTED: return R.string.enhanced_command_unsupported;
+            case FORMAT_UNSUPPORTED: return R.string.enhanced_format_unsupported;
+            case TIMEOUT: return R.string.enhanced_timeout;
+            case READ_FAILED: return R.string.enhanced_read_failed;
+            case NO_DATA: return R.string.enhanced_no_data;
+            default: return R.string.enhanced_not_checked;
+        }
+    }
+    void openDiagnostics() {
+        String[] names = {"com.google.android.gms.gcm.GcmDiagnostics", "com.google.android.gms.gtalkservice.diagnostics.GTalkServiceDiagnostics"};
+        for (String name : names) if (openGms(name)) return;
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo("com.google.android.gms", PackageManager.GET_ACTIVITIES);
+            if (info.activities != null) for (ActivityInfo a : info.activities) {
+                String lower = a.name.toLowerCase(Locale.ROOT);
+                if (lower.contains("diagnostic") && (lower.contains("gcm") || lower.contains("fcm") || lower.contains("gtalk"))) if (openGms(a.name)) return;
             }
-        });
+        } catch (Exception ignored) { }
+        message(getString(R.string.page_missing));
     }
-
-    private void setupActions() {
-        protectionSwitch.setChecked(SettingsGuard.isProtectionEnabled(this));
-        protectionSwitch.setOnCheckedChangeListener((button, checked) -> {
-            if (suppressSwitchCallbacks) return;
-            if (checked) performRepair(true);
-            else {
-                SettingsGuard.setProtectionEnabled(this, false);
-                stopService(new Intent(this, GuardService.class));
-                showMessage(getString(R.string.service_stopped));
-                refreshStatus(null);
-            }
-        });
-        permissionBtn.setOnClickListener(v -> authorizeShizuku());
-        findViewById(R.id.repairBtn).setOnClickListener(v -> performRepair(false));
-        findViewById(R.id.saveBtn).setOnClickListener(v -> {
-            SettingsGuard.saveConfig(this, keyEdit.getText().toString(), itemEdit.getText().toString());
-            loadConfigIntoFields();
-            if (SettingsGuard.isProtectionEnabled(this)) startProtectionService();
-            showMessage(getString(R.string.saved));
-            refreshStatus(null);
-        });
-        findViewById(R.id.wakeBtn).setOnClickListener(v -> {
-            boolean sent = FcmReconnect.kick(this);
-            showMessage(getString(sent ? R.string.wake_sent : R.string.wake_failed));
-        });
-        findViewById(R.id.diagBtn).setOnClickListener(v -> openFcmDiagnostics());
-        findViewById(R.id.notificationSettingsBtn).setOnClickListener(v -> openNotificationSettings());
-        scanFcmAppsBtn.setOnClickListener(v -> {
-            if (scanInProgress) return;
-            if (fcmListExpanded) {
-                fcmListExpanded = false;
-                fcmAppsContainer.setVisibility(View.GONE);
-                scanFcmAppsBtn.setText(R.string.scan_fcm_apps);
-            } else scanFcmApps();
-        });
-        advancedToggle.setOnClickListener(v -> setAdvancedExpanded(
-                findViewById(R.id.advancedContent).getVisibility() != View.VISIBLE));
-    }
-
-    private void setAdvancedExpanded(boolean expanded) {
-        findViewById(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
-        advancedToggle.setIconResource(expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
-        ViewCompat.setStateDescription(advancedToggle, getString(expanded ? R.string.expanded : R.string.collapsed));
-    }
-
-    private void loadConfigIntoFields() {
-        keyEdit.setText(SettingsGuard.getConfiguredKey(this));
-        itemEdit.setText(SettingsGuard.getConfiguredRequiredItem(this));
-    }
-
-    private void performRepair(boolean enableProtection) {
-        if (repairInProgress) return;
-        SettingsGuard.saveConfig(this, keyEdit.getText().toString(), itemEdit.getText().toString());
-        if (!ShizukuBridge.isReady()) {
-            refreshStatus(getString(ShizukuBridge.statusText()));
-            authorizeShizuku();
-            return;
-        }
-        repairInProgress = true;
-        protectionSwitch.setEnabled(false);
-        findViewById(R.id.repairBtn).setEnabled(false);
-        worker.execute(() -> {
-            SettingsGuard.Result result = SettingsGuard.repair(this);
-            if (result.changed) FcmReconnect.kick(this);
-            runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                repairInProgress = false;
-                protectionSwitch.setEnabled(true);
-                findViewById(R.id.repairBtn).setEnabled(true);
-                if (enableProtection && result.success) {
-                    SettingsGuard.setProtectionEnabled(this, true);
-                    startProtectionService();
-                    ensurePersistentNotificationAccess();
-                }
-                showMessage(result.message);
-                refreshStatus(null);
-            });
-        });
-    }
-
-    private void authorizeShizuku() {
-        if (ShizukuBridge.isRunning()) {
-            try { ShizukuBridge.requestPermission(); }
-            catch (RuntimeException e) { showMessage(getString(R.string.shizuku_permission_missing)); }
-            return;
-        }
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.authorize_shizuku)
-                .setMessage(R.string.shizuku_setup)
-                .setPositiveButton(R.string.open_shizuku, (dialog, which) -> {
-                    Intent launch = getPackageManager().getLaunchIntentForPackage("moe.shizuku.privileged.api");
-                    try {
-                        startActivity(launch != null ? launch : new Intent(Intent.ACTION_VIEW,
-                                Uri.parse("https://shizuku.rikka.app/download/")));
-                    } catch (RuntimeException e) { showMessage(getString(R.string.shizuku_not_running)); }
-                }).setNegativeButton(android.R.string.cancel, null).show();
-    }
-
-    private void scanFcmApps() {
-        scanInProgress = true;
-        scanFcmAppsBtn.setEnabled(false);
-        fcmAppsStatusText.setText(R.string.scanning_fcm_apps);
-        worker.execute(() -> {
-            List<FcmAppScanner.AppEntry> apps = FcmAppScanner.scan(this);
-            List<AutostartStatusReader.Status> statuses = readAppStatuses(apps);
-            runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                scannedFcmApps = apps;
-                fcmListExpanded = true;
-                scanInProgress = false;
-                scanFcmAppsBtn.setEnabled(true);
-                scanFcmAppsBtn.setText(R.string.collapse_fcm_apps);
-                renderAppRows(apps, statuses);
-            });
-        });
-    }
-
-    private List<AutostartStatusReader.Status> readAppStatuses(List<FcmAppScanner.AppEntry> apps) {
-        List<AutostartStatusReader.Status> result = new ArrayList<>();
-        for (FcmAppScanner.AppEntry app : apps) result.add(AutostartStatusReader.check(this, app.packageName));
-        return result;
-    }
-
-    private void refreshAppStatuses(List<FcmAppScanner.AppEntry> apps) {
-        if (worker.isShutdown()) return;
-        worker.execute(() -> {
-            List<AutostartStatusReader.Status> statuses = readAppStatuses(apps);
-            runOnUiThread(() -> {
-                if (!isDestroyed() && fcmListExpanded) renderAppRows(apps, statuses);
-            });
-        });
-    }
-
-    private void renderAppRows(List<FcmAppScanner.AppEntry> apps, List<AutostartStatusReader.Status> statuses) {
-        fcmAppsContainer.removeAllViews();
-        if (apps.isEmpty()) {
-            fcmAppsContainer.setVisibility(View.GONE);
-            fcmAppsStatusText.setText(R.string.no_fcm_apps);
-            return;
-        }
-        // A ROM may hide every autostart state. The app-specific settings links still work.
-        fcmAppsContainer.setVisibility(View.VISIBLE);
-        fcmAppsStatusText.setText(getString(R.string.fcm_apps_tap_to_configure, apps.size()));
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (int i = 0; i < apps.size(); i++) {
-            FcmAppScanner.AppEntry app = apps.get(i);
-            AutostartStatusReader.Status state = statuses.get(i);
-            View row = inflater.inflate(R.layout.item_fcm_app, fcmAppsContainer, false);
-            ((TextView) row.findViewById(R.id.appLabel)).setText(app.label);
-            ((TextView) row.findViewById(R.id.appPackage)).setText(app.packageName);
-            ((TextView) row.findViewById(R.id.appAutostartState)).setText(getString(
-                    R.string.app_autostart_status, getString(autostartStatusText(state))));
-            row.setContentDescription(getString(R.string.open_app_settings_for, app.label)
-                    + ", " + app.packageName + ", " + getString(R.string.app_autostart_status,
-                    getString(autostartStatusText(state))));
-            row.setOnClickListener(v -> {
-                if (!HyperOsSettings.openApplicationSettings(this, app.packageName)) {
-                    showMessage(getString(R.string.app_settings_unavailable));
-                }
-            });
-            fcmAppsContainer.addView(row);
-        }
-    }
-
-    private int autostartStatusText(AutostartStatusReader.Status status) {
-        if (status == AutostartStatusReader.Status.ENABLED) return R.string.autostart_enabled;
-        if (status == AutostartStatusReader.Status.PARTIAL) return R.string.autostart_partial;
-        if (status == AutostartStatusReader.Status.DISABLED) return R.string.autostart_disabled;
-        return R.string.autostart_unknown;
-    }
-
-    private void startProtectionService() {
+    private boolean openGms(String name) {
         try {
-            GuardService.ensureNotificationChannel(this);
-            Intent service = new Intent(this, GuardService.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service);
-            else startService(service);
-        } catch (RuntimeException e) {
-            SettingsGuard.setProtectionEnabled(this, false);
-            showMessage(getString(R.string.service_start_failed));
-        }
-    }
-
-    private void ensurePersistentNotificationAccess() {
-        GuardService.ensureNotificationChannel(this);
-        if (GuardService.canShowPersistentNotification(this)) return;
-        if (Build.VERSION.SDK_INT >= 33
-                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                && !getPreferences(MODE_PRIVATE).getBoolean("notification_requested", false)) {
-            getPreferences(MODE_PRIVATE).edit().putBoolean("notification_requested", true).apply();
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 427);
-        } else {
-            new MaterialAlertDialogBuilder(this).setMessage(R.string.notification_permission_help)
-                    .setPositiveButton(R.string.open_notification_settings, (d, w) -> openNotificationSettings())
-                    .setNegativeButton(android.R.string.cancel, null).show();
-        }
-    }
-
-    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-        super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode == 427) refreshStatus(null);
-    }
-
-    private void openNotificationSettings() {
-        try {
-            Intent intent = Build.VERSION.SDK_INT >= 26
-                    ? new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())
-                    : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
-            startActivity(intent);
-        } catch (RuntimeException ignored) {}
-    }
-
-    private void openFcmDiagnostics() {
-        String[] knownActivities = {
-                "com.google.android.gms.gcm.GcmDiagnostics",
-                "com.google.android.gms.gtalkservice.diagnostics.GTalkServiceDiagnostics"
-        };
-        for (String className : knownActivities) {
-            if (startGooglePlayServicesActivity(className)) return;
-        }
-
-        try {
-            PackageInfo info = getPackageManager().getPackageInfo(
-                    "com.google.android.gms", PackageManager.GET_ACTIVITIES);
-            if (info.activities != null) {
-                for (ActivityInfo activity : info.activities) {
-                    String name = activity.name;
-                    if (name == null) continue;
-                    String lower = name.toLowerCase(java.util.Locale.ROOT);
-                    if ((lower.contains("gcm") || lower.contains("fcm") || lower.contains("gtalk")) &&
-                            lower.contains("diagnostic")) {
-                        if (startGooglePlayServicesActivity(name)) return;
-                    }
-                }
-            }
-        } catch (Throwable ignored) {}
-
-        toast(getString(R.string.diagnostics_unavailable));
-    }
-
-    private boolean startGooglePlayServicesActivity(String className) {
-        try {
-            Intent intent = new Intent();
-            intent.setClassName("com.google.android.gms", className);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(intent);
+            startActivity(new Intent().setClassName("com.google.android.gms", name));
             return true;
-        } catch (Throwable ignored) {
-            return false;
-        }
+        } catch (RuntimeException e) { return false; }
     }
-
-    private void refreshStatus(String message) {
-        if (isDestroyed() || worker.isShutdown()) return;
+    void refreshApps() {
+        if (worker.isShutdown()) return;
+        if (scanning) { scanPending = true; return; }
+        scanning = true;
         worker.execute(() -> {
-            String value = null;
-            boolean failed = false;
-            try { value = SettingsGuard.read(this); }
-            catch (RuntimeException e) { failed = true; }
-            final String current = value;
-            final boolean readFailed = failed;
+          try {
+            List<FcmAppScanner.AppEntry> found = FcmAppScanner.scanAll(this);
+            String list = SettingsGuard.read(this);
+            Set<String> packages = list == null ? null : PackageList.parse(list);
+            List<AppDiagnostics> result = new ArrayList<>();
+            for (FcmAppScanner.AppEntry app : found) result.add(new AppDiagnostics(this, app, packages));
             runOnUiThread(() -> {
+                scanning = false;
                 if (isDestroyed()) return;
-                renderStatus(current, readFailed);
-                if (!TextUtils.isEmpty(message)) showMessage(message);
+                apps = found; rows = result; lastWhitelist = list; renderApps();
+                // An event received during scanning must not be lost.
+                if (!Objects.equals(list, PushRuntime.whitelist)) PushRuntime.refresh(this);
+                if (scanPending) { scanPending = false; refreshApps(); }
             });
+          } catch (RuntimeException e) {
+            runOnUiThread(() -> {
+                scanning = false; scanPending = false;
+                if (!isDestroyed()) message(getString(R.string.scan_failed));
+            });
+          }
         });
     }
-
-    private void renderStatus(String current, boolean readFailed) {
-        boolean ready = ShizukuBridge.isReady();
-        boolean enabled = SettingsGuard.isProtectionEnabled(this);
-        boolean present = SettingsGuard.hasRequiredItem(this, current);
-        boolean protecting = enabled && ready && present && GuardService.isProtecting();
-        suppressSwitchCallbacks = true;
-        protectionSwitch.setChecked(enabled);
-        suppressSwitchCallbacks = false;
-        statusHeadline.setText(protecting ? R.string.status_protected
-                : ready && present ? R.string.status_ready : R.string.status_attention);
-        statusHeadline.setTextColor(MaterialColors.getColor(statusHeadline, protecting
-                ? androidx.appcompat.R.attr.colorPrimary : com.google.android.material.R.attr.colorOnSurface));
-        statusText.setText(getString(ShizukuBridge.statusText()));
-        protectionDetail.setText(protecting ? R.string.event_protection_active
-                : !ready ? R.string.event_protection_needs_authorization
-                : readFailed ? R.string.read_failed
-                : !present ? R.string.event_protection_needs_repair
-                : enabled ? R.string.event_protection_waiting : R.string.event_protection_off);
-        currentValueText.setText(current == null || current.trim().isEmpty()
-                ? getString(R.string.missing_current) : current.replace(",", "\n"));
-        permissionBtn.setVisibility(ready ? View.GONE : View.VISIBLE);
-        findViewById(R.id.notificationWarning).setVisibility(
-                enabled && !GuardService.canShowPersistentNotification(this) ? View.VISIBLE : View.GONE);
+    void renderApps() {
+        Set<String> chosen = DiagnosticPreferences.selected(this);
+        List<AppDiagnostics> visible = new ArrayList<>();
+        int fcm = 0, selected = 0;
+        for (AppDiagnostics row : rows) {
+            if (row.app.declaresFcm) fcm++;
+            if (chosen.contains(row.app.packageName)) selected++;
+            if (showAll || chosen.contains(row.app.packageName)) visible.add(row);
+        }
+        visible.sort((a, b) -> { int byStatus = Integer.compare(priority(a), priority(b)); return byStatus != 0 ? byStatus : a.app.label.compareToIgnoreCase(b.app.label); });
+        int enabled = 0, disabled = 0, partial = 0, unknown = 0;
+        for (AppDiagnostics row : visible) switch (row.autostart) {
+            case ENABLED: enabled++; break; case DISABLED: disabled++; break; case PARTIAL: partial++; break; default: unknown++;
+        }
+        set(R.id.fcmAppsStatusText, getString(R.string.apps_counts, rows.size(), fcm, selected, enabled, disabled, partial, unknown));
+        ((MaterialButton) findViewById(R.id.showAllBtn)).setText(showAll ? R.string.watched_apps : R.string.all_apps);
+        LinearLayout container = findViewById(R.id.fcmAppsContainer); container.removeAllViews();
+        if (visible.isEmpty()) text(container, getString(R.string.no_chosen), false);
+        for (AppDiagnostics row : visible) {
+            LinearLayout entry = new LinearLayout(this); entry.setOrientation(LinearLayout.VERTICAL);
+            entry.setPadding(dp(4), dp(16), dp(4), dp(16)); entry.setTag("app:" + row.app.packageName);
+            TextView title = text(entry, row.app.label + (chosen.contains(row.app.packageName) ? " ★" : ""), true);
+            text(entry, row.app.packageName, false);
+            text(entry, getString(row.app.declaresFcm ? R.string.fcm_detected : R.string.fcm_not_detected), false);
+            TextView state = text(entry, getString(R.string.auto_label, getString(autoLabel(row.autostart))), false);
+            text(entry, getString(R.string.list_label, flag(row.inSystemList, R.string.listed, R.string.not_listed)), false);
+            text(entry, getString(R.string.notifications_label, getString(notificationLabel(row))), false);
+            if (row.needsAttention()) {
+                int error = MaterialColors.getColor(entry, androidx.appcompat.R.attr.colorError);
+                title.setTextColor(error); state.setTextColor(error);
+            }
+            entry.setBackgroundResource(android.R.drawable.list_selector_background);
+            entry.setOnClickListener(v -> showApp(row)); entry.setFocusable(true);
+            container.addView(entry);
+        }
     }
-
-    private void showMessage(String message) {
-        if (!isDestroyed()) Snackbar.make(findViewById(R.id.root), message, Snackbar.LENGTH_LONG).show();
+    private int priority(AppDiagnostics a) {
+        if (a.autostart == AutostartStatusReader.Status.DISABLED) return 0;
+        if (a.autostart == AutostartStatusReader.Status.PARTIAL) return 1;
+        if (a.needsAttention()) return 2;
+        return a.autostart == AutostartStatusReader.Status.UNKNOWN ? 3 : 4;
     }
-
-    private void toast(String message) { showMessage(message); }
+    private int autoLabel(AutostartStatusReader.Status state) { return state == AutostartStatusReader.Status.ENABLED ? R.string.enabled_state : state == AutostartStatusReader.Status.DISABLED ? R.string.disabled_state : state == AutostartStatusReader.Status.PARTIAL ? R.string.partial_state : R.string.unknown_state; }
+    private int notificationLabel(AppDiagnostics row) { return row.notificationPermission == null ? R.string.permission_unknown : row.notificationPermission ? R.string.permission_granted : R.string.permission_denied; }
+    private String flag(Boolean value, int yes, int no) { return getString(value == null ? R.string.unknown_state : value ? yes : no); }
+    private void chooseApps() {
+        if (apps.isEmpty()) { refreshApps(); message(getString(R.string.checking)); return; }
+        List<FcmAppScanner.AppEntry> snapshot = new ArrayList<>(apps);
+        Set<String> selected = DiagnosticPreferences.selected(this);
+        CharSequence[] labels = new CharSequence[snapshot.size()]; boolean[] checked = new boolean[snapshot.size()];
+        for (int i = 0; i < snapshot.size(); i++) {
+            FcmAppScanner.AppEntry a = snapshot.get(i); labels[i] = a.label + "\n" + a.packageName + (a.declaresFcm ? " · FCM/GCM" : ""); checked[i] = selected.contains(a.packageName);
+        }
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.choose_apps).setMultiChoiceItems(labels, checked, (d, index, value) -> {
+            if (value) selected.add(snapshot.get(index).packageName); else selected.remove(snapshot.get(index).packageName);
+        }).setPositiveButton(R.string.done_action, (d, w) -> { DiagnosticPreferences.selected(this, selected); renderApps(); })
+                .setNegativeButton(R.string.cancel_action, null).show();
+    }
+    void showApp(AppDiagnostics row) {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        ScrollView scroll = new ScrollView(this); LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(24), dp(16), dp(24), dp(32)); scroll.addView(content);
+        text(content, row.app.label, true); text(content, row.app.packageName, false);
+        text(content, getString(row.app.declaresFcm ? R.string.fcm_detected : R.string.fcm_not_detected), false);
+        text(content, getString(R.string.auto_label, getString(autoLabel(row.autostart))), true);
+        text(content, getString(R.string.list_label, flag(row.inSystemList, R.string.listed, R.string.not_listed)), true);
+        text(content, getString(R.string.list_explanation), false);
+        text(content, getString(R.string.notifications_label, getString(notificationLabel(row))), true);
+        text(content, getString(R.string.doze_label, flag(row.ignoresDoze, R.string.enabled_state, R.string.disabled_state)), false);
+        text(content, row.stopped == null ? getString(R.string.unknown_state) : getString(row.stopped ? R.string.stopped_yes : R.string.stopped_no), false);
+        text(content, getString(R.string.background_unknown), false);
+        button(content, R.string.open_app_settings, () -> HyperOsSettings.openApplicationSettings(this, row.app.packageName));
+        button(content, R.string.open_app_notifications, () -> HyperOsSettings.openNotificationSettings(this, row.app.packageName));
+        button(content, R.string.open_app_battery, () -> HyperOsSettings.openBatterySettings(this, row.app.packageName));
+        button(content, R.string.lock_instructions, () -> new MaterialAlertDialogBuilder(this).setMessage(R.string.lock_help).setPositiveButton(R.string.done_action, null).show());
+        dialog.setContentView(scroll); dialog.show();
+    }
+    private void addTile() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                getSystemService(StatusBarManager.class).requestAddTileService(new ComponentName(this, GuardTileService.class),
+                        getString(R.string.app_name), Icon.createWithResource(this, R.drawable.ic_guard_tile), getMainExecutor(), result -> { });
+                return;
+            } catch (RuntimeException ignored) { }
+        }
+        new MaterialAlertDialogBuilder(this).setMessage(R.string.tile_setup_message).setPositiveButton(R.string.done_action, null).show();
+    }
+    private void launch(Intent intent) { try { startActivity(intent); } catch (RuntimeException e) { message(getString(R.string.page_missing)); } }
+    private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
+    private TextView text(LinearLayout parent, String value, boolean title) {
+        TextView text = new TextView(this); text.setText(value); text.setTextAppearance(title ? R.style.SectionTitle : R.style.BodyText);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.topMargin = dp(title ? 16 : 6); text.setLayoutParams(lp); parent.addView(text); return text;
+    }
+    private void button(LinearLayout parent, int label, Runnable action) {
+        MaterialButton button = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(label); button.setMinHeight(dp(48)); button.setOnClickListener(v -> action.run()); parent.addView(button);
+    }
+    private void message(String message) { Snackbar.make(findViewById(R.id.root), message, Snackbar.LENGTH_LONG).show(); }
 }

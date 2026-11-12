@@ -63,6 +63,19 @@ public class AppSettingsNavigationTest {
         assertTrue(context.attempts.isEmpty());
     }
 
+    @Test public void notificationRouteTargetsTheChosenPackage() {
+        RecordingContext context = new RecordingContext(false);
+        assertTrue(HyperOsSettings.openNotificationSettings(context, "com.whatsapp"));
+        assertEquals(Settings.ACTION_APP_NOTIFICATION_SETTINGS, context.attempts.get(0).getAction());
+        assertEquals("com.whatsapp", context.attempts.get(0).getStringExtra(Settings.EXTRA_APP_PACKAGE));
+    }
+    @Test public void batteryRouteFallsBackToChosenAppRatherThanGeneralList() {
+        RecordingContext context = new RecordingContext(false);
+        assertTrue(HyperOsSettings.openBatterySettings(context, "com.android.settings"));
+        assertEquals("com.android.settings", context.attempts.get(0).getStringExtra("package_name"));
+        assertEquals("package:com.android.settings", context.attempts.get(context.attempts.size()-1).getDataString());
+    }
+
     private static final class RecordingContext extends ContextWrapper {
         final List<Intent> attempts = new ArrayList<>();
         final boolean rejectFallback;

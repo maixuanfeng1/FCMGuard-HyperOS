@@ -1,59 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/contentRoot" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
-    android:paddingStart="@dimen/screen_horizontal_padding" android:paddingEnd="@dimen/screen_horizontal_padding" android:paddingTop="8dp" android:paddingBottom="32dp">
-
-    <com.google.android.material.card.MaterialCardView android:id="@+id/statusCard" style="?attr/materialCardViewFilledStyle"
-        android:layout_width="match_parent" android:layout_height="wrap_content" app:cardBackgroundColor="?attr/colorSurfaceContainerHigh" app:cardCornerRadius="24dp" app:cardElevation="0dp">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
-            <ImageView android:layout_width="28dp" android:layout_height="28dp" android:src="@drawable/ic_shield" android:importantForAccessibility="no" />
-            <TextView android:id="@+id/statusHeadline" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/status_attention" android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium" android:textColor="?attr/colorOnSurface" android:accessibilityHeading="true" />
-            <TextView android:id="@+id/statusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/shizuku_not_running" android:textAppearance="@style/BodyText" android:accessibilityLiveRegion="polite" />
-            <TextView android:id="@+id/protectionDetail" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/event_protection_needs_authorization" android:textAppearance="@style/BodyText" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/permissionBtn" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:minHeight="48dp" android:text="@string/authorize_shizuku" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/protectionSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:layout_marginTop="16dp" android:text="@string/automatic_protection" android:textAppearance="@style/TextAppearance.Material3.TitleMedium" android:paddingTop="8dp" android:paddingBottom="8dp" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/event_protection_summary" android:textAppearance="@style/BodyText" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/event_notification_summary" android:textAppearance="@style/BodyText" />
-    <TextView android:id="@+id/notificationWarning" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/notification_permission_help" android:textAppearance="@style/BodyText" android:visibility="gone" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/notificationSettingsBtn" style="?attr/borderlessButtonStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/open_notification_settings" />
-
-    <com.google.android.material.divider.MaterialDivider android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/fcm_apps_title" android:textAppearance="@style/SectionTitle" android:accessibilityHeading="true" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/fcm_apps_direct_summary" android:textAppearance="@style/BodyText" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/scanFcmAppsBtn" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginTop="12dp" android:text="@string/scan_fcm_apps" />
-    <TextView android:id="@+id/fcmAppsStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/fcm_apps_not_scanned" android:textAppearance="@style/BodyText" android:accessibilityLiveRegion="polite" />
-    <LinearLayout android:id="@+id/fcmAppsContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" android:visibility="gone" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/fcm_apps_direct_note" android:textAppearance="@style/BodyText" />
-
-    <com.google.android.material.divider.MaterialDivider android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/actions_title" android:textAppearance="@style/SectionTitle" android:accessibilityHeading="true" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/repairBtn" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginTop="12dp" android:text="@string/repair_now" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/wakeBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/wake_fcm" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/diagBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/open_fcm_diag" />
-
-    <com.google.android.material.divider.MaterialDivider android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/appearance_title" android:textAppearance="@style/SectionTitle" android:accessibilityHeading="true" />
-    <RadioGroup android:id="@+id/appearanceGroup" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="8dp">
-        <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeSystem" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_system" android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
-        <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeLight" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_light" android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
-        <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeDark" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_dark" android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
-    </RadioGroup>
-
-    <com.google.android.material.divider.MaterialDivider android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/advancedToggle" style="@style/Widget.Material3.Button.TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:layout_marginTop="8dp" android:text="@string/advanced_title" android:gravity="start|center_vertical" app:icon="@drawable/ic_expand_more" app:iconGravity="end" />
-    <LinearLayout android:id="@+id/advancedContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:paddingTop="8dp">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/advanced_configuration_help" android:textAppearance="@style/BodyText" />
-        <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:hint="@string/label_key">
-            <com.google.android.material.textfield.TextInputEditText android:id="@+id/keyEdit" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textVisiblePassword|textNoSuggestions" android:singleLine="true" android:textSize="16sp" android:importantForAutofill="no" />
-        </com.google.android.material.textfield.TextInputLayout>
-        <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:hint="@string/label_item">
-            <com.google.android.material.textfield.TextInputEditText android:id="@+id/itemEdit" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textVisiblePassword|textNoSuggestions" android:singleLine="true" android:textSize="16sp" android:importantForAutofill="no" />
-        </com.google.android.material.textfield.TextInputLayout>
-        <com.google.android.material.button.MaterialButton android:id="@+id/saveBtn" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginTop="12dp" android:text="@string/save_configuration" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/current_value_title" android:textAppearance="@style/SectionTitle" />
-        <TextView android:id="@+id/currentValueText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/missing_current" android:textAppearance="@style/BodyText" android:textIsSelectable="true" />
-    </LinearLayout>
+ android:id="@+id/contentRoot" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
+ android:paddingStart="@dimen/screen_horizontal_padding" android:paddingEnd="@dimen/screen_horizontal_padding" android:paddingTop="8dp" android:paddingBottom="32dp">
+ <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" style="?attr/materialCardViewFilledStyle" app:cardElevation="0dp" app:cardCornerRadius="24dp" app:cardBackgroundColor="?attr/colorSurfaceContainerHigh">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+   <TextView android:id="@+id/statusHeadline" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/connection_unknown" android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall" android:accessibilityHeading="true"/>
+   <TextView android:id="@+id/connectionSource" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/connection_summary" android:textAppearance="@style/BodyText"/>
+  </LinearLayout>
+ </com.google.android.material.card.MaterialCardView>
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/network_label" android:textAppearance="@style/SectionTitle"/>
+ <TextView android:id="@+id/networkText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText" android:accessibilityLiveRegion="polite"/>
+ <TextView android:id="@+id/evidenceText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/checkBtn" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/check_now"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/reconnectBtn" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/request_reconnect"/>
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/request_note" android:textAppearance="@style/BodyText"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/networkSettingsBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/network_settings"/>
+ <com.google.android.material.divider.MaterialDivider android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp"/>
+ <TextView android:id="@+id/appsTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/watch_title" android:textAppearance="@style/SectionTitle" android:accessibilityHeading="true"/>
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/watch_summary" android:textAppearance="@style/BodyText"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/chooseAppsBtn" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/choose_apps"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/scanFcmAppsBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/scan_apps"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/showAllBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/all_apps"/>
+ <TextView android:id="@+id/fcmAppsStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>
+ <LinearLayout android:id="@+id/fcmAppsContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+ <com.google.android.material.divider.MaterialDivider android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp"/>
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/settings_title" android:textAppearance="@style/SectionTitle"/>
+ <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/observeSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:text="@string/observe_events"/>
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/observe_note" android:textAppearance="@style/BodyText"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/addTileBtn" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/add_quick_settings_tile"/>
+ <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/enhancedSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:text="@string/enhanced_title"/>
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/enhanced_note" android:textAppearance="@style/BodyText"/>
+ <TextView android:id="@+id/helperText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/permissionBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/authorize_optional" android:visibility="gone"/>
+ <TextView android:id="@+id/runtimeInfoText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/advancedToggle" style="@style/Widget.Material3.Button.TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:layout_marginTop="16dp" android:text="@string/raw_list_title" app:icon="@drawable/ic_expand_more" app:iconGravity="end"/>
+ <LinearLayout android:id="@+id/advancedContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/list_explanation" android:textAppearance="@style/BodyText"/>
+  <TextView android:id="@+id/currentValueText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textAppearance="@style/BodyText" android:textIsSelectable="true"/>
+ </LinearLayout>
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/appearance_title_v3" android:textAppearance="@style/SectionTitle"/>
+ <RadioGroup android:id="@+id/appearanceGroup" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+  <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeSystem" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_system"/>
+  <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeLight" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_light"/>
+  <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeDark" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_dark"/>
+ </RadioGroup>
 </LinearLayout>

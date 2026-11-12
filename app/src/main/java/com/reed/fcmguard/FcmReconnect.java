@@ -4,7 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 
 /**
- * Best-effort FCM/MCS reconnect kick without ADB, Shizuku or root.
+ * Best-effort FCM/MCS heartbeat request without ADB, Shizuku or root.
+ * Sending a broadcast does not prove receipt or reconnection; never report it as success.
  * Mirrors the heartbeat intents used by HeartbeatFixerForFCM.
  */
 public final class FcmReconnect {
@@ -20,16 +21,15 @@ public final class FcmReconnect {
 
     private FcmReconnect() {}
 
-    public static boolean kick(Context context) {
-        boolean sent = false;
+    public static void requestHeartbeat(Context context) {
+        send(context, "com.google.android.intent.action.GCM_RECONNECT", "com.google.android.gms");
         for (String target : TARGET_PACKAGES) {
-            try {
-                context.sendBroadcast(new Intent(ACTION_GTALK_HEARTBEAT).setPackage(target));
-                context.sendBroadcast(new Intent(ACTION_MCS_HEARTBEAT).setPackage(target));
-                sent = true;
-            } catch (Throwable ignored) {
-            }
+            send(context, ACTION_GTALK_HEARTBEAT, target);
+            send(context, ACTION_MCS_HEARTBEAT, target);
         }
-        return sent;
+    }
+    private static void send(Context context, String action, String target) {
+        try { context.sendBroadcast(new Intent(action).setPackage(target)); }
+        catch (RuntimeException ignored) { }
     }
 }

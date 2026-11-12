@@ -1,12 +1,9 @@
 package com.reed.fcmguard;
-
-import com.reed.fcmguard.ISettingsObserver;
-
-// The privileged process exposes only validated settings operations, never a shell.
+// Fixed, read-only queries. No caller-provided commands or settings writes.
 interface ISettingsService {
-    String read(String key, int userId) = 0;
-    boolean write(String key, String value, int userId) = 1;
-    boolean observe(String key, int userId, ISettingsObserver observer) = 2;
-    void stopObserving(ISettingsObserver observer) = 3;
+    String readWhitelist(int userId) = 0;
+    // Transaction 1 retired with the obsolete socket query; keep remaining IDs stable.
+    int runtimeBitness() = 2;
+    String gcmConnectionState(int userId) = 3;
     void destroy() = 16777114;
 }

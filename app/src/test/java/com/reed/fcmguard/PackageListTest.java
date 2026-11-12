@@ -4,29 +4,14 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class PackageListTest {
-    @Test public void appendPreservesExistingPackagesAndOrder() {
-        assertEquals("com.example.one,com.example.two,com.google.android.gms",
-                PackageList.append("com.example.one,com.example.two", "com.google.android.gms"));
+    @Test public void parsePreservesOrderAndDeduplicates() {
+        assertEquals(java.util.Arrays.asList("com.a","com.b"),new java.util.ArrayList<>(PackageList.parse(" com.a,com.b,com.a ")));
     }
-
-    @Test public void existingTargetIsNotDuplicated() {
-        assertEquals("com.google.android.gms,com.example.app",
-                PackageList.append("com.google.android.gms,com.example.app", "com.google.android.gms"));
+    @Test public void emptyAndMissingListsHaveNoMembers() {
+        assertTrue(PackageList.parse(null).isEmpty());assertTrue(PackageList.parse(" , ").isEmpty());
     }
-
-    @Test public void normalizesWhitespaceAndDuplicateEntries() {
-        assertEquals("com.example.app,com.google.android.gms",
-                PackageList.append(" com.example.app, ,com.example.app,", "com.google.android.gms"));
-    }
-
-    @Test public void emptyListAddsOnlyTheRequestedPackage() {
-        assertEquals("com.google.android.gms", PackageList.append("", "com.google.android.gms"));
-        assertEquals("com.google.android.gms", PackageList.append(null, "com.google.android.gms"));
-    }
-
-    @Test public void similarlyNamedPackageDoesNotCountAsTarget() {
-        assertEquals("com.google.android.gms.fake,com.google.android.gms",
-                PackageList.append("com.google.android.gms.fake", "com.google.android.gms"));
+    @Test public void similarlyNamedPackagesRemainDistinct() {
+        assertFalse(PackageList.parse("com.google.android.gms.fake").contains("com.google.android.gms"));
     }
 
     @Test public void rejectsCommandAndListInjection() {
@@ -40,8 +25,4 @@ public class PackageListTest {
         assertTrue(PackageList.validPackage("com.example_app.client2"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void invalidRequiredItemCannotBeAppended() {
-        PackageList.append("com.example.app", "com.a,com.b");
-    }
 }
