@@ -37,17 +37,17 @@ public class PushDashboardTest {
   PackageInfo info = c.getPackageManager().getPackageInfo(c.getPackageName(), android.content.pm.PackageManager.GET_PERMISSIONS);
   for (String permission : info.requestedPermissions) assertFalse(permission.startsWith("android.permission.FOREGROUND_SERVICE"));
   in.runOnMainSync(() -> {
-   assertEquals(View.GONE, activity.findViewById(R.id.permissionBtn).getVisibility());
-   assertFalse(((MaterialSwitch)activity.findViewById(R.id.enhancedSwitch)).isChecked());
-   assertNotNull(activity.findViewById(R.id.chooseAppsBtn));
+   assertEquals(View.GONE, activity.ui(R.id.permissionBtn).getVisibility());
+   assertFalse(((MaterialSwitch)activity.ui(R.id.enhancedSwitch)).isChecked());
+   assertNotNull(activity.ui(R.id.chooseAppsBtn));
   });
  }
  @Test public void reachableNetworkNeverClaimsDiagnosticsConnected() {
   PushRuntime.network = NetworkProbe.State.REACHABLE;
   in.runOnMainSync(() -> {
    activity.renderConnection();
-   assertEquals(c.getString(R.string.connection_unknown), ((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
-   assertTrue(((TextView)activity.findViewById(R.id.networkText)).getText().toString().contains(c.getString(R.string.network_reachable)));
+   assertEquals(c.getString(R.string.connection_unknown), ((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
+   assertTrue(((TextView)activity.ui(R.id.networkText)).getText().toString().contains(c.getString(R.string.network_reachable)));
   });
  }
  @Test public void upgradeRemovesManualRecordsButPreservesUserPreferences() {
@@ -80,7 +80,7 @@ public class PushDashboardTest {
    in.waitForIdleSync();android.os.SystemClock.sleep(200);
    in.runOnMainSync(() -> {
     assertTrue("Returning to diagnostics must leave the dashboard focused, without a confirmation dialog",activity.hasWindowFocus());
-    assertEquals(c.getString(R.string.connection_unknown),((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
+    assertEquals(c.getString(R.string.connection_unknown),((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
    });
   }
  }
@@ -151,10 +151,10 @@ public class PushDashboardTest {
   in.addMonitor(monitor);
   try {
    Rect before = new Rect();
-   in.runOnMainSync(() -> { assertTrue(activity.findViewById(R.id.diagBtn).getGlobalVisibleRect(before));
-    ((androidx.core.widget.NestedScrollView)activity.findViewById(R.id.scroll)).fullScroll(View.FOCUS_DOWN); });
+   in.runOnMainSync(() -> { assertTrue(activity.ui(R.id.diagBtn).getGlobalVisibleRect(before));
+    ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).scrollToPosition(activity.appAdapter.getItemCount()+1); });
    in.waitForIdleSync(); android.os.SystemClock.sleep(400);
-   in.runOnMainSync(() -> { Rect after = new Rect(); assertTrue(activity.findViewById(R.id.diagBtn).getGlobalVisibleRect(after)); assertEquals(before, after); activity.findViewById(R.id.diagBtn).performClick(); });
+   in.runOnMainSync(() -> { Rect after = new Rect(); assertTrue(activity.ui(R.id.diagBtn).getGlobalVisibleRect(after)); assertEquals(before, after); activity.ui(R.id.diagBtn).performClick(); });
    assertNotNull(opened.get()); assertEquals("com.google.android.gms.gcm.GcmDiagnostics", opened.get().getComponent().getClassName());
    assertFalse(DiagnosticPreferences.prefs(c).contains("awaiting_report"));
   } finally { in.removeMonitor(monitor); }
@@ -210,46 +210,111 @@ public class PushDashboardTest {
  @Test public void disabledAppsSortBeforeEnabledAndCountsUseRenderedList() {
   in.runOnMainSync(() -> {
    showExamples(activity);
-   LinearLayout container = activity.findViewById(R.id.fcmAppsContainer);
-   assertEquals(4, container.getChildCount());
-   assertEquals("app:com.example.disabled", container.getChildAt(0).getTag());
-   assertEquals("app:com.example.enabled", container.getChildAt(3).getTag());
-   TextView first = (TextView)((LinearLayout)container.getChildAt(0)).getChildAt(0);
-   assertEquals(com.google.android.material.color.MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.getCurrentTextColor());
-   assertTrue(((TextView)activity.findViewById(R.id.fcmAppsStatusText)).getText().toString().contains("4"));
+   AppListAdapter adapter = activity.appAdapter;
+   assertEquals(4, adapter.getItemCount());
+   AppListAdapter.Holder holder = adapter.createViewHolder(activity.ui(R.id.scroll), 0);
+   adapter.bindViewHolder(holder, 0);
+   assertEquals("app:com.example.disabled", holder.itemView.getTag());
+   assertEquals(com.google.android.material.color.MaterialColors.getColor(holder.title, androidx.appcompat.R.attr.colorError), holder.title.getCurrentTextColor());
+   adapter.bindViewHolder(holder, 3);
+   assertEquals("app:com.example.enabled", holder.itemView.getTag());
+   assertEquals(com.google.android.material.color.MaterialColors.getColor(holder.title, com.google.android.material.R.attr.colorOnSurface), holder.title.getCurrentTextColor());
+   assertTrue(((TextView)activity.ui(R.id.fcmAppsStatusText)).getText().toString().contains("4"));
   });
+ }
+ @Test public void largeListRecyclesViewsInsteadOfCreatingEveryRow() throws Exception {
+  List<AppDiagnostics> examples = new ArrayList<>(); Set<String> chosen = new HashSet<>();
+  for (int i = 0; i < 300; i++) {
+   FcmAppScanner.AppEntry app = new FcmAppScanner.AppEntry("com.example.list"+i, String.format(java.util.Locale.ROOT,"Example %03d",i));
+   examples.add(new AppDiagnostics(c, app, null)); chosen.add(app.packageName);
+  }
+  DiagnosticPreferences.selected(c, chosen);
+  in.runOnMainSync(() -> {
+   try { Field f=MainActivity.class.getDeclaredField("rows"); f.setAccessible(true); f.set(activity, examples); }
+   catch (Exception e) { throw new AssertionError(e); }
+   activity.renderApps();
+   ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).scrollToPosition(151);
+  });
+  android.os.SystemClock.sleep(400); in.waitForIdleSync();
+  in.runOnMainSync(() -> {
+   androidx.recyclerview.widget.RecyclerView list = activity.ui(R.id.scroll);
+   assertEquals(300, activity.appAdapter.getItemCount());
+   assertTrue("Only visible rows should exist", list.getChildCount() < 20);
+   assertNotNull("The middle of the list must be visible", list.findViewHolderForAdapterPosition(151));
+  });
+ }
+ @Test public void recreationPreservesListModeExpansionAndScroll() throws Exception {
+  in.runOnMainSync(() -> {
+   activity.ui(R.id.showAllBtn).performClick();
+   activity.ui(R.id.advancedToggle).performClick();
+  });
+  in.waitForIdleSync();
+  in.runOnMainSync(() -> ((androidx.recyclerview.widget.LinearLayoutManager)
+          ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).getLayoutManager())
+          .scrollToPositionWithOffset(activity.appAdapter.getItemCount()+1, -60));
+  in.waitForIdleSync();
+  java.util.concurrent.atomic.AtomicInteger savedPosition = new java.util.concurrent.atomic.AtomicInteger();
+  java.util.concurrent.atomic.AtomicInteger savedOffset = new java.util.concurrent.atomic.AtomicInteger();
+  in.runOnMainSync(() -> {
+   androidx.recyclerview.widget.LinearLayoutManager layout = (androidx.recyclerview.widget.LinearLayoutManager)
+           ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).getLayoutManager();
+   int position = layout.findFirstVisibleItemPosition();
+   savedPosition.set(position); savedOffset.set(layout.getDecoratedTop(layout.findViewByPosition(position)));
+  });
+  Instrumentation.ActivityMonitor monitor = in.addMonitor(MainActivity.class.getName(), null, false);
+  try {
+   in.runOnMainSync(activity::recreate);
+   Activity replacement = in.waitForMonitorWithTimeout(monitor, 10000);
+   assertNotNull("Recreated activity did not resume", replacement);
+   assertNotSame(activity, replacement);
+   activity = (MainActivity) replacement;
+   awaitApps(activity);
+   android.os.SystemClock.sleep(400);
+   in.waitForIdleSync();
+   in.runOnMainSync(() -> {
+    androidx.recyclerview.widget.LinearLayoutManager layout = (androidx.recyclerview.widget.LinearLayoutManager)
+            ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).getLayoutManager();
+    int position = layout.findFirstVisibleItemPosition();
+    assertEquals("Visible item survives asynchronous loading", savedPosition.get(), position);
+    assertEquals("Offset survives asynchronous loading", savedOffset.get(), layout.getDecoratedTop(layout.findViewByPosition(position)));
+   });
+   in.runOnMainSync(() -> {
+    assertEquals(View.VISIBLE, activity.ui(R.id.advancedContent).getVisibility());
+    assertEquals(c.getString(R.string.watched_apps), ((TextView)activity.ui(R.id.showAllBtn)).getText().toString());
+   });
+  } finally { in.removeMonitor(monitor); }
  }
  @Test public void authorizedButSystemRestrictedNeverReportsMissingGrant() throws Exception {
   in.runOnMainSync(() -> {
-   MaterialSwitch toggle = activity.findViewById(R.id.enhancedSwitch);
+   MaterialSwitch toggle = activity.ui(R.id.enhancedSwitch);
    toggle.setOnCheckedChangeListener(null); toggle.setChecked(true);
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,
        EnhancedStatus.Result.SYSTEM_RESTRICTED, 64, 1234567890000L));
-   String top = ((TextView)activity.findViewById(R.id.evidenceText)).getText().toString();
-   String bottom = ((TextView)activity.findViewById(R.id.helperText)).getText().toString();
+   String top = ((TextView)activity.ui(R.id.evidenceText)).getText().toString();
+   String bottom = ((TextView)activity.ui(R.id.helperText)).getText().toString();
    assertTrue(top.contains(c.getString(R.string.enhanced_ready)));
    assertTrue(bottom.contains(c.getString(R.string.enhanced_ready)));
    assertTrue(top.contains(c.getString(R.string.enhanced_restricted)));
    assertFalse(top.contains(c.getString(R.string.enhanced_needs_grant)));
-   assertTrue(((TextView)activity.findViewById(R.id.runtimeInfoText)).getText().toString().contains("64"));
+   assertTrue(((TextView)activity.ui(R.id.runtimeInfoText)).getText().toString().contains("64"));
   });
  }
  @Test public void authorizedConnectingHelperDoesNotAskForGrantAgain() {
   in.runOnMainSync(() -> {
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
        EnhancedStatus.Result.NOT_CHECKED, 0, 0));
-   assertTrue(((TextView)activity.findViewById(R.id.evidenceText)).getText().toString().contains(c.getString(R.string.enhanced_connecting)));
-   assertFalse(((TextView)activity.findViewById(R.id.evidenceText)).getText().toString().contains(c.getString(R.string.enhanced_needs_grant)));
+   assertTrue(((TextView)activity.ui(R.id.evidenceText)).getText().toString().contains(c.getString(R.string.enhanced_connecting)));
+   assertFalse(((TextView)activity.ui(R.id.evidenceText)).getText().toString().contains(c.getString(R.string.enhanced_needs_grant)));
   });
  }
  @Test public void lostGrantHidesFormerConnectionEvidence() {
   in.runOnMainSync(() -> {
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.NOT_AUTHORIZED,
        EnhancedStatus.Result.CONNECTED, 64, 1234567890000L, android.os.SystemClock.elapsedRealtime()));
-   String top = ((TextView)activity.findViewById(R.id.evidenceText)).getText().toString();
+   String top = ((TextView)activity.ui(R.id.evidenceText)).getText().toString();
    assertTrue(top.contains(c.getString(R.string.enhanced_needs_grant)));
    assertFalse(top.contains(c.getString(R.string.gms_connected)));
-   assertTrue(((TextView)activity.findViewById(R.id.runtimeInfoText)).getText().toString().contains(c.getString(R.string.helper_bits_unknown)));
+   assertTrue(((TextView)activity.ui(R.id.runtimeInfoText)).getText().toString().contains(c.getString(R.string.helper_bits_unknown)));
   });
  }
  @Test public void freshGmsConnectionLightsTileAndUpdatesDashboard() {
@@ -261,7 +326,7 @@ public class PushDashboardTest {
    assertEquals(android.service.quicksettings.Tile.STATE_ACTIVE,tile.getState());
    assertEquals(c.getString(R.string.tile_connected),tile.getLabel());
    activity.renderEnhanced(state);
-   assertEquals(c.getString(R.string.gms_connected),((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
+   assertEquals(c.getString(R.string.gms_connected),((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
   });
  }
  @Test public void explicitDisconnectAndUnknownHaveDifferentTileLabels() {
@@ -289,7 +354,7 @@ public class PushDashboardTest {
     assertNotEquals(android.service.quicksettings.Tile.STATE_ACTIVE,tile.getState());
     assertEquals(c.getString(R.string.tile_unknown),tile.getLabel());
     activity.renderEnhanced(state);
-    assertEquals(c.getString(R.string.connection_unknown),((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
+    assertEquals(c.getString(R.string.connection_unknown),((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
    }
   });
  }

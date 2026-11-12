@@ -10,6 +10,7 @@ import android.view.*;
 import android.widget.*;
 import androidx.appcompat.app.*;
 import androidx.core.view.*;
+import androidx.recyclerview.widget.*;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.color.*;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -26,6 +27,10 @@ public class MainActivity extends AppCompatActivity {
     private List<FcmAppScanner.AppEntry> apps = new ArrayList<>();
     private List<AppDiagnostics> rows = new ArrayList<>();
     private boolean showAll;
+    private Parcelable restoredListState;
+    private View dashboardHeader, dashboardFooter;
+    private RecyclerView list;
+    AppListAdapter appAdapter;
     private volatile boolean scanning;
     private boolean scanPending;
     private String lastWhitelist;
@@ -43,6 +48,14 @@ public class MainActivity extends AppCompatActivity {
         if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)) refreshApps();
     };
 
+    // Header/footer views can be detached by RecyclerView; state updates still target their retained views.
+    <T extends View> T ui(int id) {
+        T view = findViewById(id);
+        if (view == null && dashboardHeader != null) view = dashboardHeader.findViewById(id);
+        if (view == null && dashboardFooter != null) view = dashboardFooter.findViewById(id);
+        return view;
+    }
+
     @Override public void onCreate(Bundle state) {
         LocaleHelper.followSystem(this);
         String mode = ThemeHelper.getMode(this);
@@ -52,26 +65,43 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(state);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root), (v, insets) -> {
+        list = ui(R.id.scroll);
+        list.setLayoutManager(new LinearLayoutManager(this));
+        dashboardHeader = getLayoutInflater().inflate(R.layout.dashboard_header, list, false);
+        dashboardFooter = getLayoutInflater().inflate(R.layout.dashboard_footer, list, false);
+        list.setSaveEnabled(false); // Restore after asynchronous app discovery, not against an empty adapter.
+        list.setItemAnimator(null);
+        appAdapter = new AppListAdapter(this);
+        list.setAdapter(new ConcatAdapter(AppListAdapter.section(dashboardHeader), appAdapter,
+                AppListAdapter.section(dashboardFooter)));
+        if (state != null) {
+            showAll = state.getBoolean("show_all", false);
+            restoredListState = state.getParcelable("list_state");
+            boolean expanded = state.getBoolean("advanced_expanded", false);
+            ui(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
+            ((MaterialButton) ui(R.id.advancedToggle)).setIconResource(
+                    expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(ui(R.id.root), (v, insets) -> {
             androidx.core.graphics.Insets safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
             v.setPadding(safe.left, safe.top, safe.right, Math.max(safe.bottom, insets.getInsets(WindowInsetsCompat.Type.ime()).bottom));
             return insets;
         });
-        findViewById(R.id.diagBtn).setOnClickListener(v -> openDiagnostics());
-        findViewById(R.id.checkBtn).setOnClickListener(v -> check(false));
-        findViewById(R.id.reconnectBtn).setOnClickListener(v -> check(true));
-        findViewById(R.id.chooseAppsBtn).setOnClickListener(v -> chooseApps());
-        findViewById(R.id.scanFcmAppsBtn).setOnClickListener(v -> refreshApps());
-        findViewById(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; renderApps(); });
-        findViewById(R.id.networkSettingsBtn).setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIRELESS_SETTINGS)));
-        findViewById(R.id.addTileBtn).setOnClickListener(v -> addTile());
-        findViewById(R.id.advancedToggle).setOnClickListener(v -> {
-            View content = findViewById(R.id.advancedContent);
+        ui(R.id.diagBtn).setOnClickListener(v -> openDiagnostics());
+        ui(R.id.checkBtn).setOnClickListener(v -> check(false));
+        ui(R.id.reconnectBtn).setOnClickListener(v -> check(true));
+        ui(R.id.chooseAppsBtn).setOnClickListener(v -> chooseApps());
+        ui(R.id.scanFcmAppsBtn).setOnClickListener(v -> { FcmAppScanner.invalidate(); refreshApps(); });
+        ui(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; renderApps(); });
+        ui(R.id.networkSettingsBtn).setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIRELESS_SETTINGS)));
+        ui(R.id.addTileBtn).setOnClickListener(v -> addTile());
+        ui(R.id.advancedToggle).setOnClickListener(v -> {
+            View content = ui(R.id.advancedContent);
             boolean expanded = content.getVisibility() != View.VISIBLE;
             content.setVisibility(expanded ? View.VISIBLE : View.GONE);
             ((MaterialButton) v).setIconResource(expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
         });
-        MaterialSwitch enhanced = findViewById(R.id.enhancedSwitch);
+        MaterialSwitch enhanced = ui(R.id.enhancedSwitch);
         enhanced.setChecked(DiagnosticPreferences.enhanced(this));
         enhanced.setOnCheckedChangeListener((v, checked) -> {
             DiagnosticPreferences.enhanced(this, checked);
@@ -79,14 +109,14 @@ public class MainActivity extends AppCompatActivity {
             if (checked) authorize(); else ShizukuBridge.disable();
             renderConnection();
         });
-        findViewById(R.id.permissionBtn).setOnClickListener(v -> authorize());
-        MaterialSwitch observe = findViewById(R.id.observeSwitch);
+        ui(R.id.permissionBtn).setOnClickListener(v -> authorize());
+        MaterialSwitch observe = ui(R.id.observeSwitch);
         observe.setChecked(DiagnosticPreferences.observe(this));
         observe.setOnCheckedChangeListener((v, checked) -> {
             DiagnosticPreferences.prefs(this).edit().putBoolean("observe", checked).apply();
             PushRuntime.configure(this);
         });
-        RadioGroup appearance = findViewById(R.id.appearanceGroup);
+        RadioGroup appearance = ui(R.id.appearanceGroup);
         appearance.check(ThemeHelper.MODE_DARK.equals(mode) ? R.id.themeDark : ThemeHelper.MODE_LIGHT.equals(mode) ? R.id.themeLight : R.id.themeSystem);
         appearance.setOnCheckedChangeListener((v, id) -> {
             String next = id == R.id.themeDark ? ThemeHelper.MODE_DARK : id == R.id.themeLight ? ThemeHelper.MODE_LIGHT : ThemeHelper.MODE_SYSTEM;
@@ -103,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
         }
         if (getIntent().getBooleanExtra("open_diagnostics", false)) {
             getIntent().removeExtra("open_diagnostics");
-            findViewById(R.id.diagBtn).post(this::openDiagnostics);
+            ui(R.id.diagBtn).post(this::openDiagnostics);
         }
     }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleLaunchActions(); }
@@ -120,6 +150,12 @@ public class MainActivity extends AppCompatActivity {
         connectionHandler.postDelayed(connectionRefresh, 5000L);
     }
     @Override protected void onPause() { connectionHandler.removeCallbacks(connectionRefresh); super.onPause(); }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("show_all", showAll);
+        state.putBoolean("advanced_expanded", ui(R.id.advancedContent).getVisibility() == View.VISIBLE);
+        state.putParcelable("list_state", restoredListState != null ? restoredListState : list.getLayoutManager().onSaveInstanceState());
+        super.onSaveInstanceState(state);
+    }
     @Override protected void onDestroy() { connectionHandler.removeCallbacks(connectionRefresh); PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy(); }
     private void authorize() {
         if (ShizukuBridge.isRunning()) ShizukuBridge.requestPermission();
@@ -131,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
         renderConnection();
     }
     private String time(long date) { return date <= 0 ? getString(R.string.network_none) : DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(date)); }
-    private void set(int id, String value) { ((TextView) findViewById(id)).setText(value); }
+    private void set(int id, String value) { ((TextView) ui(id)).setText(value); }
     void renderConnection() {
         set(R.id.statusHeadline, getString(R.string.connection_unknown));
         int network = PushRuntime.network == NetworkProbe.State.REACHABLE ? R.string.network_reachable :
@@ -160,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
         long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
         if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
         set(R.id.evidenceText, extra.trim());
-        findViewById(R.id.permissionBtn).setVisibility(status.access == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
+        ui(R.id.permissionBtn).setVisibility(status.access == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
         set(R.id.helperText, getString(R.string.helper_access_status, access));
         int bits = status.access == EnhancedStatus.Access.READY ? status.bits : 0;
         set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
@@ -251,36 +287,24 @@ public class MainActivity extends AppCompatActivity {
             case ENABLED: enabled++; break; case DISABLED: disabled++; break; case PARTIAL: partial++; break; default: unknown++;
         }
         set(R.id.fcmAppsStatusText, getString(R.string.apps_counts, rows.size(), fcm, selected, enabled, disabled, partial, unknown));
-        ((MaterialButton) findViewById(R.id.showAllBtn)).setText(showAll ? R.string.watched_apps : R.string.all_apps);
-        LinearLayout container = findViewById(R.id.fcmAppsContainer); container.removeAllViews();
-        if (visible.isEmpty()) text(container, getString(R.string.no_chosen), false);
-        for (AppDiagnostics row : visible) {
-            LinearLayout entry = new LinearLayout(this); entry.setOrientation(LinearLayout.VERTICAL);
-            entry.setPadding(dp(4), dp(16), dp(4), dp(16)); entry.setTag("app:" + row.app.packageName);
-            TextView title = text(entry, row.app.label + (chosen.contains(row.app.packageName) ? " ★" : ""), true);
-            text(entry, row.app.packageName, false);
-            text(entry, getString(row.app.declaresFcm ? R.string.fcm_detected : R.string.fcm_not_detected), false);
-            TextView state = text(entry, getString(R.string.auto_label, getString(autoLabel(row.autostart))), false);
-            text(entry, getString(R.string.list_label, flag(row.inSystemList, R.string.listed, R.string.not_listed)), false);
-            text(entry, getString(R.string.notifications_label, getString(notificationLabel(row))), false);
-            if (row.needsAttention()) {
-                int error = MaterialColors.getColor(entry, androidx.appcompat.R.attr.colorError);
-                title.setTextColor(error); state.setTextColor(error);
-            }
-            entry.setBackgroundResource(android.R.drawable.list_selector_background);
-            entry.setOnClickListener(v -> showApp(row)); entry.setFocusable(true);
-            container.addView(entry);
+        ((MaterialButton) ui(R.id.showAllBtn)).setText(showAll ? R.string.watched_apps : R.string.all_apps);
+        ui(R.id.noChosenText).setVisibility(visible.isEmpty() ? View.VISIBLE : View.GONE);
+        appAdapter.submit(visible, chosen);
+        if (restoredListState != null) {
+            list.getLayoutManager().onRestoreInstanceState(restoredListState);
+            restoredListState = null;
         }
     }
+
     private int priority(AppDiagnostics a) {
         if (a.autostart == AutostartStatusReader.Status.DISABLED) return 0;
         if (a.autostart == AutostartStatusReader.Status.PARTIAL) return 1;
         if (a.needsAttention()) return 2;
         return a.autostart == AutostartStatusReader.Status.UNKNOWN ? 3 : 4;
     }
-    private int autoLabel(AutostartStatusReader.Status state) { return state == AutostartStatusReader.Status.ENABLED ? R.string.enabled_state : state == AutostartStatusReader.Status.DISABLED ? R.string.disabled_state : state == AutostartStatusReader.Status.PARTIAL ? R.string.partial_state : R.string.unknown_state; }
-    private int notificationLabel(AppDiagnostics row) { return row.notificationPermission == null ? R.string.permission_unknown : row.notificationPermission ? R.string.permission_granted : R.string.permission_denied; }
-    private String flag(Boolean value, int yes, int no) { return getString(value == null ? R.string.unknown_state : value ? yes : no); }
+    int autoLabel(AutostartStatusReader.Status state) { return state == AutostartStatusReader.Status.ENABLED ? R.string.enabled_state : state == AutostartStatusReader.Status.DISABLED ? R.string.disabled_state : state == AutostartStatusReader.Status.PARTIAL ? R.string.partial_state : R.string.unknown_state; }
+    int notificationLabel(AppDiagnostics row) { return row.notificationPermission == null ? R.string.permission_unknown : row.notificationPermission ? R.string.permission_granted : R.string.permission_denied; }
+    String flag(Boolean value, int yes, int no) { return getString(value == null ? R.string.unknown_state : value ? yes : no); }
     private void chooseApps() {
         if (apps.isEmpty()) { refreshApps(); message(getString(R.string.checking)); return; }
         List<FcmAppScanner.AppEntry> snapshot = new ArrayList<>(apps);
@@ -333,5 +357,5 @@ public class MainActivity extends AppCompatActivity {
         MaterialButton button = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         button.setText(label); button.setMinHeight(dp(48)); button.setOnClickListener(v -> action.run()); parent.addView(button);
     }
-    private void message(String message) { Snackbar.make(findViewById(R.id.root), message, Snackbar.LENGTH_LONG).show(); }
+    private void message(String message) { Snackbar.make(ui(R.id.root), message, Snackbar.LENGTH_LONG).show(); }
 }

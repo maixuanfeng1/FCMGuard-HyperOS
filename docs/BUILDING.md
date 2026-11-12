@@ -53,3 +53,26 @@ Before claiming a physical-device result, verify on Android 17 / HyperOS 4:
 Run `python3 -m unittest discover -s tools/tests -v` for APK ABI-validator cases. See [PROJECT_AUDIT](PROJECT_AUDIT.md) for review coverage and remaining decisions.
 
 The full Android 17 image also runs `tools/check_launcher_shortcut.py`: long-press the actual launcher icon, verify the diagnostic menu item, capture the native menu and click through to real Google Diagnostics. Platform ShortcutManager and cold/warm routing are covered by instrumentation. HyperOS launcher presentation must be checked on the actual phone.
+
+The owner-facing [HyperOS 4 checklist](HYPEROS_CHECKS.md) covers settings routes, authorization, fresh connection states and locked-screen notification delivery. It does not add manual recording to the application.
+
+## Dependency and CI updates
+
+Application and test compile/runtime/annotation-processor classpaths use strict dependency locking in `app/gradle.lockfile`. Normal builds consume the lock rather than silently replacing transitive versions. After deliberately reviewing a dependency change, regenerate all configurations used by CI:
+
+```sh
+./gradlew --write-locks :app:dependencies :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug :app:lintRelease
+```
+
+Review the resulting lock diff and run the Android 17 device checks before releasing. AGP device-test utility configurations remain managed by the pinned AGP; they are created lazily and are outside application dependency locking. This locks application dependencies resolved by those tasks; it is not a claim of byte-identical APKs or a lock of every SDK/AGP tool component. CI actions are pinned to the reviewed versions' commit SHAs, with the major version in comments. Update those SHAs deliberately after reviewing upstream changes, including any nested annotated tags. They will no longer float with major-version tags.
+
+Backup remains disabled. `backup_rules.xml` and `data_extraction_rules.xml` explicitly exclude cloud backup and device transfer, including device-protected storage. Selected apps and themes remain on the current installation; a new phone starts with default preferences and requires its own optional authorization.
+
+
+## Minified-release validation
+
+Release builds enable R8 and resource shrinking. `app/proguard-rules.pro` retains the externally loaded Shizuku helper name and both public constructors. Binder descriptors and transaction IDs remain stable; no catch-all keep rule disables optimization for the whole app.
+
+Android 17 device checks load both debug and the actual minified release APK via `app_process` as shell UID 2000. The probe uses reflection and raw Binder transactions rather than linking to names R8 may optimize. GMS online/offline/restored comparisons use that release helper. Full Google APIs checks install a CI-only debug-signed **non-debuggable minified** release to exercise the native launcher shortcut and actual Shizuku 13.6.0 authorization, 64-bit user-service binding and current GMS state. The upstream Shizuku test download is pinned by SHA-256. SystemUI reclamation testing retains the debug APK because its test uses `run-as` to kill only the app's own process.
+
+These CI APKs are not production releases. Public APKs retain the established private release certificate. Test downloads and screenshots remain in CI. PR checks plus main-push checks replace duplicate feature-push/PR jobs; use workflow dispatch when testing a branch without a PR.
