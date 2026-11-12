@@ -8,12 +8,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-/** Runs as Shizuku's shell/root identity. No caller-provided shell program is run. */
+/** Shizuku helper; its fixed GMS reader also supports explicit app-UID diagnostic grants. */
 public final class SettingsUserService extends ISettingsService.Stub {
     public SettingsUserService(Context context) { }
     public SettingsUserService() { }
 
     @Override public synchronized String gcmConnectionState(int userId) {
+        return readGcmState(userId);
+    }
+
+    static String readGcmState(int userId) {
         validate(userId);
         try {
             return GmsConnectionState.parse(runBounded(262144, "/system/bin/dumpsys", "-t", "3", "activity",

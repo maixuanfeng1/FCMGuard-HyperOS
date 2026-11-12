@@ -299,6 +299,30 @@ public class PushDashboardTest {
    assertTrue(((TextView)activity.ui(R.id.runtimeInfoText)).getText().toString().contains("64"));
   });
  }
+ @Test public void directEvidenceDoesNotClaimShizukuIsRunning() {
+  in.runOnMainSync(() -> {
+   long now=android.os.SystemClock.elapsedRealtime();
+   activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,
+       EnhancedStatus.Result.CONNECTED,64,System.currentTimeMillis(),now,EnhancedStatus.Source.DIRECT));
+   assertEquals(c.getString(R.string.gms_connected),((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
+   String top=((TextView)activity.ui(R.id.evidenceText)).getText().toString();
+   String bottom=((TextView)activity.ui(R.id.helperText)).getText().toString();
+   assertTrue(top.contains(c.getString(R.string.direct_evidence)));
+   assertFalse(top.contains(c.getString(R.string.enhanced_ready)));
+   assertTrue(bottom.contains(c.getString(R.string.enhanced_disabled)));
+   assertEquals(View.GONE,activity.ui(R.id.permissionBtn).getVisibility());
+  });
+ }
+ @Test public void adbInstructionsAreScopedToThisApplicationAndUser() {
+  String prefix="adb shell pm grant --user "+(android.os.Process.myUid()/100000)+" "+c.getPackageName()+" ";
+  String commands=DirectGmsAccess.commands(c,true);
+  assertTrue(commands.startsWith(prefix+"android.permission.DUMP\n"));
+  assertTrue(commands.contains(prefix+"android.permission.PACKAGE_USAGE_STATS\n"));
+  assertTrue(commands.endsWith(" "+c.getPackageName()+" GET_USAGE_STATS allow"));
+  String revoke=DirectGmsAccess.commands(c,false);
+  assertTrue(revoke.startsWith("adb shell pm revoke --user "));
+  assertTrue(revoke.endsWith(" GET_USAGE_STATS default"));
+ }
  @Test public void authorizedConnectingHelperDoesNotAskForGrantAgain() {
   in.runOnMainSync(() -> {
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,

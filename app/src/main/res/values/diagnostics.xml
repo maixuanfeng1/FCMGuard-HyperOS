@@ -2,7 +2,7 @@
 <!-- New diagnostic copy is localized in Chinese; other system locales use English. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
 <string name="connection_unknown">FCM connection: unknown</string>
-    <string name="connection_summary">Automatic status needs optional Shizuku and readable current GMS state. Otherwise confirm in Google diagnostics.</string>
+    <string name="connection_summary">Automatic status needs diagnostic access through a one-time ADB grant or optional Shizuku. Otherwise open Google diagnostics.</string>
     <string name="check_now">Check now</string>
     <string name="request_reconnect">Try a heartbeat request</string>
     <string name="network_label">Network check</string>
@@ -68,7 +68,7 @@
     <string name="request_started">Attempting a heartbeat request and network check. Verify the result in diagnostics.</string>
     <string name="no_auth_service">Start Shizuku first, or leave the optional feature off</string>
 <string name="appearance_title_v3">Appearance</string>
-<string name="tile_setup_message">Lit with Connected means GMS was just observed connected. A grey disconnected icon with Disconnected means GMS was just observed disconnected. A question mark with Unknown means unreadable, not off. Enable optional Shizuku. Refreshes every 5 seconds while visible, with no polling when hidden. Tap to try a heartbeat and open diagnostics; this does not turn off GMS push.</string>
+<string name="tile_setup_message">Lit with Connected means GMS was just observed connected. A grey disconnected icon with Disconnected means GMS was just observed disconnected. A question mark with Unknown means unreadable, not off. Use one-time ADB diagnostic access or optional Shizuku. Refreshes every 5 seconds while visible, with no polling when hidden. Tap to try a heartbeat and open diagnostics; this does not turn off GMS push.</string>
 <string name="diagnostic_observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
     <string name="helper_access_status">Shizuku: %1$s</string>
     <string name="helper_bits_unknown">Not read yet</string>
@@ -79,12 +79,12 @@
     <string name="enhanced_disabled">Enhanced checks off</string>
     <string name="enhanced_checking">Reading connection information…</string>
     <string name="enhanced_not_checked">Waiting to read connection information</string>
-    <string name="enhanced_restricted">Authorized, but the system restricts reading connection information. FCM status cannot be confirmed.</string>
+    <string name="enhanced_restricted">Access is available, but the system denied reading connection information. FCM state remains unknown.</string>
     <string name="enhanced_command_unsupported">This system does not support the connection query command.</string>
     <string name="enhanced_format_unsupported">The connection information format is not supported on this system.</string>
 <string name="enhanced_timeout">Connection information timed out. Try checking again.</string>
-    <string name="enhanced_read_failed">The helper is connected, but this query failed. Try checking again.</string>
-    <string name="enhanced_no_data">Authorized, but the system did not provide usable connection information.</string>
+    <string name="enhanced_read_failed">Connection information could not be read. Please retry.</string>
+    <string name="enhanced_no_data">Access is available, but the system returned no usable connection information.</string>
     <string name="enhanced_checked_at">Connection information checked: %1$s</string>
     <string name="gms_connected">FCM connection: Connected</string>
     <string name="gms_disconnected">FCM connection: Disconnected</string>
@@ -96,8 +96,15 @@
     <string name="tile_unknown">FCM · Unknown</string>
     <string name="tile_recent_check">Current GMS state · just checked</string>
     <string name="tile_unknown_note">Unconfirmed · tap for diagnostics</string>
-    <string name="tile_requires_shizuku">Enable Shizuku checks</string>
+    <string name="tile_requires_shizuku">Diagnostic access needed</string>
     <string name="tile_stale">Refresh needed · tap for diagnostics</string>
     <string name="scan_failed">Could not refresh app checks. Please try again.</string>
     <string name="shortcut_fcm_diagnostics">FCM diagnostics</string>
+    <string name="direct_grant_title">One-time ADB diagnostic access</string>
+    <string name="direct_grant_ready">App diagnostic access: ready · Shizuku does not need to stay running</string>
+    <string name="direct_grant_missing">App diagnostic access: not granted or incomplete · optional</string>
+    <string name="direct_evidence">Read source: app diagnostic permissions · no running Shizuku required</string>
+    <string name="copy_grant">Copy grant commands</string>
+    <string name="copy_revoke">Copy revoke commands</string>
+    <string name="direct_grant_help">Optional: connect this device to ADB and execute all three grant commands. Then return to the dashboard or expand the tile. The app reads the current GMS service using its own identity; Shizuku and wireless debugging can then be stopped.\n\nThese permissions allow system diagnostic and application usage reads. This app queries only current GMS connection information through this path; it does not write battery policies or the system list.\n\nGrant:\n%1$s\n\nRevoke:\n%2$s\n\nAndroid normally retains these grants across app updates and reboot. Uninstalling, revoking access or OEM policy can remove them. Unreadable or unsupported state remains Unknown. This does not add continuous monitoring or guarantee notification delivery.</string>
 </resources>

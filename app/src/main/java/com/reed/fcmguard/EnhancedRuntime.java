@@ -9,12 +9,19 @@ import java.util.concurrent.Executors;
 /** Privileged checks are refreshed independently of the potentially slow network probe. */
 final class EnhancedRuntime {
     private static final EnhancedStatus STATUS = new EnhancedStatus();
+    private static final Object DIRECT_SESSION = new Object();
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static boolean busy, pending;
 
     static EnhancedStatus.Snapshot snapshot(Context context) {
+        if (DirectGmsAccess.isReady(context))
+            return STATUS.access(EnhancedStatus.Access.READY, DIRECT_SESSION, EnhancedStatus.Source.DIRECT);
         return STATUS.access(ShizukuBridge.accessState(context), ShizukuBridge.sessionBinder());
+    }
+    static void helperChanged(Context context) {
+        if (snapshot(context).source == EnhancedStatus.Source.DIRECT) PushRuntime.signal();
+        else invalidate(context);
     }
     static void invalidate(Context context) {
         STATUS.invalidate();
@@ -33,8 +40,10 @@ final class EnhancedRuntime {
         WORKER.execute(() -> {
             int bits = 0;
             EnhancedStatus.Result result;
-            try { bits = ShizukuBridge.runtimeBitness(); } catch (Exception ignored) { }
-            try { result = EnhancedStatus.Result.fromWire(ShizukuBridge.gcmConnectionState()); }
+            boolean direct = state.source == EnhancedStatus.Source.DIRECT;
+            try { bits = direct ? (android.os.Process.is64Bit() ? 64 : 32) : ShizukuBridge.runtimeBitness(); }
+            catch (Exception ignored) { }
+            try { result = EnhancedStatus.Result.fromWire(direct ? DirectGmsAccess.query() : ShizukuBridge.gcmConnectionState()); }
             catch (Exception e) { result = EnhancedStatus.Result.READ_FAILED; }
             final int measuredBits = bits;
             final EnhancedStatus.Result measured = result;

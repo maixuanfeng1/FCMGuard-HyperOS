@@ -14,7 +14,11 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 2. Choose your notification apps from launchable apps, including those without detected FCM/GCM declarations. Components establish capability, not a working token, actual message route or guaranteed delivery.
 3. Inspect Autostart, read-only `MILLET_NO_RESTRICT_APP` membership, Android notification permission, stopped flag and AOSP Doze exemption. Unknown is distinct from enabled. Notification master switches/channels, in-app mute settings and recents locking require review where a supported query is unavailable. System-list membership and the HyperOS UI's complete battery policy are not treated as interchangeable.
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
-5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
+5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With one-time ADB diagnostic access or optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
+
+## Version 3.3.0: diagnostic access without a persistent Shizuku service
+
+Optional one-time ADB grants let the app read current GMS service state using its own UID, even after wireless debugging and Shizuku stop. The dashboard distinguishes this source from the independent Shizuku status. Permission/AppOp loss clears evidence; unsupported reads remain Unknown. No persistent notification, foreground service or hidden polling was added. See [grant/revoke instructions and validation limits](docs/DIRECT_DIAGNOSTIC_ACCESS.md).
 
 ## Version 3.2.0: smaller APK and efficient lists
 
@@ -40,7 +44,7 @@ Only a successful read of the correct profile and current GMS connection fields 
 
 Reads refresh every five seconds only while the dashboard or quick-settings panel is visible. Hidden surfaces stop their refresh callbacks. Verdicts expire after 15 monotonic seconds and invalidate immediately on network, authorization or helper changes. Hiding the panel clears its lit state so SystemUI cannot cache a stale connection claim. Tapping still checks, attempts a heartbeat and opens diagnostics; it does not turn off GMS push.
 
-The private GMS dump format can change. Denied, unavailable, unsupported or timed-out reads remain Unknown. Permission-free mode retains the diagnostic shortcut; automatic connection indication needs Shizuku.
+The private GMS dump format can change. Denied, unavailable, unsupported or timed-out reads remain Unknown. Permission-free mode retains the diagnostic shortcut; automatic connection indication needs optional diagnostic access through ADB or Shizuku.
 
 ## Optional Shizuku
 
