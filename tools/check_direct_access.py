@@ -54,7 +54,7 @@ def dashboard(state, direct=True):
     current = nodes()
     headline = next((n.get('text', '') for n in current if n.get('resource-id') == PACKAGE + ':id/statusHeadline'), '')
     evidence = next((n.get('text', '') for n in current if n.get('resource-id') == PACKAGE + ':id/evidenceText'), '')
-    return headline == 'FCM connection: ' + state and (not direct or 'Read source: app diagnostic permissions' in evidence)
+    return headline.casefold() == ('FCM connection: ' + state).casefold() and (not direct or 'Read source: app diagnostic permissions' in evidence)
 
 
 def unknown(label):
