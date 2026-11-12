@@ -50,8 +50,13 @@ android {
 }
 
 dependencyLocking {
-    lockAllConfigurations()
     lockMode = LockMode.STRICT
+}
+// Lock application/test classpaths, not AGP's lazily created device-test tool configurations.
+configurations.configureEach {
+    if (name.matches('(debug|release)(AndroidTest|UnitTest)?(CompileClasspath|RuntimeClasspath|AnnotationProcessorClasspath)')) {
+        resolutionStrategy.activateDependencyLocking()
+    }
 }
 
 dependencies {

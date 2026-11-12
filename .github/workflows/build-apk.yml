@@ -39,6 +39,7 @@ jobs:
           name: android-check-results
           path: |
             app/build/reports/
+            app/build/outputs/mapping/
             app/build/test-results/
       # Debug artifacts are for testing only and are never published as Releases.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
