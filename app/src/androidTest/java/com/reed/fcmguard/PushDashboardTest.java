@@ -219,6 +219,39 @@ public class PushDashboardTest {
    assertTrue(((TextView)activity.findViewById(R.id.fcmAppsStatusText)).getText().toString().contains("4"));
   });
  }
+ @Test public void recreationPreservesListModeExpansionAndScroll() throws Exception {
+  in.runOnMainSync(() -> {
+   activity.findViewById(R.id.showAllBtn).performClick();
+   activity.findViewById(R.id.advancedToggle).performClick();
+  });
+  in.waitForIdleSync();
+  in.runOnMainSync(() -> ((androidx.core.widget.NestedScrollView)activity.findViewById(R.id.scroll)).fullScroll(View.FOCUS_DOWN));
+  in.waitForIdleSync();
+  java.util.concurrent.atomic.AtomicInteger savedY = new java.util.concurrent.atomic.AtomicInteger();
+  in.runOnMainSync(() -> savedY.set(activity.findViewById(R.id.scroll).getScrollY()));
+  assertTrue("Fixture must actually scroll", savedY.get() > 0);
+  Instrumentation.ActivityMonitor monitor = in.addMonitor(MainActivity.class.getName(), null, false);
+  try {
+   in.runOnMainSync(activity::recreate);
+   Activity replacement = in.waitForMonitorWithTimeout(monitor, 10000);
+   assertNotNull("Recreated activity did not resume", replacement);
+   assertNotSame(activity, replacement);
+   activity = (MainActivity) replacement;
+   awaitApps(activity);
+   java.util.concurrent.atomic.AtomicInteger restoredY = new java.util.concurrent.atomic.AtomicInteger();
+   for (int i = 0; i < 50; i++) {
+    in.waitForIdleSync();
+    in.runOnMainSync(() -> restoredY.set(activity.findViewById(R.id.scroll).getScrollY()));
+    if (restoredY.get() == savedY.get()) break;
+    android.os.SystemClock.sleep(100);
+   }
+   assertEquals("Scroll position must survive asynchronous row loading", savedY.get(), restoredY.get());
+   in.runOnMainSync(() -> {
+    assertEquals(View.VISIBLE, activity.findViewById(R.id.advancedContent).getVisibility());
+    assertEquals(c.getString(R.string.watched_apps), ((TextView)activity.findViewById(R.id.showAllBtn)).getText().toString());
+   });
+  } finally { in.removeMonitor(monitor); }
+ }
  @Test public void authorizedButSystemRestrictedNeverReportsMissingGrant() throws Exception {
   in.runOnMainSync(() -> {
    MaterialSwitch toggle = activity.findViewById(R.id.enhancedSwitch);

@@ -26,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private List<FcmAppScanner.AppEntry> apps = new ArrayList<>();
     private List<AppDiagnostics> rows = new ArrayList<>();
     private boolean showAll;
+    private Integer restoredScrollY;
     private volatile boolean scanning;
     private boolean scanPending;
     private String lastWhitelist;
@@ -52,6 +53,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(state);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
+        if (state != null) {
+            showAll = state.getBoolean("show_all", false);
+            restoredScrollY = state.getInt("scroll_y", 0);
+            boolean expanded = state.getBoolean("advanced_expanded", false);
+            findViewById(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
+            ((MaterialButton) findViewById(R.id.advancedToggle)).setIconResource(
+                    expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
+        }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root), (v, insets) -> {
             androidx.core.graphics.Insets safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
             v.setPadding(safe.left, safe.top, safe.right, Math.max(safe.bottom, insets.getInsets(WindowInsetsCompat.Type.ime()).bottom));
@@ -120,6 +129,12 @@ public class MainActivity extends AppCompatActivity {
         connectionHandler.postDelayed(connectionRefresh, 5000L);
     }
     @Override protected void onPause() { connectionHandler.removeCallbacks(connectionRefresh); super.onPause(); }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("show_all", showAll);
+        state.putBoolean("advanced_expanded", findViewById(R.id.advancedContent).getVisibility() == View.VISIBLE);
+        state.putInt("scroll_y", restoredScrollY != null ? restoredScrollY : findViewById(R.id.scroll).getScrollY());
+        super.onSaveInstanceState(state);
+    }
     @Override protected void onDestroy() { connectionHandler.removeCallbacks(connectionRefresh); PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy(); }
     private void authorize() {
         if (ShizukuBridge.isRunning()) ShizukuBridge.requestPermission();
@@ -270,6 +285,14 @@ public class MainActivity extends AppCompatActivity {
             entry.setBackgroundResource(android.R.drawable.list_selector_background);
             entry.setOnClickListener(v -> showApp(row)); entry.setFocusable(true);
             container.addView(entry);
+        }
+        if (restoredScrollY != null) {
+            int scrollY = restoredScrollY;
+            View scroll = findViewById(R.id.scroll);
+            OneShotPreDrawListener.add(scroll, () -> {
+                if (!isDestroyed()) scroll.scrollTo(0, scrollY);
+                restoredScrollY = null;
+            });
         }
     }
     private int priority(AppDiagnostics a) {

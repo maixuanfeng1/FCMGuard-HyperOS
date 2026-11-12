@@ -53,3 +53,17 @@ Before claiming a physical-device result, verify on Android 17 / HyperOS 4:
 Run `python3 -m unittest discover -s tools/tests -v` for APK ABI-validator cases. See [PROJECT_AUDIT](PROJECT_AUDIT.md) for review coverage and remaining decisions.
 
 The full Android 17 image also runs `tools/check_launcher_shortcut.py`: long-press the actual launcher icon, verify the diagnostic menu item, capture the native menu and click through to real Google Diagnostics. Platform ShortcutManager and cold/warm routing are covered by instrumentation. HyperOS launcher presentation must be checked on the actual phone.
+
+The owner-facing [HyperOS 4 checklist](HYPEROS_CHECKS.md) covers settings routes, authorization, fresh connection states and locked-screen notification delivery. It does not add manual recording to the application.
+
+## Dependency and CI updates
+
+Application configurations use strict dependency locking in `app/gradle.lockfile`. Normal builds consume the lock rather than silently replacing transitive versions. After deliberately reviewing a dependency change, regenerate all configurations used by CI:
+
+```sh
+./gradlew --write-locks :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug :app:lintRelease
+```
+
+Review the resulting lock diff and run the Android 17 device checks before releasing. This locks application dependencies resolved by those tasks; it is not a claim of byte-identical APKs or a lock of every SDK/AGP tool component. CI actions are pinned to the reviewed versions' commit SHAs, with the major version in comments. Update those SHAs deliberately after reviewing upstream changes, including any nested annotated tags. They will no longer float with major-version tags.
+
+Backup remains disabled. `backup_rules.xml` and `data_extraction_rules.xml` explicitly exclude cloud backup and device transfer, including device-protected storage. Selected apps and themes remain on the current installation; a new phone starts with default preferences and requires its own optional authorization.
