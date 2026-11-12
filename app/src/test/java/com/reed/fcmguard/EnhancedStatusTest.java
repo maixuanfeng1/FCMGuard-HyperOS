@@ -2,6 +2,31 @@ package com.reed.fcmguard;
 import org.junit.Test;
 import static org.junit.Assert.*;
 public class EnhancedStatusTest {
+ @Test public void sourceChangeRejectsLateReplyEvenWithTheSameToken() {
+  EnhancedStatus state=new EnhancedStatus();Object session=new Object();
+  state.access(EnhancedStatus.Access.READY,session,EnhancedStatus.Source.SHIZUKU);
+  EnhancedStatus.Ticket old=state.begin();
+  state.access(EnhancedStatus.Access.READY,session,EnhancedStatus.Source.DIRECT);
+  assertFalse(state.finish(old,EnhancedStatus.Result.CONNECTED,64,42,1000));
+  assertEquals(EnhancedStatus.Source.DIRECT,state.access(EnhancedStatus.Access.READY,session,EnhancedStatus.Source.DIRECT).source);
+ }
+ @Test public void directRefreshRetainsItsSourceAndOriginalExpiry() {
+  EnhancedStatus state=new EnhancedStatus();Object session=new Object();
+  state.access(EnhancedStatus.Access.READY,session,EnhancedStatus.Source.DIRECT);
+  assertTrue(state.finish(state.begin(),EnhancedStatus.Result.CONNECTED,64,42,1000));
+  state.begin();
+  EnhancedStatus.Snapshot snapshot=state.access(EnhancedStatus.Access.READY,session,EnhancedStatus.Source.DIRECT);
+  assertEquals(EnhancedStatus.Source.DIRECT,snapshot.source);
+  assertEquals(EnhancedStatus.Result.STALE,snapshot.currentResult(16000));
+ }
+ @Test public void directRevocationCannotAcceptAnInflightConnectedReply() {
+  EnhancedStatus state=new EnhancedStatus();Object direct=new Object(),helper=new Object();
+  state.access(EnhancedStatus.Access.READY,direct,EnhancedStatus.Source.DIRECT);
+  EnhancedStatus.Ticket old=state.begin();
+  state.access(EnhancedStatus.Access.READY,helper,EnhancedStatus.Source.SHIZUKU);
+  assertFalse(state.finish(old,EnhancedStatus.Result.CONNECTED,64,42,1000));
+  assertEquals(EnhancedStatus.Result.NOT_CHECKED,state.access(EnhancedStatus.Access.READY,helper).result);
+ }
  @Test public void readFailureIsNotAnAuthorizationFailure() {
   EnhancedStatus state = new EnhancedStatus(); Object binder = new Object();
   state.access(EnhancedStatus.Access.READY, binder);

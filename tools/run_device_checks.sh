@@ -66,7 +66,7 @@ for report in reports:
     tests += int(root.get('tests', '0'))
     for attribute in ('failures', 'errors', 'skipped'):
         assert int(root.get(attribute, '0')) == 0, f'{report}: {attribute}={root.get(attribute)}'
-assert tests >= 35, f'Expected the full device suite; only {tests} tests ran'
+assert tests >= 37, f'Expected the full device suite; only {tests} tests ran'
 print(f'Verified {tests} device tests passed')
 PY
 adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/
@@ -76,5 +76,6 @@ if [[ "${FCMGUARD_TEST_QUICK_SETTINGS:-false}" == "true" ]]; then
     --ks-pass pass:android --key-pass pass:android --out artifacts/FCMGuard-release-testing-only.apk "$release_apk"
   FCMGUARD_SMOKE_APK=artifacts/FCMGuard-release-testing-only.apk python3 tools/check_launcher_shortcut.py
   python3 tools/check_shizuku_release.py
+  python3 tools/check_direct_access.py
   python3 tools/check_quick_settings.py
 fi

@@ -118,6 +118,8 @@ jobs:
             artifacts/release-helper.log
             artifacts/shizuku-release-smoke.log
             artifacts/shizuku-release-ui.xml
+            artifacts/direct-access-smoke.log
+            artifacts/direct-access-ui.xml
             artifacts/quick-settings-smoke.log
             artifacts/gms-connection-smoke.log
             artifacts/launcher-shortcut-smoke.log

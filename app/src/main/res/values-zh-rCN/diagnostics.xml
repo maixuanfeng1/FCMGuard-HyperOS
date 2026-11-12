@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 <string name="connection_unknown">FCM 连接：未知</string>
-    <string name="connection_summary">自动状态需要开启 Shizuku 增强检查并成功读取 GMS 当前状态；无法读取时，请打开 Google 诊断确认。</string>
+    <string name="connection_summary">自动状态需要一次性 ADB 诊断授权或可选 Shizuku；无法读取时，请打开 Google 诊断查看。</string>
     <string name="check_now">立即检查</string>
     <string name="request_reconnect">尝试请求重连</string>
     <string name="network_label">网络状况</string>
@@ -67,7 +67,7 @@
     <string name="request_started">正在尝试请求心跳并检查网络，请到诊断页确认结果。</string>
     <string name="no_auth_service">请先启动 Shizuku，也可以保持增强功能关闭</string>
 <string name="appearance_title_v3">外观</string>
-<string name="tile_setup_message">磁贴亮起且显示 Connected，表示刚刚读取到 GMS 已连接；灰色断开图标并显示 Disconnected，表示刚刚读取到未连接。问号和“未知”表示无法读取，不是关闭。请开启可选 Shizuku 增强检查。面板可见时每 5 秒刷新，收起后不轮询。点击尝试心跳并打开诊断，不会关闭 GMS 推送。</string>
+<string name="tile_setup_message">磁贴亮起且显示 Connected，表示刚刚读取到 GMS 已连接；灰色断开图标并显示 Disconnected，表示刚刚读取到未连接。问号和“未知”表示无法读取，不是关闭。可使用一次性 ADB 诊断授权或 Shizuku 增强检查。面板可见时每 5 秒刷新，收起后不轮询。点击尝试心跳并打开诊断，不会关闭 GMS 推送。</string>
 <string name="diagnostic_observer_unavailable">部分变化无法自动监听，请返回首页或点击刷新重新检查。</string>
     <string name="helper_access_status">Shizuku：%1$s</string>
     <string name="helper_bits_unknown">尚未读取</string>
@@ -78,12 +78,12 @@
     <string name="enhanced_disabled">增强检查已关闭</string>
     <string name="enhanced_checking">正在读取连接信息…</string>
     <string name="enhanced_not_checked">等待读取连接信息</string>
-    <string name="enhanced_restricted">已授权，但系统限制了连接信息读取，无法确认 FCM 状态。</string>
+    <string name="enhanced_restricted">已有诊断访问权限，但系统拒绝读取连接信息，无法确认 FCM 状态。</string>
     <string name="enhanced_command_unsupported">当前系统不支持此连接查询命令。</string>
     <string name="enhanced_format_unsupported">当前系统返回的连接信息格式暂不支持。</string>
 <string name="enhanced_timeout">连接信息读取超时，请重试。</string>
-    <string name="enhanced_read_failed">辅助进程已连接，但本次读取失败，请重试。</string>
-    <string name="enhanced_no_data">已授权，但系统未提供可用的连接信息。</string>
+    <string name="enhanced_read_failed">本次连接信息读取失败，请重试。</string>
+    <string name="enhanced_no_data">已有诊断访问权限，但系统未提供可用的连接信息。</string>
     <string name="enhanced_checked_at">连接信息检查时间：%1$s</string>
     <string name="gms_connected">FCM 连接：Connected</string>
     <string name="gms_disconnected">FCM 连接：Disconnected</string>
@@ -95,8 +95,15 @@
     <string name="tile_unknown">FCM · 未知</string>
     <string name="tile_recent_check">GMS 当前状态 · 刚刚检查</string>
     <string name="tile_unknown_note">无法确认 · 点按诊断</string>
-    <string name="tile_requires_shizuku">需开启 Shizuku 检查</string>
+    <string name="tile_requires_shizuku">需要诊断授权</string>
     <string name="tile_stale">需重新读取 · 点按诊断</string>
     <string name="scan_failed">应用检查刷新失败，请重试。</string>
     <string name="shortcut_fcm_diagnostics">FCM 诊断</string>
+    <string name="direct_grant_title">一次性 ADB 诊断授权</string>
+    <string name="direct_grant_ready">应用诊断权限：已就绪 · 无需 Shizuku 持续运行</string>
+    <string name="direct_grant_missing">应用诊断权限：未授予或不完整 · 可选</string>
+    <string name="direct_evidence">读取来源：应用自身诊断权限 · 无需运行 Shizuku</string>
+    <string name="copy_grant">复制授权命令</string>
+    <string name="copy_revoke">复制撤销命令</string>
+    <string name="direct_grant_help">可选：将这台设备连接到 ADB，执行下方全部三条授权命令，再返回首页或展开磁贴。应用将用自身权限读取 GMS 当前服务；之后可以停止 Shizuku 和无线调试。\n\n这些权限允许读取系统诊断和应用使用信息。本应用通过此路径只读取 GMS 当前连接，不修改电池策略或系统名单。\n\n授权：\n%1$s\n\n撤销：\n%2$s\n\nAndroid 通常会在覆盖更新、重启后保留授权；卸载、撤销或厂商策略可能使其失效。无法读取或格式不支持时仍显示未知。这不会增加全天监控，也不保证通知必达。</string>
 </resources>

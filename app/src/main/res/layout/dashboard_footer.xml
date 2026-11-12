@@ -7,6 +7,8 @@
  <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/observeSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:text="@string/observe_events"/>
  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/observe_note" android:textAppearance="@style/BodyText"/>
  <com.google.android.material.button.MaterialButton android:id="@+id/addTileBtn" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/add_quick_settings_tile"/>
+ <TextView android:id="@+id/directGrantText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:textAppearance="@style/BodyText"/>
+ <com.google.android.material.button.MaterialButton android:id="@+id/directGrantBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/direct_grant_title"/>
  <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/enhancedSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:text="@string/enhanced_title"/>
  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/enhanced_note" android:textAppearance="@style/BodyText"/>
  <TextView android:id="@+id/helperText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>

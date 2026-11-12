@@ -105,11 +105,12 @@ public class MainActivity extends AppCompatActivity {
         enhanced.setChecked(DiagnosticPreferences.enhanced(this));
         enhanced.setOnCheckedChangeListener((v, checked) -> {
             DiagnosticPreferences.enhanced(this, checked);
-            EnhancedRuntime.invalidate(this);
+            EnhancedRuntime.helperChanged(this);
             if (checked) authorize(); else ShizukuBridge.disable();
             renderConnection();
         });
         ui(R.id.permissionBtn).setOnClickListener(v -> authorize());
+        ui(R.id.directGrantBtn).setOnClickListener(v -> showDirectGrantHelp());
         MaterialSwitch observe = ui(R.id.observeSwitch);
         observe.setChecked(DiagnosticPreferences.observe(this));
         observe.setOnCheckedChangeListener((v, checked) -> {
@@ -186,8 +187,10 @@ public class MainActivity extends AppCompatActivity {
         set(R.id.statusHeadline, getString(current == EnhancedStatus.Result.CONNECTED ? R.string.gms_connected :
                 current == EnhancedStatus.Result.DISCONNECTED ? R.string.gms_disconnected : R.string.connection_unknown));
         set(R.id.connectionSource, verdict ? getString(R.string.gms_state_source, time(status.checkedAt)) : getString(R.string.connection_summary));
+        boolean direct = status.source == EnhancedStatus.Source.DIRECT;
         String access = getString(accessLabel(status.access));
-        String extra = status.access == EnhancedStatus.Access.DISABLED ? "" : getString(R.string.helper_evidence, access);
+        String extra = direct ? getString(R.string.direct_evidence) :
+                status.access == EnhancedStatus.Access.DISABLED ? "" : getString(R.string.helper_evidence, access);
         if (status.access == EnhancedStatus.Access.READY) {
             extra += "\n" + getString(resultLabel(current));
             if (status.checkedAt > 0) extra += "\n" + getString(R.string.enhanced_checked_at, time(status.checkedAt));
@@ -196,11 +199,31 @@ public class MainActivity extends AppCompatActivity {
         long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
         if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
         set(R.id.evidenceText, extra.trim());
-        ui(R.id.permissionBtn).setVisibility(status.access == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
-        set(R.id.helperText, getString(R.string.helper_access_status, access));
-        int bits = status.access == EnhancedStatus.Access.READY ? status.bits : 0;
+        EnhancedStatus.Access helperAccess = direct ? ShizukuBridge.accessState(this) : status.access;
+        ui(R.id.permissionBtn).setVisibility(helperAccess == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
+        set(R.id.helperText, getString(R.string.helper_access_status, getString(accessLabel(helperAccess))));
+        set(R.id.directGrantText, getString(DirectGmsAccess.isReady(this) ? R.string.direct_grant_ready : R.string.direct_grant_missing));
+        int bits = !direct && status.access == EnhancedStatus.Access.READY ? status.bits : 0;
         set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
                 bits == 0 ? getString(R.string.helper_bits_unknown) : Integer.toString(bits)));
+    }
+    private void showDirectGrantHelp() {
+        String grant = DirectGmsAccess.commands(this, true);
+        String revoke = DirectGmsAccess.commands(this, false);
+        TextView text = new TextView(this);
+        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+        text.setPadding(padding, padding / 2, padding, padding / 2);
+        text.setText(getString(R.string.direct_grant_help, grant, revoke));
+        text.setTextIsSelectable(true);
+        ScrollView scroll = new ScrollView(this); scroll.addView(text);
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.direct_grant_title).setView(scroll)
+                .setPositiveButton(R.string.copy_grant, (dialog, which) -> copyCommands(grant))
+                .setNeutralButton(R.string.copy_revoke, (dialog, which) -> copyCommands(revoke))
+                .setNegativeButton(R.string.done_action, null).show();
+    }
+    private void copyCommands(String commands) {
+        getSystemService(android.content.ClipboardManager.class).setPrimaryClip(
+                android.content.ClipData.newPlainText(getString(R.string.direct_grant_title), commands));
     }
     private int accessLabel(EnhancedStatus.Access access) {
         switch (access) {
