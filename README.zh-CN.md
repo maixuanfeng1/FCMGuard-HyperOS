@@ -1,6 +1,8 @@
 <p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 
-# FCM Guard · 推送诊断助手
+# 推送哨兵 · 推送诊断助手
+
+原名 FCM Guard。保留包名、签名及升级数据，可直接覆盖安装。
 
 [下载最新版 APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
 
