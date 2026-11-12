@@ -12,8 +12,11 @@ public final class GuardTileService extends TileService {
     private final Runnable listener = this::render;
     @Override public void onStartListening() {
         super.onStartListening(); listening = true;
-        PushRuntime.add(listener); PushRuntime.start(this); PushRuntime.check(this, false);
-        android.util.Log.i("FCMGuardTile", "Visible; diagnostics-only; no authorization required");
+        android.util.Log.i("FCMGuardTile", "Visible; diagnostics-only; no authorization required; pid=" + android.os.Process.myPid());
+        PushRuntime.add(listener);
+        // Publish the click PendingIntent before starting any diagnostic work.
+        render();
+        PushRuntime.start(this); PushRuntime.check(this, false);
         render();
     }
     @Override public void onStopListening() { listening = false; PushRuntime.remove(listener); super.onStopListening(); }
@@ -23,12 +26,15 @@ public final class GuardTileService extends TileService {
         if (isLocked()) unlockAndRun(this::recover); else recover();
     }
     private void recover() {
-        PushRuntime.check(this, true);
-        Intent intent = new Intent(this, MainActivity.class).putExtra("open_diagnostics", true)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        Intent intent = recoveryIntent();
         if (Build.VERSION.SDK_INT >= 34) startActivityAndCollapse(PendingIntent.getActivity(this, 428, intent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         else openLegacy(intent);
+    }
+    private Intent recoveryIntent() {
+        return new Intent(this, MainActivity.class).putExtra("open_diagnostics", true)
+                .putExtra("request_recovery", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
     }
     @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated")
     private void openLegacy(Intent intent) { startActivityAndCollapse(intent); }
@@ -38,6 +44,10 @@ public final class GuardTileService extends TileService {
         // Neither a socket nor a successful network probe proves Diagnostics Connected.
         tile.setState(Tile.STATE_INACTIVE);
         tile.setLabel(getString(R.string.app_name));
+        if (Build.VERSION.SDK_INT >= 34) {
+            tile.setActivityLaunchForClick(PendingIntent.getActivity(this, 428, recoveryIntent(),
+                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        }
         tile.setContentDescription(getString(R.string.no_timer));
         if (Build.VERSION.SDK_INT >= 29) tile.setSubtitle(getString(PushRuntime.busy() ? R.string.checking : R.string.no_timer));
         tile.updateTile();

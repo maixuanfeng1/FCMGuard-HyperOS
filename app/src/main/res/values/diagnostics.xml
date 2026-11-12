@@ -3,7 +3,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="dashboard_title">Push diagnostics</string>
     <string name="connection_unknown">FCM connection: needs confirmation</string>
-    <string name="connection_summary">Open Google’s diagnostics to check Connected. Network tests and whitelist membership do not establish the GMS connection.</string>
+    <string name="connection_summary">View the actual connection in Google diagnostics.</string>
     <string name="check_now">Check now</string>
     <string name="request_reconnect">Try a heartbeat request</string>
     <string name="confirm_diagnostics">Record diagnostics result</string>
@@ -11,11 +11,11 @@
     <string name="connected_report">Connected (manually observed)</string>
     <string name="disconnected_report">Disconnected (manually observed)</string>
     <string name="not_confirmed">Not confirmed</string>
-    <string name="last_report">Last manual observation: %1$s\nTime: %2$s\nNetwork changes invalidate this observation.</string>
-    <string name="network_label">Network path from this app</string>
+    <string name="last_report">Last manual observation: %1$s · %2$s</string>
+    <string name="network_label">Network check</string>
     <string name="network_none">Not checked</string>
     <string name="network_offline">No active Internet network</string>
-    <string name="network_reachable">mtalk.google.com is reachable; GMS connection still needs confirmation</string>
+    <string name="network_reachable">Google push server reachable (network probe only)</string>
     <string name="network_failed">Probe failed; inspect the network or VPN. This does not prove GMS is disconnected.</string>
     <string name="network_unknown">Probe unavailable or timed out</string>
     <string name="checking">Checking…</string>
@@ -26,11 +26,11 @@
     <string name="socket_observed">An established GMS socket on a standard push port was observed. This is transport evidence, not a Diagnostics verdict.</string>
     <string name="socket_absent">No UID-attributed standard-port socket observed; the connection may use another port or be hidden.</string>
     <string name="socket_unknown">Unavailable / not authorized</string>
-    <string name="request_note">Heartbeat broadcasts are an undocumented best-effort request. Receipt and reconnection are not confirmed. Open diagnostics afterwards. Requests are limited to once per minute.</string>
+    <string name="request_note">Requests may be ignored. Confirm the result in diagnostics. Limited to once per minute.</string>
     <string name="request_time">Last request attempt: %1$s</string>
     <string name="network_settings">Network settings</string>
     <string name="watch_title">My notification apps</string>
-    <string name="watch_summary">Choose the apps you want to check. FCM declarations show capability, not a working registration or guaranteed delivery. Apps without detected FCM can still be reviewed.</string>
+    <string name="watch_summary">Choose your apps to review push components, permissions and background settings.</string>
     <string name="choose_apps">Choose apps</string>
     <string name="all_apps">Show all apps</string>
     <string name="watched_apps">Show chosen apps</string>
@@ -47,7 +47,7 @@
     <string name="list_label">System no-restrictions list: %1$s</string>
     <string name="listed">Included</string>
     <string name="not_listed">Not included</string>
-    <string name="list_explanation">This read-only system projection reflects battery policy on tested HyperOS builds, but other tools can change it. Membership does not certify every battery restriction or a working push connection.</string>
+    <string name="list_explanation">A system-policy reference that other tools can also modify. Review the complete battery policy in Settings.</string>
     <string name="permission_granted">Notification permission granted; the master switch and channels still need review</string>
     <string name="permission_denied">Notification permission not granted</string>
     <string name="permission_unknown">Notification master switch and channels: review in Settings</string>
@@ -55,7 +55,7 @@
     <string name="doze_label">Android battery-optimization exemption: %1$s (separate from HyperOS policy)</string>
     <string name="stopped_yes">The app is marked stopped. Open it once and sign in before testing.</string>
     <string name="stopped_no">No stopped flag detected; this does not mean the process is running</string>
-    <string name="background_unknown">Background process / recents lock: cannot be reliably read without a supported vendor interface. FCM does not normally require the target app to stay running.</string>
+    <string name="background_unknown">Background process status is unavailable. Check recents locking manually; FCM normally does not require a resident app process.</string>
     <string name="open_app_settings">Open this app’s settings</string>
     <string name="open_app_notifications">Notification settings</string>
     <string name="open_app_battery">Battery settings</string>
@@ -67,12 +67,12 @@
     <string name="review_lock">I confirmed the recents task is locked</string>
     <string name="review_delivery">I received a real test message after locking the phone</string>
     <string name="review_time">Last user confirmation: %1$s</string>
-    <string name="review_note">These are your observations, not automatic detections. App updates invalidate records. Repeat tests after settings or network changes. A connection alone does not guarantee every app’s notifications.</string>
+    <string name="review_note">User reports, not automatic detections. App updates invalidate records. Review again after changing settings.</string>
     <string name="settings_title">Checks and preferences</string>
     <string name="observe_events">Refresh on system-list and network changes</string>
-    <string name="observe_note">Works while this process can run. No foreground service, persistent notification, polling timer, or scheduled wakeup. Use the visible tile to resume after process reclamation; background coverage has gaps.</string>
+    <string name="observe_note">No persistent notification or scheduled wakeups. Checks pause when the process cannot run; use the tile to resume.</string>
     <string name="enhanced_title">Optional Shizuku evidence</string>
-    <string name="enhanced_note">Off by default. Enables only read-only system-list and GMS socket queries. Does not write a whitelist, change battery policy or guarantee Diagnostics stays Connected.</string>
+    <string name="enhanced_note">Off by default. Adds read-only system and GMS socket checks; changes no settings.</string>
     <string name="authorize_optional">Connect / authorize optional Shizuku</string>
     <string name="optional_disabled">Shizuku is optional and disabled</string>
     <string name="raw_list_title">View system no-restrictions list (read-only)</string>

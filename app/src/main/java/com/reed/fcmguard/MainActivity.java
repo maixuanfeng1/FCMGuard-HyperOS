@@ -32,6 +32,10 @@ public class MainActivity extends AppCompatActivity {
     private final Runnable stateListener = () -> {
         if (isDestroyed()) return;
         renderConnection();
+        if (getIntent().getBooleanExtra("request_recovery", false)) {
+            getIntent().removeExtra("request_recovery");
+            PushRuntime.check(this, true);
+        }
         if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)) refreshApps();
     };
 
@@ -120,7 +124,8 @@ public class MainActivity extends AppCompatActivity {
         set(R.id.statusHeadline, getString(R.string.connection_unknown));
         String report = DiagnosticPreferences.report(this);
         int reportLabel = "connected".equals(report) ? R.string.connected_report : "disconnected".equals(report) ? R.string.disconnected_report : R.string.not_confirmed;
-        set(R.id.reportText, getString(R.string.last_report, getString(reportLabel), time(DiagnosticPreferences.reportTime(this))));
+        set(R.id.reportText, DiagnosticPreferences.reportTime(this) == 0 ? getString(R.string.not_confirmed) :
+                getString(R.string.last_report, getString(reportLabel), time(DiagnosticPreferences.reportTime(this))));
         int network = PushRuntime.network == NetworkProbe.State.REACHABLE ? R.string.network_reachable :
                 PushRuntime.network == NetworkProbe.State.OFFLINE ? R.string.network_offline :
                 PushRuntime.network == NetworkProbe.State.UNREACHABLE ? R.string.network_failed :
