@@ -66,9 +66,9 @@ public class MainActivity extends AppCompatActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
         list = ui(R.id.scroll);
+        list.setLayoutManager(new LinearLayoutManager(this));
         dashboardHeader = getLayoutInflater().inflate(R.layout.dashboard_header, list, false);
         dashboardFooter = getLayoutInflater().inflate(R.layout.dashboard_footer, list, false);
-        list.setLayoutManager(new LinearLayoutManager(this));
         list.setSaveEnabled(false); // Restore after asynchronous app discovery, not against an empty adapter.
         list.setItemAnimator(null);
         appAdapter = new AppListAdapter(this);

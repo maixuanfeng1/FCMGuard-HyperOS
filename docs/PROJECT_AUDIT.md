@@ -23,7 +23,7 @@ Baseline: released 3.1.1 (`1c2a751cbaf4feb6be7d081cf89b4a52ae43e867`). Reviewed 
 | Device test scripts could modify a real phone | Quick-settings smoke tests install/uninstall the package and change system settings. | Require a disposable emulator before mutations; screenshot capture applies the same restriction. This does not restrict normal APK use on physical phones. |
 | ABI checker memory/packaging | Reading a native library decompressed the entire file just to inspect 20 bytes; mislabeled ABI directories were accepted. | Read only the ELF header and validate its directory against the machine type. Four Python tests cover neutral, valid, 32-bit, mislabeled and corrupt inputs. |
 
-## Remaining items for review
+## Review follow-up
 
 Follow-up status (3.2.0): [PR #2](https://github.com/maixuanfeng1/FCMGuard-HyperOS/pull/2) merged into `main` at `c9594fe0cc80722ad3102317f544621ca21f65ad`; its tree exactly matches the tested 3.1.3 source. The items below preserve the original findings. Follow-up implementation:
 
@@ -34,6 +34,8 @@ Follow-up status (3.2.0): [PR #2](https://github.com/maixuanfeng1/FCMGuard-Hyper
 - Strictly lock application dependencies and pin CI actions to commit SHAs. Run feature checks on pull requests and main pushes to avoid duplicate feature-push/PR emulator runs.
 
 Physical-device verification remains pending; use [the HyperOS checklist](HYPEROS_CHECKS.md). CI/emulator results cannot establish HyperOS private API compatibility or actual locked-screen notification delivery. Exact source-run results belong in the PR and release notes.
+
+### Original review findings (3.1.2 baseline; current decisions above)
 
 1. **Default branch/release mismatch (high operational priority).** At review time `main` was `ec75d56384e519cfd9d79be686a8c7b1ffd7a3cf`, while the released application was on the newer history in draft [PR #2](https://github.com/maixuanfeng1/FCMGuard-HyperOS/pull/2). Releases point to exact tested commits, but cloning `main` or dispatching its old release workflow does not build the current app. Review/merge that source history before treating `main` as current. This audit does not merge or rewrite `main`.
 2. **HyperOS/GMS compatibility (needs physical-device evidence).** `GmsConnectionState`, `AutostartStatusReader` and `HyperOsSettings` depend on private GMS fields/vendor AppOps/OEM component routes. A successful settings launch cannot prove the OEM page honored every extra. The tested GMS schema is 26.11; an unsupported version must stay unknown. Verify current HyperOS 4, app-specific settings routes, autostart status, VPN/split-routing and locked-screen delivery on the actual phone. Emulator success does not establish notification delivery.

@@ -88,6 +88,9 @@ try:
             tap(allow)
             allowed = True
             continue
+        if allowed and not any(n.get('resource-id') == PACKAGE+':id/runtimeInfoText' for n in current):
+            swipe()
+            continue
         if (any('Authorized; helper connected' in n.get('text', '') for n in current) and
                 any('helper: 64' in n.get('text', '') for n in current)):
             connected = True
