@@ -48,8 +48,8 @@ jobs:
           FCMGUARD_TEST_QUICK_SETTINGS: true
           FCMGUARD_REQUIRE_64BIT: 'true'
         with:
-          api-level: 37.2
-          system-image-api-level: 37.0
+          api-level: '37.2'
+          system-image-api-level: '37.0'
           target: google_apis
           arch: x86_64
           profile: pixel_6
