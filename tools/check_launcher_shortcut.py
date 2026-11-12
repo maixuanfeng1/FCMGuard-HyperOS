@@ -46,20 +46,20 @@ try:
     time.sleep(1)
     icon = None
     for _ in range(4):
-        icon = find({'FCM Guard'})
+        icon = find({'Push Sentinel', '推送哨兵', '推播哨兵'})
         if icon:
             break
         adb('shell', 'input', 'swipe', str(width // 2), str(height * 80 // 100), str(width // 2), str(height * 35 // 100), '350')
         time.sleep(.5)
-    assert icon, 'FCM Guard icon was not found in the native launcher'
+    assert icon, 'Push Sentinel icon was not found in the native launcher'
     x, y = map(str, icon)
     # Put the application icon on the home screen, matching the requested flow.
     # An app-drawer long press may start drag/drop rather than leave its menu open.
     adb('shell', 'input', 'draganddrop', x, y, str(width // 2), str(height * 55 // 100), '1000')
     adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
     time.sleep(1)
-    icon = find({'FCM Guard'})
-    assert icon, 'FCM Guard application icon was not placed on the home screen'
+    icon = find({'Push Sentinel', '推送哨兵', '推播哨兵'})
+    assert icon, 'Push Sentinel application icon was not placed on the home screen'
     x, y = map(str, icon)
     adb('shell', 'input', 'swipe', x, y, x, y, '1000')
     time.sleep(.7)

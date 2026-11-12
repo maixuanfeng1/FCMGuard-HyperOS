@@ -1,6 +1,8 @@
 <p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 
-# FCM Guard · Push diagnostics
+# Push Sentinel · Push diagnostics
+
+Previously FCM Guard. Package identity, signing certificate and upgrade data are retained.
 
 [Download APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
 

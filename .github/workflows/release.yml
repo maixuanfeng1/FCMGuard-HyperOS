@@ -72,7 +72,7 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk FCMGuard-HyperOS.apk
           sha256sum FCMGuard-HyperOS.apk > release-notes.txt
           gh release create "$TAG" FCMGuard-HyperOS.apk \
-            --target "$GITHUB_SHA" --title "FCM Guard ${TAG}" --notes-file release-notes.txt
+            --target "$GITHUB_SHA" --title "Push Sentinel ${TAG}" --notes-file release-notes.txt
       - name: Remove signing material
         if: always()
         run: rm -f "$RUNNER_TEMP/fcmguard-release.jks"
