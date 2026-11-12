@@ -78,8 +78,10 @@ def compare(label, state):
     wait_for(lambda: dashboard(state), label + ' own-app diagnostic source=' + state)
     adb('shell', 'cmd', 'statusbar', 'expand-settings')
     def tile():
+        # Android 17's compact tile exposes its content description instead of its label.
         return any(n.get('package') == 'com.android.systemui' and
-                   ('FCM · ' + state) in (n.get('text', '') + ' ' + n.get('content-desc', '')) for n in nodes())
+                   (('FCM · ' + state) in (n.get('text', '') + ' ' + n.get('content-desc', '')) or
+                    n.get('content-desc') == 'FCM connection: ' + state) for n in nodes())
     wait_for(tile, label + ' actual SystemUI tile=' + state)
     adb('shell', 'cmd', 'statusbar', 'collapse')
 
