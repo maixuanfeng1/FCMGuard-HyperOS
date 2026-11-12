@@ -89,5 +89,5 @@
     <string name="appearance_title_v3">Appearance</string>
     <string name="manual_delivery_help">Send a message to the chosen app from another account/device. Test while unlocked, then after locking for 10–30 minutes. Record only what you actually received.</string>
 <string name="tile_setup_message">Pull down Quick Settings, choose Edit, and add FCM Guard to the visible panel. When visible, it can check again. Tap to attempt a heartbeat request and open Google diagnostics. This tile never certifies a continuous connection and does not run a foreground service.</string>
-<string name="observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
+<string name="diagnostic_observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
 </resources>

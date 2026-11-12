@@ -88,5 +88,5 @@
     <string name="appearance_title_v3">外观</string>
     <string name="manual_delivery_help">从另一账号／设备向目标应用发送真实消息，分别测试亮屏和锁屏待机 10–30 分钟后的收信。只记录实际收到的结果。</string>
 <string name="tile_setup_message">下拉快捷面板，进入编辑，将 FCM Guard 添加到可见位置。磁贴显示时可重新检查；点击尝试请求心跳并打开 Google 诊断。磁贴不表示持续连接，也不运行前台服务。</string>
-<string name="observer_unavailable">部分变化无法自动监听，请返回首页或点击刷新重新检查。</string>
+<string name="diagnostic_observer_unavailable">部分变化无法自动监听，请返回首页或点击刷新重新检查。</string>
 </resources>

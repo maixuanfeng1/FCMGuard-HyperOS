@@ -88,5 +88,5 @@
     <string name="appearance_title_v3">外观</string>
     <string name="manual_delivery_help">从另一账号／设备向目标应用发送真实消息，分别测试亮屏和锁屏待机 10–30 分钟后的收信。只记录实际收到的结果。</string>
 <string name="tile_setup_message">下拉快捷面板，進入編輯，將 FCM Guard 加入可見位置。磁貼顯示時可重新檢查；點擊嘗試請求心跳並開啟 Google 診斷。磁貼不表示持續連線，也不執行前景服務。</string>
-<string name="observer_unavailable">部分變化無法自動監聽，請返回首頁或點擊重新整理再次檢查。</string>
+<string name="diagnostic_observer_unavailable">部分變化無法自動監聽，請返回首頁或點擊重新整理再次檢查。</string>
 </resources>
