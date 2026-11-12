@@ -225,7 +225,11 @@ public class PushDashboardTest {
    activity.findViewById(R.id.advancedToggle).performClick();
   });
   in.waitForIdleSync();
-  in.runOnMainSync(() -> ((androidx.core.widget.NestedScrollView)activity.findViewById(R.id.scroll)).fullScroll(View.FOCUS_DOWN));
+  in.runOnMainSync(() -> {
+   androidx.core.widget.NestedScrollView scroll = activity.findViewById(R.id.scroll);
+   scroll.setSmoothScrollingEnabled(false);
+   scroll.fullScroll(View.FOCUS_DOWN);
+  });
   in.waitForIdleSync();
   java.util.concurrent.atomic.AtomicInteger savedY = new java.util.concurrent.atomic.AtomicInteger();
   in.runOnMainSync(() -> savedY.set(activity.findViewById(R.id.scroll).getScrollY()));
