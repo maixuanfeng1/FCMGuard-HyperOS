@@ -2,8 +2,8 @@
 <!-- New diagnostic copy is localized in Chinese; other system locales use English. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="dashboard_title">Push diagnostics</string>
-    <string name="connection_unknown">FCM connection: needs confirmation</string>
-    <string name="connection_summary">View the actual connection in Google diagnostics.</string>
+    <string name="connection_unknown">FCM connection: unknown</string>
+    <string name="connection_summary">Automatic status needs optional Shizuku and readable current GMS state. Otherwise confirm in Google diagnostics.</string>
     <string name="check_now">Check now</string>
     <string name="request_reconnect">Try a heartbeat request</string>
     <string name="confirm_diagnostics">Record diagnostics result</string>
@@ -71,7 +71,7 @@
     <string name="observe_events">Refresh on system-list and network changes</string>
     <string name="observe_note">No persistent notification or scheduled wakeups. Checks pause when the process cannot run; use the tile to resume.</string>
     <string name="enhanced_title">Optional Shizuku evidence</string>
-    <string name="enhanced_note">Off by default. Adds read-only system and GMS socket checks; changes no settings.</string>
+    <string name="enhanced_note">Off by default. Reads current GMS connection state for the dashboard and tile without changing settings.</string>
     <string name="authorize_optional">Connect / authorize optional Shizuku</string>
     <string name="optional_disabled">Shizuku is optional and disabled</string>
     <string name="raw_list_title">View system no-restrictions list (read-only)</string>
@@ -87,7 +87,7 @@
     <string name="no_timer">Check and open diagnostics</string>
     <string name="appearance_title_v3">Appearance</string>
     <string name="manual_delivery_help">Send a message to the chosen app from another account/device. Test while unlocked, then after locking for 10–30 minutes. Record only what you actually received.</string>
-<string name="tile_setup_message">Pull down Quick Settings, choose Edit, and add FCM Guard to the visible panel. When visible, it can check again. Tap to attempt a heartbeat request and open Google diagnostics. This tile never certifies a continuous connection and does not run a foreground service.</string>
+<string name="tile_setup_message">Lit with Connected means GMS was just observed connected. A grey disconnected icon with Disconnected means GMS was just observed disconnected. A question mark with Unknown means unreadable, not off. Enable optional Shizuku. Refreshes every 5 seconds while visible, with no polling when hidden. Tap to try a heartbeat and open diagnostics; this does not turn off GMS push.</string>
 <string name="diagnostic_observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
     <string name="helper_access_status">Shizuku: %1$s</string>
     <string name="helper_bits_unknown">Not read yet</string>
@@ -106,4 +106,16 @@
     <string name="enhanced_read_failed">The helper is connected, but this query failed. Try checking again.</string>
     <string name="enhanced_no_data">Authorized, but the system did not provide usable connection information.</string>
     <string name="enhanced_checked_at">Connection information checked: %1$s</string>
+    <string name="gms_connected">FCM connection: Connected</string>
+    <string name="gms_disconnected">FCM connection: Disconnected</string>
+    <string name="gms_state_source">Source: current GMS service state · %1$s. Refreshed only while the dashboard or quick-settings panel is visible, not continuous monitoring.</string>
+    <string name="gms_service_unavailable">No readable GMS push service. Open Google diagnostics and retry; this does not prove disconnection.</string>
+    <string name="gms_state_stale">The previous connection result expired. Waiting for a fresh read.</string>
+    <string name="tile_connected">FCM · Connected</string>
+    <string name="tile_disconnected">FCM · Disconnected</string>
+    <string name="tile_unknown">FCM · Unknown</string>
+    <string name="tile_recent_check">Current GMS state · just checked</string>
+    <string name="tile_unknown_note">Unconfirmed · tap for diagnostics</string>
+    <string name="tile_requires_shizuku">Enable Shizuku checks</string>
+    <string name="tile_stale">Refresh needed · tap for diagnostics</string>
 </resources>

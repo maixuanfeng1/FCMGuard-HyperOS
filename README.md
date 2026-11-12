@@ -4,7 +4,7 @@
 
 [Download APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
 
-Version 3 refocuses this HyperOS tool on the apps whose notifications matter to you. The dashboard, system-list reader, component scan, app settings links and Quick Settings entry work without Shizuku authorization. No whitelist writes, persistent notification, foreground service, periodic polling, wake lock, or scheduled wakeup is used.
+Version 3 refocuses this HyperOS tool on the apps whose notifications matter to you. The dashboard, system-list reader, component scan, app settings links and Quick Settings entry work without Shizuku authorization. No whitelist writes, persistent notification, foreground service, background periodic polling, wake lock, or scheduled wakeup is used.
 
 ## Workflow
 
@@ -12,7 +12,15 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 2. Choose your notification apps from launchable apps, including those without detected FCM/GCM declarations. Components establish capability, not a working token, actual message route or guaranteed delivery.
 3. Inspect Autostart, read-only `MILLET_NO_RESTRICT_APP` membership, Android notification permission, stopped flag and AOSP Doze exemption. Unknown is distinct from enabled. Notification master switches/channels, in-app mute settings and recents locking require review where a supported query is unavailable. System-list membership and the HyperOS UI's complete battery policy are not treated as interchangeable.
 4. Open the exact selected app's notification, battery or app-details settings. Record manual checks separately, including a real message received after locking the phone. App updates invalidate app-specific confirmation records. Retest after settings/network changes.
-5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. The tile never lights up as proof of a continuous FCM connection.
+5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
+
+## Version 3.1: connection tile
+
+Only a successful read of the correct profile and current GMS connection fields supplies Connected/Disconnected. Historical events, manual reports, reachability, sockets and authorization cannot light the tile. The dashboard and tile share the same snapshot.
+
+Reads refresh every five seconds only while the dashboard or quick-settings panel is visible. Hidden surfaces stop their refresh callbacks. Verdicts expire after 15 monotonic seconds and invalidate immediately on network, authorization or helper changes. Hiding the panel clears its lit state so SystemUI cannot cache a stale connection claim. Tapping still checks, attempts a heartbeat and opens diagnostics; it does not turn off GMS push.
+
+The private GMS dump format can change. Denied, unavailable, unsupported or timed-out reads remain Unknown. Permission-free mode retains the diagnostic shortcut; automatic connection indication needs Shizuku.
 
 ## Version 3.0.1
 
@@ -20,7 +28,7 @@ Authorization, helper readiness and socket-query results are displayed independe
 
 ## Optional Shizuku
 
-Off by default, even after upgrading an older authorized installation. Enabling it explicitly allows fixed, read-only helper operations: read the system projection and look for GMS-UID-attributed established sockets on standard push ports. An observed socket is transport evidence, not Diagnostics Connected. Absence is inconclusive because ports/visibility vary. No arbitrary command or settings-write interface is exposed.
+Off by default, even after upgrading an older authorized installation. Enabling it explicitly allows fixed, read-only helper operations: read the system projection and current GMS push-service state for the correct user. Connection indication no longer depends on restricted socket UID enumeration. No arbitrary command or settings-write interface is exposed.
 
 ## Background limits
 

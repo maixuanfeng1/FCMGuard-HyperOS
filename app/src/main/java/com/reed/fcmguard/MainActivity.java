@@ -29,6 +29,14 @@ public class MainActivity extends AppCompatActivity {
     private boolean showAll;
     private volatile boolean scanning;
     private String lastWhitelist;
+    private final Handler connectionHandler = new Handler(Looper.getMainLooper());
+    private final Runnable connectionRefresh = new Runnable() {
+        @Override public void run() {
+            EnhancedRuntime.request(MainActivity.this);
+            renderConnection();
+            connectionHandler.postDelayed(this, 5000L);
+        }
+    };
     private final Runnable stateListener = () -> {
         if (isDestroyed()) return;
         renderConnection();
@@ -104,12 +112,15 @@ public class MainActivity extends AppCompatActivity {
         PushRuntime.refresh(this); refreshApps();
         if (DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
         EnhancedRuntime.request(this);
+        connectionHandler.removeCallbacks(connectionRefresh);
+        connectionHandler.postDelayed(connectionRefresh, 5000L);
         if (DiagnosticPreferences.prefs(this).getBoolean("awaiting_report", false)) {
             DiagnosticPreferences.prefs(this).edit().remove("awaiting_report").apply();
             findViewById(R.id.reportBtn).post(this::recordResult);
         }
     }
-    @Override protected void onDestroy() { PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy(); }
+    @Override protected void onPause() { connectionHandler.removeCallbacks(connectionRefresh); super.onPause(); }
+    @Override protected void onDestroy() { connectionHandler.removeCallbacks(connectionRefresh); PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy(); }
     private void authorize() {
         if (ShizukuBridge.isRunning()) ShizukuBridge.requestPermission();
         else message(getString(R.string.no_auth_service));
@@ -138,10 +149,15 @@ public class MainActivity extends AppCompatActivity {
                 PushRuntime.whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : PushRuntime.whitelist.replace(",", "\n")));
     }
     void renderEnhanced(EnhancedStatus.Snapshot status) {
+        EnhancedStatus.Result current = status.currentResult(SystemClock.elapsedRealtime());
+        boolean verdict = current == EnhancedStatus.Result.CONNECTED || current == EnhancedStatus.Result.DISCONNECTED;
+        set(R.id.statusHeadline, getString(current == EnhancedStatus.Result.CONNECTED ? R.string.gms_connected :
+                current == EnhancedStatus.Result.DISCONNECTED ? R.string.gms_disconnected : R.string.connection_unknown));
+        set(R.id.connectionSource, verdict ? getString(R.string.gms_state_source, time(status.checkedAt)) : getString(R.string.connection_summary));
         String access = getString(accessLabel(status.access));
         String extra = status.access == EnhancedStatus.Access.DISABLED ? "" : getString(R.string.helper_evidence, access);
         if (status.access == EnhancedStatus.Access.READY) {
-            extra += "\n" + getString(resultLabel(status.result));
+            extra += "\n" + getString(resultLabel(current));
             if (status.checkedAt > 0) extra += "\n" + getString(R.string.enhanced_checked_at, time(status.checkedAt));
         }
         if (PushRuntime.monitorError != null) extra += "\n" + getString(R.string.diagnostic_observer_unavailable);
@@ -165,6 +181,10 @@ public class MainActivity extends AppCompatActivity {
     }
     private int resultLabel(EnhancedStatus.Result result) {
         switch (result) {
+            case CONNECTED: return R.string.gms_connected;
+            case DISCONNECTED: return R.string.gms_disconnected;
+            case SERVICE_UNAVAILABLE: return R.string.gms_service_unavailable;
+            case STALE: return R.string.gms_state_stale;
             case CHECKING: return R.string.enhanced_checking;
             case OBSERVED: return R.string.socket_observed;
             case NOT_OBSERVED: return R.string.socket_absent;

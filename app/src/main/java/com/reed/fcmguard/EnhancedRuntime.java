@@ -34,13 +34,15 @@ final class EnhancedRuntime {
             int bits = 0;
             EnhancedStatus.Result result;
             try { bits = ShizukuBridge.runtimeBitness(); } catch (Exception ignored) { }
-            try { result = EnhancedStatus.Result.fromWire(ShizukuBridge.socketEvidence()); }
+            try { result = EnhancedStatus.Result.fromWire(ShizukuBridge.gcmConnectionState()); }
             catch (Exception e) { result = EnhancedStatus.Result.READ_FAILED; }
             final int measuredBits = bits;
             final EnhancedStatus.Result measured = result;
+            final long measuredElapsed = android.os.SystemClock.elapsedRealtime();
+            final long measuredAt = System.currentTimeMillis();
             MAIN.post(() -> {
                 snapshot(app); // Re-evaluate grant, preference and binder before accepting the reply.
-                boolean accepted = STATUS.finish(ticket, measured, measuredBits, System.currentTimeMillis());
+                boolean accepted = STATUS.finish(ticket, measured, measuredBits, measuredAt, measuredElapsed);
                 boolean again;
                 synchronized (EnhancedRuntime.class) { busy = false; again = pending || !accepted; pending = false; }
                 PushRuntime.signal();

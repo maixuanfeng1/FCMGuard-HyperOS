@@ -13,6 +13,15 @@ public final class SettingsUserService extends ISettingsService.Stub {
     public SettingsUserService(Context context) { }
     public SettingsUserService() { }
 
+    @Override public synchronized String gcmConnectionState(int userId) {
+        validate(userId);
+        try {
+            return GmsConnectionState.parse(runBounded(262144, "/system/bin/dumpsys", "-t", "3", "activity",
+                    "--user", Integer.toString(userId), "service", "com.google.android.gms/.gcm.GcmService"), userId).name();
+        } catch (CommandFailure e) { return e.result.name(); }
+        catch (RuntimeException e) { return EnhancedStatus.Result.READ_FAILED.name(); }
+    }
+
     @Override public int runtimeBitness() { return android.os.Process.is64Bit() ? 64 : 32; }
 
     private static void validate(int userId) {
@@ -49,6 +58,9 @@ public final class SettingsUserService extends ISettingsService.Stub {
     }
 
     private static String run(String... command) {
+        return runBounded(65536, command);
+    }
+    private static String runBounded(int limit, String... command) {
         java.lang.Process process = null;
         try {
             process = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -61,7 +73,7 @@ public final class SettingsUserService extends ISettingsService.Stub {
                     byte[] buffer = new byte[1024];
                     int count;
                     while ((count = stream.read(buffer)) != -1) {
-                        if (output.size() + count > 65536) { truncated.set(true); break; }
+                        if (output.size() + count > limit) { truncated.set(true); break; }
                         output.write(buffer, 0, count);
                     }
                 } catch (java.io.IOException ignored) {

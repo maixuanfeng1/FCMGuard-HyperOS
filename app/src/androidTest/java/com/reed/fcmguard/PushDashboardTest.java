@@ -143,6 +143,59 @@ public class PushDashboardTest {
    assertTrue(((TextView)activity.findViewById(R.id.runtimeInfoText)).getText().toString().contains(c.getString(R.string.helper_bits_unknown)));
   });
  }
+ @Test public void freshGmsConnectionLightsTileAndUpdatesDashboard() {
+  in.runOnMainSync(() -> {
+   long now=android.os.SystemClock.elapsedRealtime();
+   EnhancedStatus.Snapshot state=new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.CONNECTED,64,System.currentTimeMillis(),now);
+   android.service.quicksettings.Tile tile=emptyPlatformTile();
+   GuardTileService.applyState(c,tile,state,now);
+   assertEquals(android.service.quicksettings.Tile.STATE_ACTIVE,tile.getState());
+   assertEquals(c.getString(R.string.tile_connected),tile.getLabel());
+   activity.renderEnhanced(state);
+   assertEquals(c.getString(R.string.gms_connected),((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
+  });
+ }
+ @Test public void explicitDisconnectAndUnknownHaveDifferentTileLabels() {
+  in.runOnMainSync(() -> {
+   long now=android.os.SystemClock.elapsedRealtime();
+   android.service.quicksettings.Tile tile=emptyPlatformTile();
+   GuardTileService.applyState(c,tile,new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.DISCONNECTED,64,42,now),now);
+   assertEquals(android.service.quicksettings.Tile.STATE_INACTIVE,tile.getState());
+   assertEquals(c.getString(R.string.tile_disconnected),tile.getLabel());
+   GuardTileService.applyState(c,tile,new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.SYSTEM_RESTRICTED,64,42,now),now);
+   assertEquals(c.getString(R.string.tile_unknown),tile.getLabel());
+   assertNotEquals(c.getString(R.string.tile_disconnected),tile.getLabel());
+  });
+ }
+ @Test public void staleResultsSocketsAndLostGrantCannotLightTile() {
+  in.runOnMainSync(() -> {
+   long now=android.os.SystemClock.elapsedRealtime();
+   android.service.quicksettings.Tile tile=emptyPlatformTile();
+   EnhancedStatus.Snapshot[] invalid={
+    new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.CONNECTED,64,42,now-15000),
+    new EnhancedStatus.Snapshot(EnhancedStatus.Access.NOT_AUTHORIZED,EnhancedStatus.Result.CONNECTED,64,42,now),
+    new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,EnhancedStatus.Result.OBSERVED,64,42,now)};
+   for(EnhancedStatus.Snapshot state:invalid) {
+    GuardTileService.applyState(c,tile,state,now);
+    assertNotEquals(android.service.quicksettings.Tile.STATE_ACTIVE,tile.getState());
+    assertEquals(c.getString(R.string.tile_unknown),tile.getLabel());
+    activity.renderEnhanced(state);
+    assertEquals(c.getString(R.string.connection_unknown),((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
+   }
+  });
+ }
+ // Tile has no public SDK constructor. Build an empty Android 17 Parcelable fixture.
+ static android.service.quicksettings.Tile emptyPlatformTile() {
+  android.os.Parcel parcel=android.os.Parcel.obtain();
+  try {
+   parcel.writeByte((byte)0); // no icon
+   parcel.writeByte((byte)0); // no click PendingIntent
+   parcel.writeInt(android.service.quicksettings.Tile.STATE_INACTIVE);
+   for(int i=0;i<5;i++) android.text.TextUtils.writeToParcel(null,parcel,0);
+   parcel.setDataPosition(0);
+   return android.service.quicksettings.Tile.CREATOR.createFromParcel(parcel);
+  } finally { parcel.recycle(); }
+ }
  static void awaitApps(MainActivity a) {
   for (int i = 0; i < 100; i++) {
    try { Field f=MainActivity.class.getDeclaredField("scanning"); f.setAccessible(true); if (!f.getBoolean(a)) return; } catch (Exception e) { throw new AssertionError(e); }

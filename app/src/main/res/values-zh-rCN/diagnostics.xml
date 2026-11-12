@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="dashboard_title">推送诊断</string>
-    <string name="connection_unknown">FCM 连接：需确认</string>
-    <string name="connection_summary">实际连接以 Google 诊断页显示为准。</string>
+    <string name="connection_unknown">FCM 连接：未知</string>
+    <string name="connection_summary">自动状态需要开启 Shizuku 增强检查并成功读取 GMS 当前状态；无法读取时，请打开 Google 诊断确认。</string>
     <string name="check_now">立即检查</string>
     <string name="request_reconnect">尝试请求重连</string>
     <string name="confirm_diagnostics">记录诊断页结果</string>
@@ -70,7 +70,7 @@
     <string name="observe_events">随系统名单和网络变化刷新</string>
     <string name="observe_note">无常驻通知或定时唤醒。进程无法运行时检查会暂停，可通过磁贴唤起。</string>
     <string name="enhanced_title">可选 Shizuku 增强检查</string>
-    <string name="enhanced_note">默认关闭，增加只读的系统和 GMS 网络连接检查，不修改设置。</string>
+    <string name="enhanced_note">默认关闭。开启后只读 GMS 当前连接状态，供首页和磁贴显示；不修改系统设置。</string>
     <string name="authorize_optional">连接／授权可选 Shizuku</string>
     <string name="optional_disabled">Shizuku 为可选功能，当前已关闭</string>
     <string name="raw_list_title">查看系统无限制名单（只读）</string>
@@ -86,7 +86,7 @@
     <string name="no_timer">检查并打开诊断</string>
     <string name="appearance_title_v3">外观</string>
     <string name="manual_delivery_help">从另一账号／设备向目标应用发送真实消息，分别测试亮屏和锁屏待机 10–30 分钟后的收信。只记录实际收到的结果。</string>
-<string name="tile_setup_message">下拉快捷面板，进入编辑，将 FCM Guard 添加到可见位置。磁贴显示时可重新检查；点击尝试请求心跳并打开 Google 诊断。磁贴不表示持续连接，也不运行前台服务。</string>
+<string name="tile_setup_message">磁贴亮起且显示 Connected，表示刚刚读取到 GMS 已连接；灰色断开图标并显示 Disconnected，表示刚刚读取到未连接。问号和“未知”表示无法读取，不是关闭。请开启可选 Shizuku 增强检查。面板可见时每 5 秒刷新，收起后不轮询。点击尝试心跳并打开诊断，不会关闭 GMS 推送。</string>
 <string name="diagnostic_observer_unavailable">部分变化无法自动监听，请返回首页或点击刷新重新检查。</string>
     <string name="helper_access_status">Shizuku：%1$s</string>
     <string name="helper_bits_unknown">尚未读取</string>
@@ -105,4 +105,16 @@
     <string name="enhanced_read_failed">辅助进程已连接，但本次读取失败，请重试。</string>
     <string name="enhanced_no_data">已授权，但系统未提供可用的连接信息。</string>
     <string name="enhanced_checked_at">连接信息检查时间：%1$s</string>
+    <string name="gms_connected">FCM 连接：Connected</string>
+    <string name="gms_disconnected">FCM 连接：Disconnected</string>
+    <string name="gms_state_source">来源：GMS 当前服务状态 · %1$s。仅在首页或快捷面板可见时刷新；不是全天持续监控。</string>
+    <string name="gms_service_unavailable">当前没有可读取的 GMS 推送服务，请打开 Google 诊断后重试；不能据此判断已断线。</string>
+    <string name="gms_state_stale">上次连接结果已过期，正在等待重新读取。</string>
+    <string name="tile_connected">FCM · Connected</string>
+    <string name="tile_disconnected">FCM · Disconnected</string>
+    <string name="tile_unknown">FCM · 未知</string>
+    <string name="tile_recent_check">GMS 当前状态 · 刚刚检查</string>
+    <string name="tile_unknown_note">无法确认 · 点按诊断</string>
+    <string name="tile_requires_shizuku">需开启 Shizuku 检查</string>
+    <string name="tile_stale">需重新读取 · 点按诊断</string>
 </resources>

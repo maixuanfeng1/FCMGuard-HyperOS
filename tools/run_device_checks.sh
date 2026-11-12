@@ -35,6 +35,9 @@ shell_bitness_argument=''
 if [[ "${FCMGUARD_REQUIRE_64BIT:-false}" == "true" ]]; then shell_bitness_argument='require64Bit'; fi
 adb shell "CLASSPATH=/data/local/tmp/fcmguard-app.apk:/data/local/tmp/fcmguard-test.apk app_process /system/bin com.reed.fcmguard.ShellSettingsProbe ${shell_bitness_argument}" | tee artifacts/shell-settings.log
 grep -Fq 'SHELL_SETTINGS_OK uid=2000' artifacts/shell-settings.log
+if [[ "${FCMGUARD_TEST_QUICK_SETTINGS:-false}" == "true" ]]; then
+  python3 tools/check_gms_connection.py
+fi
 adb shell rm /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
 ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true \
   -Pandroid.testInstrumentationRunnerArguments.require64Bit="${FCMGUARD_REQUIRE_64BIT:-false}" --stacktrace
@@ -52,7 +55,7 @@ for report in reports:
     tests += int(root.get('tests', '0'))
     for attribute in ('failures', 'errors', 'skipped'):
         assert int(root.get(attribute, '0')) == 0, f'{report}: {attribute}={root.get(attribute)}'
-assert tests >= 23, f'Expected the full device suite; only {tests} tests ran'
+assert tests >= 26, f'Expected the full device suite; only {tests} tests ran'
 print(f'Verified {tests} device tests passed')
 PY
 adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/

@@ -114,3 +114,4 @@ jobs:
             artifacts/emulator-crash.log
             artifacts/shell-settings.log
             artifacts/quick-settings-smoke.log
+            artifacts/gms-connection-smoke.log
