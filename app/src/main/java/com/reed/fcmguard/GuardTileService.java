@@ -6,83 +6,40 @@ import android.os.Build;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
 
-/** A non-active tile: Android binds it when visible, providing an opportunity to resume. */
+/** A recovery entry point, never a continuous-connection indicator. */
 public final class GuardTileService extends TileService {
     private boolean listening;
     private final Runnable listener = this::render;
-
     @Override public void onStartListening() {
-        super.onStartListening();
-        listening = true;
-        GuardRuntime.addStateListener(listener);
-        ShizukuBridge.addListener(listener);
-        android.util.Log.i("FCMGuardTile", "Visible; tileWakeup=" + SettingsGuard.usesTileWakeup(this)
-                + " enabled=" + SettingsGuard.isProtectionEnabled(this));
-        GuardController.restoreFromTile(this);
+        super.onStartListening(); listening = true;
+        PushRuntime.add(listener); PushRuntime.start(this); PushRuntime.check(this, false);
+        android.util.Log.i("FCMGuardTile", "Visible; diagnostics-only; no authorization required");
         render();
     }
-
-    @Override public void onStopListening() {
-        listening = false;
-        GuardRuntime.removeStateListener(listener);
-        ShizukuBridge.removeListener(listener);
-        super.onStopListening();
-    }
-
-    @Override public void onDestroy() {
-        listening = false;
-        GuardRuntime.removeStateListener(listener);
-        ShizukuBridge.removeListener(listener);
-        // The process observer may continue while Android retains this process.
-        super.onDestroy();
-    }
-
+    @Override public void onStopListening() { listening = false; PushRuntime.remove(listener); super.onStopListening(); }
+    @Override public void onDestroy() { PushRuntime.remove(listener); super.onDestroy(); }
     @Override public void onClick() {
         super.onClick();
-        if (isLocked()) unlockAndRun(this::toggle);
-        else toggle();
+        if (isLocked()) unlockAndRun(this::recover); else recover();
     }
-
-    private void toggle() {
-        if (GuardRuntime.isProtecting()) {
-            GuardController.stop(this);
-        } else {
-            boolean needsAttention = !ShizukuBridge.isReady() || GuardRuntime.protectionError() != null;
-            SettingsGuard.setProtectionEnabled(this, true);
-            try { GuardController.start(this); }
-            catch (RuntimeException e) { needsAttention = true; }
-            if (needsAttention) openDashboard();
-        }
-        render();
+    private void recover() {
+        PushRuntime.check(this, true);
+        Intent intent = new Intent(this, MainActivity.class).putExtra("open_diagnostics", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (Build.VERSION.SDK_INT >= 34) startActivityAndCollapse(PendingIntent.getActivity(this, 428, intent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        else openLegacy(intent);
     }
-
+    @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated")
+    private void openLegacy(Intent intent) { startActivityAndCollapse(intent); }
     private void render() {
-        if (!listening) return;
+        if (!listening || getQsTile() == null) return;
         Tile tile = getQsTile();
-        if (tile == null) return;
-        boolean active = GuardRuntime.isProtecting();
-        tile.setState(active ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        // Neither a socket nor a successful network probe proves Diagnostics Connected.
+        tile.setState(Tile.STATE_INACTIVE);
         tile.setLabel(getString(R.string.app_name));
-        int detail = active ? R.string.tile_listening
-                : !SettingsGuard.isProtectionEnabled(this) ? R.string.tile_off
-                : !ShizukuBridge.isReady() ? R.string.tile_needs_shizuku
-                : GuardRuntime.protectionError() != null ? R.string.status_attention
-                : R.string.tile_tap_to_resume;
-        tile.setContentDescription(getString(R.string.app_name) + ", " + getString(detail));
-        if (Build.VERSION.SDK_INT >= 29) tile.setSubtitle(getString(detail));
+        tile.setContentDescription(getString(R.string.no_timer));
+        if (Build.VERSION.SDK_INT >= 29) tile.setSubtitle(getString(PushRuntime.busy() ? R.string.checking : R.string.no_timer));
         tile.updateTile();
     }
-
-    private void openDashboard() {
-        Intent intent = new Intent(this, MainActivity.class).addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        if (Build.VERSION.SDK_INT >= 34) {
-            startActivityAndCollapse(PendingIntent.getActivity(this, 428, intent,
-                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
-        } else openDashboardLegacy(intent);
-    }
-
-    /** PendingIntent overload does not exist below Android 14. */
-    @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated")
-    private void openDashboardLegacy(Intent intent) { startActivityAndCollapse(intent); }
 }

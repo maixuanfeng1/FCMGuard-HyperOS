@@ -43,6 +43,25 @@ public final class HyperOsSettings {
         return launch(context, createApplicationDetailsIntent(packageName));
     }
 
+    public static boolean openNotificationSettings(Context context, String packageName) {
+        requirePackage(packageName);
+        return launch(context, new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) || openApplicationSettings(context, packageName);
+    }
+
+    public static boolean openBatterySettings(Context context, String packageName) {
+        requirePackage(packageName);
+        Intent intent = new Intent().setComponent(new ComponentName(SECURITY_CENTER,
+                "com.miui.powercenter.legacypowerrank.PowerDetailActivity"))
+                .putExtra("package_name", packageName).putExtra("package_label", packageName)
+                .putExtra("uid", packageUid(context, packageName));
+        return launch(context, intent) || openApplicationSettings(context, packageName);
+    }
+    private static int packageUid(Context context, String packageName) {
+        try { return context.getPackageManager().getApplicationInfo(packageName, 0).uid; }
+        catch (android.content.pm.PackageManager.NameNotFoundException e) { return -1; }
+    }
+
     /** Standard Android fallback retains the exact selected package. */
     public static Intent createApplicationDetailsIntent(String packageName) {
         requirePackage(packageName);

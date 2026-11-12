@@ -15,28 +15,26 @@ public final class SettingsUserService extends ISettingsService.Stub {
 
     @Override public int runtimeBitness() { return android.os.Process.is64Bit() ? 64 : 32; }
 
-    private static void validate(String key, int userId) {
-        if (!PackageList.validKey(key) || userId < 0 || userId > 21474) {
-            throw new IllegalArgumentException("Invalid settings key or user");
-        }
+    private static void validate(int userId) {
+        if (userId < 0 || userId > 21474) throw new IllegalArgumentException("Invalid user");
     }
-
-    @Override public synchronized String read(String key, int userId) {
-        validate(key, userId);
+    @Override public synchronized String readWhitelist(int userId) {
+        validate(userId);
         String value = run("/system/bin/settings", "--user", Integer.toString(userId),
-                "get", "system", key).trim();
+                "get", "system", SettingsGuard.KEY).trim();
         return "null".equals(value) ? null : value;
     }
-
-    @Override public synchronized boolean write(String key, String value, int userId) {
-        validate(key, userId);
-        if (value == null || value.length() > 32768) throw new IllegalArgumentException("Invalid list");
-        for (String item : PackageList.parse(value)) {
-            if (!PackageList.validPackage(item)) throw new IllegalArgumentException("Invalid package");
-        }
-        run("/system/bin/settings", "--user", Integer.toString(userId), "put", "system", key, value);
-        // settings may return exit code zero even if the provider rejects an operation.
-        return value.equals(read(key, userId));
+    @Override public synchronized String fcmSocketEvidence(int userId) {
+        validate(userId);
+        try {
+            String packages = run("/system/bin/cmd", "package", "list", "packages", "-U",
+                    "--user", Integer.toString(userId), "com.google.android.gms");
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+                    "(?m)^package:com\\.google\\.android\\.gms uid:(\\d+)\\s*$").matcher(packages);
+            if (!matcher.find()) return "unavailable";
+            int uid = Integer.parseInt(matcher.group(1));
+            return SocketEvidence.classify(run("/system/bin/ss", "-tnpe"), uid);
+        } catch (RuntimeException e) { return "unavailable"; }
     }
 
     private static String run(String... command) {

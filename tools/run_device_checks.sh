@@ -26,8 +26,8 @@ if [ "$ready" -lt 3 ]; then
 fi
 adb shell df -h /data
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
-# Read/write operations run in Shizuku's shell process without an application
-# Context. Observation is tested separately in the foreground application's UID.
+# Optional fixed read-only queries run as shell. Observation and the dashboard
+# are tested separately without Shizuku in the application identity.
 adb push app/build/outputs/apk/debug/app-debug.apk /data/local/tmp/fcmguard-app.apk
 adb push app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk /data/local/tmp/fcmguard-test.apk
 adb shell chmod 444 /data/local/tmp/fcmguard-app.apk /data/local/tmp/fcmguard-test.apk
@@ -52,7 +52,7 @@ for report in reports:
     tests += int(root.get('tests', '0'))
     for attribute in ('failures', 'errors', 'skipped'):
         assert int(root.get(attribute, '0')) == 0, f'{report}: {attribute}={root.get(attribute)}'
-assert tests >= 18, f'Expected the full device suite; only {tests} tests ran'
+assert tests >= 20, f'Expected the full device suite; only {tests} tests ran'
 print(f'Verified {tests} device tests passed')
 PY
 adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/

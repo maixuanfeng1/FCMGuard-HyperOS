@@ -19,6 +19,7 @@ public final class ShizukuBridge {
     private static final CopyOnWriteArraySet<Runnable> LISTENERS = new CopyOnWriteArraySet<>();
     private static volatile ISettingsService service;
     private static Shizuku.UserServiceArgs args;
+    private static Context app;
     private static boolean binding;
     private static boolean initialized;
     private static boolean automaticRebindUsed;
@@ -51,6 +52,7 @@ public final class ShizukuBridge {
     public static void initialize(Context context) {
         if (initialized) return;
         initialized = true;
+        app = context.getApplicationContext();
         args = new Shizuku.UserServiceArgs(new ComponentName(context, SettingsUserService.class))
                 .daemon(false).processNameSuffix("settings").debuggable(false)
                 .version(BuildConfig.VERSION_CODE);
@@ -106,7 +108,7 @@ public final class ShizukuBridge {
     }
 
     public static void connect() {
-        if (!isAuthorized() || isReady() || binding) return;
+        if (app == null || !DiagnosticPreferences.enhanced(app) || !isAuthorized() || isReady() || binding) return;
         binding = true;
         try {
             Shizuku.bindUserService(args, CONNECTION);
@@ -129,22 +131,23 @@ public final class ShizukuBridge {
         return isAuthorized() ? R.string.shizuku_connecting : R.string.shizuku_permission_missing;
     }
 
-    public static String read(String key) throws RemoteException {
+    public static void disable() {
+        try { Shizuku.unbindUserService(args, CONNECTION, true); } catch (RuntimeException ignored) { }
+        disconnected();
+    }
+    public static String readWhitelist() throws RemoteException {
         ISettingsService current = service;
         if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
-        return current.read(key, Process.myUid() / 100000);
+        return current.readWhitelist(Process.myUid() / 100000);
     }
-
+    public static String socketEvidence() throws RemoteException {
+        ISettingsService current = service;
+        if (!isReady() || current == null) return "unavailable";
+        return current.fcmSocketEvidence(Process.myUid() / 100000);
+    }
     public static int runtimeBitness() throws RemoteException {
         ISettingsService current = service;
-        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
+        if (!isReady() || current == null) return 0;
         return current.runtimeBitness();
     }
-
-    public static boolean write(String key, String value) throws RemoteException {
-        ISettingsService current = service;
-        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
-        return current.write(key, value, Process.myUid() / 100000);
-    }
-
 }

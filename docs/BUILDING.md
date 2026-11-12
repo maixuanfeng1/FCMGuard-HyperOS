@@ -30,32 +30,22 @@ For GitHub Actions, configure repository Actions secrets with the last three var
 
 The signing backup for this fork is provided privately to the repository owner outside Git. Preserve it for future updates. Actions caches are not a safe signing-key backup and are no longer used for release identity.
 
-Bump both `versionCode` and `versionName` before every new release. Publish the signed APK under both `FCMGuard-HyperOS-vVERSION.apk` and `FCMGuard-HyperOS.apk`, plus `SHA256SUMS.txt`. Do not overwrite an existing version or sign updates with another key.
+Bump both `versionCode` and `versionName` for each immutable release. Attach only one signed `FCMGuard-HyperOS.apk`; put its SHA-256 in the release notes. Keep screenshots and test reports in CI. Never include signing material on an artifact branch.
 
-## Device checks
+## Android 17 checks
 
-```sh
-./gradlew :app:connectedDebugAndroidTest
-```
+`bash tools/run_device_checks.sh` builds APKs, exercises the fixed read-only helper under real shell UID 2000, runs instrumentation and exports native screenshots. `FCMGUARD_REQUIRE_64BIT=true` checks the app and helper bitness. ATD covers functionality; the full Google APIs image also renders screenshots and runs `tools/check_quick_settings.py` against actual SystemUI after app-process reclamation. Device CI intentionally contains no Android 15/16 jobs.
 
-Use an Android 17 full Google APIs emulator or Android 17 ATD for the automated missing-authorization, application-process observer and settings-route checks. `bash tools/run_device_checks.sh` also launches the read/write helper under the real shell UID with `adb app_process`. Android 17 uses system image `system-images;android-37.0;aosp_atd;x86_64` and SDK package `platforms;android-37.2`. ATD screenshots are blank because rendering is disabled; use the full Android 17 Google APIs image for visual review. CI can opt into native screenshots using `-Pandroid.testInstrumentationRunnerArguments.captureScreenshots=true`; only that explicit mode changes emulator resolution/density/font scale, restoring them afterward. Reports and images are uploaded as Actions artifacts. For a HyperOS device, additionally verify:
+The emulator runner must use the pinned command-line tools through its `latest` path so AVD target metadata is `android-37.0`. Its software graphics configuration enables GLDirectMem and disables Vulkan to avoid the older tools’ Android 0 / SurfaceFlinger failure.
 
-1. Approving/denying Shizuku access updates the dashboard correctly.
-2. Repair preserves every pre-existing whitelist entry and adds only the requested package.
-3. Removing the target externally triggers one debounced repair and a verified result without waiting for a timer. Denied observer registration must never report protection as active.
-4. Stopping Shizuku never leaves the dashboard claiming active protection; restarting it reconnects.
-5. Denying notifications does not crash the service; enabling them shows the silent notification and Stop action.
-6. Tapping each detected app row opens the corresponding app settings, including when Autostart is unknown.
-7. Stop action, app restart, reboot, language/theme changes, landscape cutouts and background/battery policy behave as described.
-8. Disabled Autostart apps appear first in red with explicit text, enabled apps last, and summary counts match the list. Partial/unavailable states are distinct. Returning from app settings updates counts and sorting.
-9. Quick Settings wakeup is the default: no foreground service or persistent notification, no notification-permission prompt. Add the tile, position it where visible, and test pulling down the panel after process reclamation. Tapping an active tile stops protection; missing Shizuku opens the dashboard. Force-stop and OEM tile-binding policies may require reopening the app.
-10. Switching to persistent notification starts the foreground service; switching back removes it and its notification. Passive tile visibility must not start a foreground service in notification mode.
-11. Open FCM diagnostics stays visible above the scrolling content and targets Google Play services. Repair now validates the configured whitelist rather than claiming network reconnection. Appearance radio buttons change the theme without changing the keep-alive selection.
+Before claiming a physical-device result, verify on Android 17 / HyperOS 4:
 
-`FCMGUARD_REQUIRE_64BIT=true bash tools/run_device_checks.sh` requires both the app process and bare shell helper to execute as 64-bit. CI enables this on its x86_64 images. ARM64 physical-device bitness can be checked in Advanced configuration after Shizuku connects. `python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit or unknown native ELF libraries; an APK without native libraries is ABI-neutral and supports 64-bit Android. No `abiFilters` or dummy JNI library is necessary.
+1. Start without Shizuku, including upgrading an old authorized installation. No permission prompt, foreground service, notification or settings write should occur.
+2. Change a target app’s battery policy in system settings; system-list membership should refresh if the ROM exports the setting/events. A read/observer failure remains unknown.
+3. Confirm optional Shizuku can connect only when explicitly enabled, reports read-only socket evidence or unavailable accurately, and stops its helper when disabled.
+4. Compare diagnostics observations and timestamps; never infer Diagnostics Connected from network reachability, an existing socket or a heartbeat request. Changing networks invalidates the manual observation.
+5. Check each exact-app settings route. Vendor routes may fail and must fall back to the same app’s Android details, not a broad application list.
+6. Review notification master switches/channels, app-internal mute rules and lock state. Manual confirmation records remain explicitly manual and invalidate after app updates.
+7. Run real locked-screen notification tests for chosen apps. These results cannot be replaced by emulator checks.
 
-On the full Android 17 CI image, `tools/check_quick_settings.py` installs a disposable debug APK after instrumentation, seeds enabled protection, adds the tile through the shell, kills the app process with debug `run-as` (not force-stop), and verifies SystemUI invokes the tile in a new process with no foreground service or persistent notification. The check removes its tile and installation afterward.
-
-The emulator checks cannot establish Xiaomi private API compatibility or push reliability.
-
-The emulator runner prepends `cmdline-tools/latest` even when setup-android installed a newer pinned version elsewhere. CI therefore points that path at the pinned tools and verifies the AVD target is `android-37.0`. Legacy tools can otherwise generate `android-0` for minor API packages, causing incorrect graphics feature selection and SurfaceFlinger crashes. The Android 17 software-rendered configuration explicitly enables GLDirectMem and disables Vulkan.
+`python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit/unknown bundled ELF libraries. No native libraries means ABI-neutral DEX, compatible with ARM64; optional helper and app bitness are shown on the dashboard.

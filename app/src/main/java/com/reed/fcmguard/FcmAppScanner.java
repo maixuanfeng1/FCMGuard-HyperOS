@@ -28,11 +28,36 @@ public final class FcmAppScanner {
     public static final class AppEntry {
         public final String packageName;
         public final String label;
+        public final boolean declaresFcm;
 
         AppEntry(String packageName, String label) {
+            this(packageName, label, true);
+        }
+        AppEntry(String packageName, String label, boolean declaresFcm) {
             this.packageName = packageName;
             this.label = label;
+            this.declaresFcm = declaresFcm;
         }
+    }
+
+    /** Include launchable apps without FCM declarations so users can inspect their chosen apps. */
+    public static List<AppEntry> scanAll(Context context) {
+        Map<String, AppEntry> result = new LinkedHashMap<>();
+        for (AppEntry app : scan(context)) result.put(app.packageName, app);
+        PackageManager pm = context.getPackageManager();
+        Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        try {
+            for (ResolveInfo resolve : pm.queryIntentActivities(launcher, 0)) {
+                ActivityInfo info = resolve.activityInfo;
+                if (info == null || result.containsKey(info.packageName) ||
+                        info.packageName.equals(context.getPackageName()) || !info.applicationInfo.enabled) continue;
+                result.put(info.packageName, new AppEntry(info.packageName,
+                        pm.getApplicationLabel(info.applicationInfo).toString(), false));
+            }
+        } catch (RuntimeException ignored) { }
+        List<AppEntry> apps = new ArrayList<>(result.values());
+        Collections.sort(apps, (a, b) -> a.label.compareToIgnoreCase(b.label));
+        return apps;
     }
 
     public static List<AppEntry> scan(Context context) {

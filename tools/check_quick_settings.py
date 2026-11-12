@@ -39,11 +39,6 @@ def no_foreground_service():
 
 try:
     adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk')
-    # Seed the already-enabled preference before the first app launch; no debug
-    # backdoor is added to the APK. run-as is supported only by this debug build.
-    xml = '<?xml version="1.0" encoding="utf-8"?><map><boolean name="enabled" value="true" /></map>'
-    script = 'mkdir -p shared_prefs && printf %s ' + shlex.quote(xml) + ' > shared_prefs/guard_state.xml'
-    adb('shell', 'run-as ' + PACKAGE + ' sh -c ' + shlex.quote(script))
     adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
     original_tiles = adb('shell', 'settings', 'get', 'secure', 'sysui_qs_tiles')
     adb('shell', 'cmd', 'statusbar', 'add-tile', COMPONENT)
@@ -54,7 +49,7 @@ try:
     adb('shell', 'settings', 'put', 'secure', 'sysui_qs_tiles', tile_spec + ',' + tail)
     adb('shell', 'logcat', '-c')
     adb('shell', 'cmd', 'statusbar', 'expand-settings')
-    wait_for(lambda: 'Visible; tileWakeup=true enabled=true' in adb(
+    wait_for(lambda: 'Visible; diagnostics-only; no authorization required' in adb(
         'shell', 'logcat', '-d', '-s', 'FCMGuardTile:I', '*:S'), 'Real SystemUI onStartListening')
     no_foreground_service()
     adb('shell', 'cmd', 'statusbar', 'collapse')
@@ -72,13 +67,13 @@ try:
         except subprocess.CalledProcessError:
             return False
         log = adb('shell', 'logcat', '-d', '-s', 'FCMGuardTile:I', '*:S')
-        return current != pid and 'Visible; tileWakeup=true enabled=true' in log
+        return current != pid and 'Visible; diagnostics-only; no authorization required' in log
 
     wait_for(recovered, 'Reclaimed process restored through visible tile', timeout=30)
     no_foreground_service()
     adb('shell', 'cmd', 'statusbar', 'click-tile', COMPONENT)
-    wait_for(lambda: bool(re.search(r'(?:mResumedActivity|topResumedActivity)[^\n]*com\.reed\.fcmguard/\.MainActivity',
-        adb('shell', 'dumpsys', 'activity', 'activities'))), 'Tile opens dashboard when Shizuku is missing')
+    wait_for(lambda: bool(re.search(r'(?:mResumedActivity|topResumedActivity)[^\n]*(?:com\.reed\.fcmguard/\.MainActivity|com\.google\.android\.gms/[^\n]*[Dd]iagnostic)',
+        adb('shell', 'dumpsys', 'activity', 'activities'))), 'Tile opens diagnostic entry without authorization')
     no_foreground_service()
     lines.append('QUICK_SETTINGS_RECOVERY_OK: no foreground service or persistent notification')
     print('\n'.join(lines))
