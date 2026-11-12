@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
+    android:paddingStart="@dimen/screen_horizontal_padding" android:paddingEnd="@dimen/screen_horizontal_padding"
+    android:paddingTop="16dp" android:paddingBottom="16dp" android:minHeight="48dp"
+    android:background="?attr/selectableItemBackground" android:focusable="true" android:clickable="true">
+    <TextView android:id="@+id/appTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:textAppearance="@style/SectionTitle" />
+    <TextView android:id="@+id/appPackage" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textAppearance="@style/BodyText" />
+    <TextView android:id="@+id/appFcm" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textAppearance="@style/BodyText" />
+    <TextView android:id="@+id/appAutostart" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textAppearance="@style/BodyText" />
+    <TextView android:id="@+id/appSystemList" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textAppearance="@style/BodyText" />
+    <TextView android:id="@+id/appNotifications" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textAppearance="@style/BodyText" />
+</LinearLayout>

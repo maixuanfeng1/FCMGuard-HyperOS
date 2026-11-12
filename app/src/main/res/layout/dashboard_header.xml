@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
  android:id="@+id/contentRoot" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
- android:paddingStart="@dimen/screen_horizontal_padding" android:paddingEnd="@dimen/screen_horizontal_padding" android:paddingTop="8dp" android:paddingBottom="32dp">
+ android:paddingStart="@dimen/screen_horizontal_padding" android:paddingEnd="@dimen/screen_horizontal_padding" android:paddingTop="8dp" android:paddingBottom="0dp">
  <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" style="?attr/materialCardViewFilledStyle" app:cardElevation="0dp" app:cardCornerRadius="24dp" app:cardBackgroundColor="?attr/colorSurfaceContainerHigh">
   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
    <TextView android:id="@+id/statusHeadline" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/connection_unknown" android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall" android:accessibilityHeading="true"/>
@@ -22,26 +22,5 @@
  <com.google.android.material.button.MaterialButton android:id="@+id/scanFcmAppsBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/scan_apps"/>
  <com.google.android.material.button.MaterialButton android:id="@+id/showAllBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/all_apps"/>
  <TextView android:id="@+id/fcmAppsStatusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>
- <LinearLayout android:id="@+id/fcmAppsContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
- <com.google.android.material.divider.MaterialDivider android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp"/>
- <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/settings_title" android:textAppearance="@style/SectionTitle"/>
- <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/observeSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:text="@string/observe_events"/>
- <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/observe_note" android:textAppearance="@style/BodyText"/>
- <com.google.android.material.button.MaterialButton android:id="@+id/addTileBtn" style="@style/Widget.Material3.Button.TonalButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/add_quick_settings_tile"/>
- <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/enhancedSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="64dp" android:text="@string/enhanced_title"/>
- <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/enhanced_note" android:textAppearance="@style/BodyText"/>
- <TextView android:id="@+id/helperText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>
- <com.google.android.material.button.MaterialButton android:id="@+id/permissionBtn" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/authorize_optional" android:visibility="gone"/>
- <TextView android:id="@+id/runtimeInfoText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="@style/BodyText"/>
- <com.google.android.material.button.MaterialButton android:id="@+id/advancedToggle" style="@style/Widget.Material3.Button.TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:layout_marginTop="16dp" android:text="@string/raw_list_title" app:icon="@drawable/ic_expand_more" app:iconGravity="end"/>
- <LinearLayout android:id="@+id/advancedContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/list_explanation" android:textAppearance="@style/BodyText"/>
-  <TextView android:id="@+id/currentValueText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textAppearance="@style/BodyText" android:textIsSelectable="true"/>
- </LinearLayout>
- <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/appearance_title_v3" android:textAppearance="@style/SectionTitle"/>
- <RadioGroup android:id="@+id/appearanceGroup" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-  <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeSystem" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_system"/>
-  <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeLight" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_light"/>
-  <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/themeDark" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/theme_dark"/>
- </RadioGroup>
+ <TextView android:id="@+id/noChosenText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/no_chosen" android:textAppearance="@style/BodyText"/>
 </LinearLayout>

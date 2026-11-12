@@ -57,18 +57,17 @@ public class MaterialUiScreenshotTest {
         saveScreenshot(instrumentation, context, name);
         if ("01-light".equals(name) || "02-dark".equals(name)) {
             instrumentation.runOnMainSync(() -> {
-                activity.findViewById(R.id.advancedToggle).performClick();
-                androidx.core.widget.NestedScrollView scroll = activity.findViewById(R.id.scroll);
-                scroll.post(() -> scroll.fullScroll(android.view.View.FOCUS_DOWN));
+                activity.ui(R.id.advancedToggle).performClick();
+                androidx.recyclerview.widget.RecyclerView scroll = activity.ui(R.id.scroll);
+                scroll.post(() -> scroll.scrollToPosition(activity.appAdapter.getItemCount()+1));
             });
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-advanced");
             instrumentation.runOnMainSync(() -> {
                 PushDashboardTest.showExamples(activity);
-                androidx.core.widget.NestedScrollView scroll = activity.findViewById(R.id.scroll);
-                scroll.post(() -> scroll.scrollTo(0,
-                        activity.findViewById(R.id.fcmAppsStatusText).getTop()));
+                androidx.recyclerview.widget.RecyclerView scroll = activity.ui(R.id.scroll);
+                scroll.post(() -> scroll.scrollToPosition(1));
             });
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);

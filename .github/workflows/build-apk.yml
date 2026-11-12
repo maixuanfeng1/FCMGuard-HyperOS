@@ -2,7 +2,7 @@ name: Android checks
 
 on:
   push:
-    branches: [main, 'feature/**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -114,6 +114,9 @@ jobs:
             artifacts/screenshots/
             artifacts/emulator-crash.log
             artifacts/shell-settings.log
+            artifacts/release-helper.log
+            artifacts/shizuku-release-smoke.log
+            artifacts/shizuku-release-ui.xml
             artifacts/quick-settings-smoke.log
             artifacts/gms-connection-smoke.log
             artifacts/launcher-shortcut-smoke.log

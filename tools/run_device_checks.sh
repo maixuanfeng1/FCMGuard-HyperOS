@@ -29,7 +29,7 @@ if [ "$ready" -lt 3 ]; then
   exit 1
 fi
 adb shell df -h /data
-./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest --stacktrace
 # Optional fixed read-only queries run as shell. Observation and the dashboard
 # are tested separately without Shizuku in the application identity.
 adb push app/build/outputs/apk/debug/app-debug.apk /data/local/tmp/fcmguard-app.apk
@@ -39,6 +39,13 @@ shell_bitness_argument=''
 if [[ "${FCMGUARD_REQUIRE_64BIT:-false}" == "true" ]]; then shell_bitness_argument='require64Bit'; fi
 adb shell "CLASSPATH=/data/local/tmp/fcmguard-app.apk:/data/local/tmp/fcmguard-test.apk app_process /system/bin com.reed.fcmguard.ShellSettingsProbe ${shell_bitness_argument}" | tee artifacts/shell-settings.log
 grep -Fq 'SHELL_SETTINGS_OK uid=2000' artifacts/shell-settings.log
+# Load the minified release through the same reflective constructors and raw AIDL protocol.
+release_apk=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)
+test -n "$release_apk"
+adb push "$release_apk" /data/local/tmp/fcmguard-app.apk
+adb shell chmod 444 /data/local/tmp/fcmguard-app.apk
+adb shell "CLASSPATH=/data/local/tmp/fcmguard-app.apk:/data/local/tmp/fcmguard-test.apk app_process /system/bin com.reed.fcmguard.ShellSettingsProbe ${shell_bitness_argument}" | tee artifacts/release-helper.log
+grep -Fq 'SHELL_SETTINGS_OK uid=2000' artifacts/release-helper.log
 if [[ "${FCMGUARD_TEST_QUICK_SETTINGS:-false}" == "true" ]]; then
   python3 tools/check_gms_connection.py
 fi
@@ -59,11 +66,15 @@ for report in reports:
     tests += int(root.get('tests', '0'))
     for attribute in ('failures', 'errors', 'skipped'):
         assert int(root.get(attribute, '0')) == 0, f'{report}: {attribute}={root.get(attribute)}'
-assert tests >= 34, f'Expected the full device suite; only {tests} tests ran'
+assert tests >= 35, f'Expected the full device suite; only {tests} tests ran'
 print(f'Verified {tests} device tests passed')
 PY
 adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/
 if [[ "${FCMGUARD_TEST_QUICK_SETTINGS:-false}" == "true" ]]; then
-  python3 tools/check_launcher_shortcut.py
+  # CI-only debug certificate; the APK remains minified and non-debuggable.
+  "$ANDROID_HOME/build-tools/37.0.0/apksigner" sign --ks "$HOME/.android/debug.keystore" \
+    --ks-pass pass:android --key-pass pass:android --out artifacts/FCMGuard-release-testing-only.apk "$release_apk"
+  FCMGUARD_SMOKE_APK=artifacts/FCMGuard-release-testing-only.apk python3 tools/check_launcher_shortcut.py
+  python3 tools/check_shizuku_release.py
   python3 tools/check_quick_settings.py
 fi

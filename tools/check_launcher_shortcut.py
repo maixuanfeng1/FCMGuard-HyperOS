@@ -2,6 +2,7 @@
 """Exercise the actual launcher long-press menu on a disposable full Android emulator."""
 from pathlib import Path
 import re
+import os
 import shlex
 import subprocess
 import time
@@ -35,7 +36,7 @@ def find(labels):
 
 assert adb('shell', 'getprop', 'ro.kernel.qemu') == '1', 'Use a disposable emulator'
 try:
-    adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk')
+    adb('install', '-r', os.environ.get('FCMGUARD_SMOKE_APK', 'app/build/outputs/apk/debug/app-debug.apk'))
     installed = True
     adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
     time.sleep(1)

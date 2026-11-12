@@ -3,6 +3,10 @@ package com.reed.fcmguard;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.pm.ChangedPackages;
+import android.os.Build;
+import android.os.SystemClock;
+import java.util.concurrent.atomic.AtomicLong;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -41,7 +45,36 @@ public final class FcmAppScanner {
     }
 
     /** Include launchable apps without FCM declarations so users can inspect their chosen apps. */
-    public static List<AppEntry> scanAll(Context context) {
+    private static final AtomicLong REVISION = new AtomicLong();
+    private static long cachedRevision = -1;
+    private static int packageSequence;
+    private static long cachedAt;
+    private static String cachedLocale;
+    private static List<AppEntry> cached;
+
+    static void invalidate() { REVISION.incrementAndGet(); }
+
+    /** Cache only component/label metadata. Per-app permissions and policy are read anew on resume. */
+    public static synchronized List<AppEntry> scanAll(Context context) {
+        long revision = REVISION.get();
+        String locale = context.getResources().getConfiguration().getLocales().toLanguageTags();
+        boolean readable = false;
+        if (Build.VERSION.SDK_INT >= 26) {
+            try {
+                ChangedPackages changed = context.getPackageManager().getChangedPackages(packageSequence);
+                if (changed == null && cached != null && cachedRevision == revision && locale.equals(cachedLocale) &&
+                        SystemClock.elapsedRealtime() - cachedAt < 300000L) return cached;
+                if (changed != null) packageSequence = changed.getSequenceNumber();
+                readable = true;
+            } catch (RuntimeException ignored) { }
+        }
+        List<AppEntry> found = Collections.unmodifiableList(discoverAll(context));
+        cached = readable ? found : null;
+        cachedRevision = revision; cachedLocale = locale; cachedAt = SystemClock.elapsedRealtime();
+        return found;
+    }
+
+    private static List<AppEntry> discoverAll(Context context) {
         Map<String, AppEntry> result = new LinkedHashMap<>();
         for (AppEntry app : scan(context)) result.put(app.packageName, app);
         PackageManager pm = context.getPackageManager();
