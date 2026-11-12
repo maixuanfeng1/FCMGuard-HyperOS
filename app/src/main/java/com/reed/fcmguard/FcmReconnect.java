@@ -22,6 +22,10 @@ public final class FcmReconnect {
     private FcmReconnect() {}
 
     public static void requestHeartbeat(Context context) {
+        try {
+            context.sendBroadcast(new Intent("com.google.android.intent.action.GCM_RECONNECT")
+                    .setPackage("com.google.android.gms"));
+        } catch (RuntimeException ignored) { }
         for (String target : TARGET_PACKAGES) {
             try {
                 context.sendBroadcast(new Intent(ACTION_GTALK_HEARTBEAT).setPackage(target));

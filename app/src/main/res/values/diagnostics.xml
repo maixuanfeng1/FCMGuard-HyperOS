@@ -35,7 +35,7 @@
     <string name="all_apps">Show all apps</string>
     <string name="watched_apps">Show chosen apps</string>
     <string name="scan_apps">Refresh app checks</string>
-    <string name="apps_counts">%1$d apps scanned · %2$d declare FCM/GCM · %3$d chosen\nAutostart: %4$d enabled · %5$d disabled · %6$d partial · %7$d unknown\nApps with detected issues appear first. Tap a row for checks and settings.</string>
+    <string name="apps_counts">%1$d apps scanned · %2$d declare FCM/GCM · %3$d chosen\nAutostart in this list: %4$d enabled · %5$d disabled · %6$d partial · %7$d unknown\nApps with detected issues appear first. Tap a row for checks and settings.</string>
     <string name="no_chosen">Choose the apps whose notifications matter to you.</string>
     <string name="fcm_detected">FCM/GCM components detected</string>
     <string name="fcm_not_detected">No FCM/GCM components detected; another push channel may be used</string>
@@ -89,4 +89,5 @@
     <string name="appearance_title_v3">Appearance</string>
     <string name="manual_delivery_help">Send a message to the chosen app from another account/device. Test while unlocked, then after locking for 10–30 minutes. Record only what you actually received.</string>
 <string name="tile_setup_message">Pull down Quick Settings, choose Edit, and add FCM Guard to the visible panel. When visible, it can check again. Tap to attempt a heartbeat request and open Google diagnostics. This tile never certifies a continuous connection and does not run a foreground service.</string>
+<string name="observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
 </resources>

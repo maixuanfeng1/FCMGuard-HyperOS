@@ -34,7 +34,7 @@
     <string name="all_apps">查看全部应用</string>
     <string name="watched_apps">仅显示关注应用</string>
     <string name="scan_apps">刷新应用检查</string>
-    <string name="apps_counts">共扫描 %1$d 个应用 · %2$d 个声明 FCM/GCM · 已关注 %3$d 个\n自启动：已开启 %4$d · 未开启 %5$d · 部分开启 %6$d · 无法读取 %7$d\n检测到问题的应用优先展示，点击查看检查项和设置入口。</string>
+    <string name="apps_counts">共扫描 %1$d 个应用 · %2$d 个声明 FCM/GCM · 已关注 %3$d 个\n当前列表自启动：已开启 %4$d · 未开启 %5$d · 部分开启 %6$d · 无法读取 %7$d\n检测到问题的应用优先展示，点击查看检查项和设置入口。</string>
     <string name="no_chosen">请选择你希望及时接收通知的应用。</string>
     <string name="fcm_detected">检测到 FCM/GCM 组件</string>
     <string name="fcm_not_detected">未检测到 FCM/GCM 组件；可能使用其他推送通道</string>
@@ -88,4 +88,5 @@
     <string name="appearance_title_v3">外观</string>
     <string name="manual_delivery_help">从另一账号／设备向目标应用发送真实消息，分别测试亮屏和锁屏待机 10–30 分钟后的收信。只记录实际收到的结果。</string>
 <string name="tile_setup_message">下拉快捷面板，进入编辑，将 FCM Guard 添加到可见位置。磁贴显示时可重新检查；点击尝试请求心跳并打开 Google 诊断。磁贴不表示持续连接，也不运行前台服务。</string>
+<string name="observer_unavailable">部分变化无法自动监听，请返回首页或点击刷新重新检查。</string>
 </resources>

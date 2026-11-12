@@ -129,6 +129,7 @@ public class MainActivity extends AppCompatActivity {
                 getString(R.string.last_check, time(PushRuntime.checkedAt)) + "\n" + getString(PushRuntime.gmsAvailable == null ? R.string.network_none : PushRuntime.gmsAvailable ? R.string.gms_present : R.string.gms_missing));
         int evidence = "observed".equals(PushRuntime.socket) ? R.string.socket_observed : "not_observed".equals(PushRuntime.socket) ? R.string.socket_absent : R.string.socket_unknown;
         String extra = DiagnosticPreferences.enhanced(this) ? getString(R.string.helper_evidence, getString(evidence)) : "";
+        if (PushRuntime.monitorError != null) extra += "\n" + getString(R.string.observer_unavailable);
         long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
         if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
         set(R.id.evidenceText, extra.trim());
