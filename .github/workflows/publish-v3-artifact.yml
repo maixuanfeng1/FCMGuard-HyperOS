@@ -1,0 +1,50 @@
+name: Publish verified v3.0.1 APK
+
+on:
+  push:
+    branches: [release/v3.0.1-assets]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '16111833'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'build-tools;37.0.0'
+      - name: Verify exact signed release artifact
+        working-directory: release-assets/v3.0.1
+        run: |
+          echo 'a684cadbc052ac9554163bcd1ec7157e12f4dc3399463b782a34aa23219f3f3e  FCMGuard-HyperOS.apk' | sha256sum --check
+          python3 ../../tools/check_apk_abi.py FCMGuard-HyperOS.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs FCMGuard-HyperOS.apk | tee certificate.txt
+          grep -F 'c61a0648bfc46534632dc1bc03f1a3379d4ea133c3d5236ac4e31dd92b5b1836' certificate.txt
+          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging FCMGuard-HyperOS.apk > package.txt
+          grep -F "versionName='3.0.1'" package.txt
+          unzip -p FCMGuard-HyperOS.apk META-INF/version-control-info.textproto | grep -F cc654fc1e18fd6ff43d4ac5f92641059ef761435
+          grep -F "versionCode='37'" package.txt
+          grep -F "targetSdkVersion:'37'" package.txt
+          if grep -q 'application-debuggable' package.txt; then
+            echo 'Refusing to publish a debuggable APK' >&2
+            exit 1
+          fi
+      - name: Publish single signed APK
+        working-directory: release-assets/v3.0.1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v3.0.1 FCMGuard-HyperOS.apk \
+            --target cc654fc1e18fd6ff43d4ac5f92641059ef761435 \
+            --title 'FCM Guard v3.0.1 · Shizuku 授权状态与连接检查修复' \
+            --notes-file notes.md --latest
