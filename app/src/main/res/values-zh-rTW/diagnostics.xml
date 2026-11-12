@@ -24,7 +24,6 @@
     <string name="helper_evidence">可选 Shizuku 检查：%1$s</string>
     <string name="socket_observed">检测到 GMS 在标准推送端口的已建立连接。这是网络连接证据，不等于诊断页结论。</string>
     <string name="socket_absent">未检测到带 GMS 身份的标准端口连接；也可能使用其他端口或信息不可见。</string>
-    <string name="socket_unknown">不可用／未授权</string>
     <string name="request_note">请求可能被系统忽略，请在诊断页确认结果；每分钟最多尝试一次。</string>
     <string name="request_time">上次请求尝试：%1$s</string>
     <string name="network_settings">网络设置</string>
@@ -89,4 +88,21 @@
     <string name="manual_delivery_help">从另一账号／设备向目标应用发送真实消息，分别测试亮屏和锁屏待机 10–30 分钟后的收信。只记录实际收到的结果。</string>
 <string name="tile_setup_message">下拉快捷面板，進入編輯，將 FCM Guard 加入可見位置。磁貼顯示時可重新檢查；點擊嘗試請求心跳並開啟 Google 診斷。磁貼不表示持續連線，也不執行前景服務。</string>
 <string name="diagnostic_observer_unavailable">部分變化無法自動監聽，請返回首頁或點擊重新整理再次檢查。</string>
+    <string name="helper_access_status">Shizuku：%1$s</string>
+    <string name="helper_bits_unknown">尚未读取</string>
+    <string name="enhanced_ready">已授权，辅助进程已连接</string>
+    <string name="enhanced_connecting">已授权，辅助进程连接中</string>
+    <string name="enhanced_not_running">服务未运行</string>
+    <string name="enhanced_needs_grant">需要授权</string>
+    <string name="enhanced_disabled">增强检查已关闭</string>
+    <string name="enhanced_checking">正在读取连接信息…</string>
+    <string name="enhanced_not_checked">等待读取连接信息</string>
+    <string name="enhanced_restricted">已授权，但系统限制了连接信息读取，无法确认 FCM 状态。</string>
+    <string name="enhanced_command_unsupported">当前系统不支持此连接查询命令。</string>
+    <string name="enhanced_format_unsupported">当前系统返回的连接信息格式暂不支持。</string>
+    <string name="enhanced_owners_hidden">系统未提供连接所属应用，无法判断是否为 GMS。</string>
+    <string name="enhanced_timeout">连接信息读取超时，请重试。</string>
+    <string name="enhanced_read_failed">辅助进程已连接，但本次读取失败，请重试。</string>
+    <string name="enhanced_no_data">已授权，但系统未提供可用的连接信息。</string>
+    <string name="enhanced_checked_at">连接信息检查时间：%1$s</string>
 </resources>

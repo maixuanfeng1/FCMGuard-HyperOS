@@ -14,6 +14,10 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 4. Open the exact selected app's notification, battery or app-details settings. Record manual checks separately, including a real message received after locking the phone. App updates invalidate app-specific confirmation records. Retest after settings/network changes.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. The tile never lights up as proof of a continuous FCM connection.
 
+## Version 3.0.1
+
+Authorization, helper readiness and socket-query results are displayed independently. An authorized helper with restricted or unsupported socket access is not called unauthorized. Checks refresh immediately after binding and independently of the network probe; replies from a disabled or replaced helper are discarded. The socket query uses kernel UID metadata without process-name scanning.
+
 ## Optional Shizuku
 
 Off by default, even after upgrading an older authorized installation. Enabling it explicitly allows fixed, read-only helper operations: read the system projection and look for GMS-UID-attributed established sockets on standard push ports. An observed socket is transport evidence, not Diagnostics Connected. Absence is inconclusive because ports/visibility vary. No arbitrary command or settings-write interface is exposed.

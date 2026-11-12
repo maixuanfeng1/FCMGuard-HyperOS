@@ -10,8 +10,8 @@ public final class GuardApplication extends Application {
         // Upgrades retire the old whitelist-repair service and its notification.
         getSystemService(android.app.NotificationManager.class).cancel(426);
         ShizukuBridge.addListener(() -> {
-            if (!ShizukuBridge.isReady()) { PushRuntime.socket = "unavailable"; PushRuntime.helperBits = 0; }
-            PushRuntime.check(this, false);
+            EnhancedRuntime.invalidate(this);
+            PushRuntime.refresh(this);
         });
     }
 }

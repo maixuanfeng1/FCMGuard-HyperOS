@@ -25,7 +25,6 @@
     <string name="helper_evidence">Optional Shizuku evidence: %1$s</string>
     <string name="socket_observed">An established GMS socket on a standard push port was observed. This is transport evidence, not a Diagnostics verdict.</string>
     <string name="socket_absent">No UID-attributed standard-port socket observed; the connection may use another port or be hidden.</string>
-    <string name="socket_unknown">Unavailable / not authorized</string>
     <string name="request_note">Requests may be ignored. Confirm the result in diagnostics. Limited to once per minute.</string>
     <string name="request_time">Last request attempt: %1$s</string>
     <string name="network_settings">Network settings</string>
@@ -90,4 +89,21 @@
     <string name="manual_delivery_help">Send a message to the chosen app from another account/device. Test while unlocked, then after locking for 10–30 minutes. Record only what you actually received.</string>
 <string name="tile_setup_message">Pull down Quick Settings, choose Edit, and add FCM Guard to the visible panel. When visible, it can check again. Tap to attempt a heartbeat request and open Google diagnostics. This tile never certifies a continuous connection and does not run a foreground service.</string>
 <string name="diagnostic_observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
+    <string name="helper_access_status">Shizuku: %1$s</string>
+    <string name="helper_bits_unknown">Not read yet</string>
+    <string name="enhanced_ready">Authorized; helper connected</string>
+    <string name="enhanced_connecting">Authorized; connecting helper</string>
+    <string name="enhanced_not_running">Service not running</string>
+    <string name="enhanced_needs_grant">Authorization required</string>
+    <string name="enhanced_disabled">Enhanced checks off</string>
+    <string name="enhanced_checking">Reading connection information…</string>
+    <string name="enhanced_not_checked">Waiting to read connection information</string>
+    <string name="enhanced_restricted">Authorized, but the system restricts reading connection information. FCM status cannot be confirmed.</string>
+    <string name="enhanced_command_unsupported">This system does not support the connection query command.</string>
+    <string name="enhanced_format_unsupported">The connection information format is not supported on this system.</string>
+    <string name="enhanced_owners_hidden">The system hides connection ownership; GMS connections cannot be identified.</string>
+    <string name="enhanced_timeout">Connection information timed out. Try checking again.</string>
+    <string name="enhanced_read_failed">The helper is connected, but this query failed. Try checking again.</string>
+    <string name="enhanced_no_data">Authorized, but the system did not provide usable connection information.</string>
+    <string name="enhanced_checked_at">Connection information checked: %1$s</string>
 </resources>

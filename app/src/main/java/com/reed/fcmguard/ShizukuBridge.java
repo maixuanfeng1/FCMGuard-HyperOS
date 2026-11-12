@@ -107,6 +107,18 @@ public final class ShizukuBridge {
         return isAuthorized() && current != null && current.asBinder().pingBinder();
     }
 
+    static IBinder sessionBinder() {
+        ISettingsService current = service;
+        return current == null ? null : current.asBinder();
+    }
+
+    static EnhancedStatus.Access accessState(Context context) {
+        if (!DiagnosticPreferences.enhanced(context)) return EnhancedStatus.Access.DISABLED;
+        if (!isRunning()) return EnhancedStatus.Access.NOT_RUNNING;
+        if (!isAuthorized()) return EnhancedStatus.Access.NOT_AUTHORIZED;
+        return isReady() ? EnhancedStatus.Access.READY : EnhancedStatus.Access.CONNECTING;
+    }
+
     public static void connect() {
         if (app == null || !DiagnosticPreferences.enhanced(app) || !isAuthorized() || isReady() || binding) return;
         binding = true;

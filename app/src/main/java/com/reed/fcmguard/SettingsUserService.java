@@ -29,12 +29,23 @@ public final class SettingsUserService extends ISettingsService.Stub {
         try {
             String packages = run("/system/bin/cmd", "package", "list", "packages", "-U",
                     "--user", Integer.toString(userId), "com.google.android.gms");
+            EnhancedStatus.Result denied = SocketEvidence.commandFailure(packages);
+            if (denied != null) return denied.name();
             java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
                     "(?m)^package:com\\.google\\.android\\.gms uid:(\\d+)\\s*$").matcher(packages);
-            if (!matcher.find()) return "unavailable";
+            if (!matcher.find()) return (packages.contains("package:com.google.android.gms")
+                    ? EnhancedStatus.Result.FORMAT_UNSUPPORTED : EnhancedStatus.Result.GMS_MISSING).name();
             int uid = Integer.parseInt(matcher.group(1));
-            return SocketEvidence.classify(run("/system/bin/ss", "-tnpe"), uid);
-        } catch (RuntimeException e) { return "unavailable"; }
+            // -e supplies kernel UIDs. -p needlessly scans other processes' file
+            // descriptors and may fail on modern Android despite Shizuku authorization.
+            return SocketEvidence.classify(run("/system/bin/ss", "-tne"), uid);
+        } catch (CommandFailure e) { return e.result.name(); }
+        catch (RuntimeException e) { return EnhancedStatus.Result.READ_FAILED.name(); }
+    }
+
+    private static final class CommandFailure extends IllegalStateException {
+        final EnhancedStatus.Result result;
+        CommandFailure(EnhancedStatus.Result result) { super(result.name()); this.result = result; }
     }
 
     private static String run(String... command) {
@@ -44,12 +55,13 @@ public final class SettingsUserService extends ISettingsService.Stub {
             final InputStream input = process.getInputStream();
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             CountDownLatch drained = new CountDownLatch(1);
+            java.util.concurrent.atomic.AtomicBoolean truncated = new java.util.concurrent.atomic.AtomicBoolean();
             Thread reader = new Thread(() -> {
                 try (InputStream stream = input) {
                     byte[] buffer = new byte[1024];
                     int count;
                     while ((count = stream.read(buffer)) != -1) {
-                        if (output.size() + count > 65536) break;
+                        if (output.size() + count > 65536) { truncated.set(true); break; }
                         output.write(buffer, 0, count);
                     }
                 } catch (java.io.IOException ignored) {
@@ -63,12 +75,16 @@ public final class SettingsUserService extends ISettingsService.Stub {
             while (true) {
                 try {
                     int exit = process.exitValue();
-                    if (!drained.await(1, TimeUnit.SECONDS)) throw new IllegalStateException("Output timeout");
+                    if (!drained.await(1, TimeUnit.SECONDS)) throw new CommandFailure(EnhancedStatus.Result.TIMEOUT);
                     String result = new String(output.toByteArray(), StandardCharsets.UTF_8);
-                    if (exit != 0) throw new IllegalStateException("Settings command rejected");
+                    if (truncated.get()) throw new CommandFailure(EnhancedStatus.Result.READ_FAILED);
+                    if (exit != 0) {
+                        EnhancedStatus.Result reason = SocketEvidence.commandFailure(result);
+                        throw new CommandFailure(reason == null ? EnhancedStatus.Result.READ_FAILED : reason);
+                    }
                     return result;
                 } catch (IllegalThreadStateException running) {
-                    if (SystemClock.elapsedRealtime() >= deadline) throw new IllegalStateException("Settings timeout");
+                    if (SystemClock.elapsedRealtime() >= deadline) throw new CommandFailure(EnhancedStatus.Result.TIMEOUT);
                     Thread.sleep(20);
                 }
             }
@@ -76,7 +92,7 @@ public final class SettingsUserService extends ISettingsService.Stub {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Settings operation interrupted", e);
         } catch (java.io.IOException e) {
-            throw new IllegalStateException("Cannot execute settings", e);
+            throw new CommandFailure(EnhancedStatus.Result.COMMAND_UNSUPPORTED);
         } finally {
             if (process != null) process.destroy();
         }

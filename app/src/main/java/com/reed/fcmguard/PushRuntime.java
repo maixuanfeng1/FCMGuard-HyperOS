@@ -18,14 +18,14 @@ final class PushRuntime {
     private static volatile int networkRevision;
     private static SettingsChangeMonitor observer;
     private static ConnectivityManager.NetworkCallback callback;
-    static volatile String whitelist, socket = "unavailable", monitorError;
+    static volatile String whitelist, monitorError;
     static volatile NetworkProbe.State network = NetworkProbe.State.NOT_CHECKED;
     static volatile long checkedAt;
     static volatile Boolean gmsAvailable;
-    static volatile int helperBits;
     static void add(Runnable listener) { LISTENERS.add(listener); }
     static void remove(Runnable listener) { LISTENERS.remove(listener); }
     private static void changed() { MAIN.post(() -> { for (Runnable listener : LISTENERS) listener.run(); }); }
+    static void signal() { changed(); }
     static synchronized void start(Context context) {
         Context c = context.getApplicationContext();
         if (!initialized) {
@@ -43,11 +43,13 @@ final class PushRuntime {
                             if (now.equals(last)) return;
                             last = now;
                             networkRevision++;
+                            EnhancedRuntime.invalidate(c);
                             DiagnosticPreferences.invalidateReport(c);
                             MAIN.post(() -> check(c, false));
                         }
                         @Override public void onLost(Network net) {
                             networkRevision++;
+                            EnhancedRuntime.invalidate(c);
                             DiagnosticPreferences.invalidateReport(c);
                             network = NetworkProbe.State.OFFLINE; changed();
                         }
@@ -68,6 +70,7 @@ final class PushRuntime {
         });
     }
     static synchronized boolean check(Context context, boolean requestRecovery) {
+        EnhancedRuntime.request(context);
         if (busy) {
             pendingCheck = true;
             pendingRecovery |= requestRecovery;
@@ -86,14 +89,9 @@ final class PushRuntime {
                     DiagnosticPreferences.prefs(c).edit().putLong("request_time", System.currentTimeMillis()).apply();
                 }
                 network = NetworkProbe.check(c);
-                socket = "unavailable"; helperBits = 0;
-                if (DiagnosticPreferences.enhanced(c) && ShizukuBridge.isReady()) {
-                    try { socket = ShizukuBridge.socketEvidence(); helperBits = ShizukuBridge.runtimeBitness(); }
-                    catch (Exception ignored) { }
-                }
                 checkedAt = System.currentTimeMillis();
             } finally {
-                if (revision != networkRevision) { network = NetworkProbe.State.NOT_CHECKED; socket = "unavailable"; }
+                if (revision != networkRevision) { network = NetworkProbe.State.NOT_CHECKED; }
                 boolean again, recovery;
                 synchronized (PushRuntime.class) {
                     busy = false; again = pendingCheck || revision != networkRevision; recovery = pendingRecovery;

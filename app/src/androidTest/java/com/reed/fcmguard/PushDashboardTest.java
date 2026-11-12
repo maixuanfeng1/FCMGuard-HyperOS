@@ -43,7 +43,7 @@ public class PushDashboardTest {
   });
  }
  @Test public void reachableNetworkAndSocketNeverClaimDiagnosticsConnected() {
-  PushRuntime.network = NetworkProbe.State.REACHABLE; PushRuntime.socket = "observed";
+  PushRuntime.network = NetworkProbe.State.REACHABLE;
   in.runOnMainSync(() -> {
    activity.renderConnection();
    assertEquals(c.getString(R.string.connection_unknown), ((TextView)activity.findViewById(R.id.statusHeadline)).getText().toString());
@@ -108,6 +108,39 @@ public class PushDashboardTest {
    TextView first = (TextView)((LinearLayout)container.getChildAt(0)).getChildAt(0);
    assertEquals(com.google.android.material.color.MaterialColors.getColor(first, androidx.appcompat.R.attr.colorError), first.getCurrentTextColor());
    assertTrue(((TextView)activity.findViewById(R.id.fcmAppsStatusText)).getText().toString().contains("4"));
+  });
+ }
+ @Test public void authorizedButSystemRestrictedNeverReportsMissingGrant() throws Exception {
+  in.runOnMainSync(() -> {
+   MaterialSwitch toggle = activity.findViewById(R.id.enhancedSwitch);
+   toggle.setOnCheckedChangeListener(null); toggle.setChecked(true);
+   activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,
+       EnhancedStatus.Result.SYSTEM_RESTRICTED, 64, 1234567890000L));
+   String top = ((TextView)activity.findViewById(R.id.evidenceText)).getText().toString();
+   String bottom = ((TextView)activity.findViewById(R.id.helperText)).getText().toString();
+   assertTrue(top.contains(c.getString(R.string.enhanced_ready)));
+   assertTrue(bottom.contains(c.getString(R.string.enhanced_ready)));
+   assertTrue(top.contains(c.getString(R.string.enhanced_restricted)));
+   assertFalse(top.contains(c.getString(R.string.enhanced_needs_grant)));
+   assertTrue(((TextView)activity.findViewById(R.id.runtimeInfoText)).getText().toString().contains("64"));
+  });
+ }
+ @Test public void authorizedConnectingHelperDoesNotAskForGrantAgain() {
+  in.runOnMainSync(() -> {
+   activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
+       EnhancedStatus.Result.NOT_CHECKED, 0, 0));
+   assertTrue(((TextView)activity.findViewById(R.id.evidenceText)).getText().toString().contains(c.getString(R.string.enhanced_connecting)));
+   assertFalse(((TextView)activity.findViewById(R.id.evidenceText)).getText().toString().contains(c.getString(R.string.enhanced_needs_grant)));
+  });
+ }
+ @Test public void lostGrantHidesFormerConnectionEvidence() {
+  in.runOnMainSync(() -> {
+   activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.NOT_AUTHORIZED,
+       EnhancedStatus.Result.OBSERVED, 64, 1234567890000L));
+   String top = ((TextView)activity.findViewById(R.id.evidenceText)).getText().toString();
+   assertTrue(top.contains(c.getString(R.string.enhanced_needs_grant)));
+   assertFalse(top.contains(c.getString(R.string.socket_observed)));
+   assertTrue(((TextView)activity.findViewById(R.id.runtimeInfoText)).getText().toString().contains(c.getString(R.string.helper_bits_unknown)));
   });
  }
  static void awaitApps(MainActivity a) {

@@ -10,7 +10,7 @@ public final class ShellSettingsProbe {
    if (args.length > 0 && bits != 64) throw new AssertionError("Expected 64-bit helper");
    service.readWhitelist(0);
    String evidence = service.fcmSocketEvidence(0);
-   if (!java.util.Arrays.asList("observed", "not_observed", "unavailable").contains(evidence)) throw new AssertionError(evidence);
+   EnhancedStatus.Result.valueOf(evidence);
    try { service.readWhitelist(-1); throw new AssertionError("Invalid user accepted"); }
    catch (IllegalArgumentException expected) { }
    System.out.println("SHELL_SETTINGS_OK uid=" + Process.myUid() + " bitness=" + bits + " readOnly=true socketEvidence=" + evidence);

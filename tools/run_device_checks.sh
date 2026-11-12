@@ -52,7 +52,7 @@ for report in reports:
     tests += int(root.get('tests', '0'))
     for attribute in ('failures', 'errors', 'skipped'):
         assert int(root.get(attribute, '0')) == 0, f'{report}: {attribute}={root.get(attribute)}'
-assert tests >= 20, f'Expected the full device suite; only {tests} tests ran'
+assert tests >= 23, f'Expected the full device suite; only {tests} tests ran'
 print(f'Verified {tests} device tests passed')
 PY
 adb pull /sdcard/Download/FCMGuard/. artifacts/screenshots/

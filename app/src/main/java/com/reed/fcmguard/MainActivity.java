@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
         enhanced.setChecked(DiagnosticPreferences.enhanced(this));
         enhanced.setOnCheckedChangeListener((v, checked) -> {
             DiagnosticPreferences.enhanced(this, checked);
-            PushRuntime.socket = "unavailable"; PushRuntime.helperBits = 0;
+            EnhancedRuntime.invalidate(this);
             if (checked) authorize(); else ShizukuBridge.disable();
             renderConnection();
         });
@@ -103,6 +103,7 @@ public class MainActivity extends AppCompatActivity {
         bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this)); bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
         PushRuntime.refresh(this); refreshApps();
         if (DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
+        EnhancedRuntime.request(this);
         if (DiagnosticPreferences.prefs(this).getBoolean("awaiting_report", false)) {
             DiagnosticPreferences.prefs(this).edit().remove("awaiting_report").apply();
             findViewById(R.id.reportBtn).post(this::recordResult);
@@ -132,18 +133,51 @@ public class MainActivity extends AppCompatActivity {
                 PushRuntime.network == NetworkProbe.State.NOT_CHECKED ? R.string.network_none : R.string.network_unknown;
         set(R.id.networkText, (PushRuntime.busy() ? getString(R.string.checking) + "\n" : "") + getString(network) + "\n" +
                 getString(R.string.last_check, time(PushRuntime.checkedAt)) + "\n" + getString(PushRuntime.gmsAvailable == null ? R.string.network_none : PushRuntime.gmsAvailable ? R.string.gms_present : R.string.gms_missing));
-        int evidence = "observed".equals(PushRuntime.socket) ? R.string.socket_observed : "not_observed".equals(PushRuntime.socket) ? R.string.socket_absent : R.string.socket_unknown;
-        String extra = DiagnosticPreferences.enhanced(this) ? getString(R.string.helper_evidence, getString(evidence)) : "";
+        renderEnhanced(EnhancedRuntime.snapshot(this));
+        set(R.id.currentValueText, SettingsGuard.KEY + "\n\n" + (PushRuntime.whitelist == null ? getString(R.string.raw_unavailable) :
+                PushRuntime.whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : PushRuntime.whitelist.replace(",", "\n")));
+    }
+    void renderEnhanced(EnhancedStatus.Snapshot status) {
+        String access = getString(accessLabel(status.access));
+        String extra = status.access == EnhancedStatus.Access.DISABLED ? "" : getString(R.string.helper_evidence, access);
+        if (status.access == EnhancedStatus.Access.READY) {
+            extra += "\n" + getString(resultLabel(status.result));
+            if (status.checkedAt > 0) extra += "\n" + getString(R.string.enhanced_checked_at, time(status.checkedAt));
+        }
         if (PushRuntime.monitorError != null) extra += "\n" + getString(R.string.diagnostic_observer_unavailable);
         long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
         if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
         set(R.id.evidenceText, extra.trim());
-        findViewById(R.id.permissionBtn).setVisibility(DiagnosticPreferences.enhanced(this) ? View.VISIBLE : View.GONE);
-        set(R.id.helperText, getString(DiagnosticPreferences.enhanced(this) ? ShizukuBridge.statusText() : R.string.optional_disabled));
+        findViewById(R.id.permissionBtn).setVisibility(status.access == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
+        set(R.id.helperText, getString(R.string.helper_access_status, access));
+        int bits = status.access == EnhancedStatus.Access.READY ? status.bits : 0;
         set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
-                PushRuntime.helperBits == 0 ? getString(R.string.socket_unknown) : Integer.toString(PushRuntime.helperBits)));
-        set(R.id.currentValueText, SettingsGuard.KEY + "\n\n" + (PushRuntime.whitelist == null ? getString(R.string.raw_unavailable) :
-                PushRuntime.whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : PushRuntime.whitelist.replace(",", "\n")));
+                bits == 0 ? getString(R.string.helper_bits_unknown) : Integer.toString(bits)));
+    }
+    private int accessLabel(EnhancedStatus.Access access) {
+        switch (access) {
+            case READY: return R.string.enhanced_ready;
+            case CONNECTING: return R.string.enhanced_connecting;
+            case NOT_RUNNING: return R.string.enhanced_not_running;
+            case NOT_AUTHORIZED: return R.string.enhanced_needs_grant;
+            default: return R.string.enhanced_disabled;
+        }
+    }
+    private int resultLabel(EnhancedStatus.Result result) {
+        switch (result) {
+            case CHECKING: return R.string.enhanced_checking;
+            case OBSERVED: return R.string.socket_observed;
+            case NOT_OBSERVED: return R.string.socket_absent;
+            case SYSTEM_RESTRICTED: return R.string.enhanced_restricted;
+            case COMMAND_UNSUPPORTED: return R.string.enhanced_command_unsupported;
+            case FORMAT_UNSUPPORTED: return R.string.enhanced_format_unsupported;
+            case OWNERS_HIDDEN: return R.string.enhanced_owners_hidden;
+            case GMS_MISSING: return R.string.gms_missing;
+            case TIMEOUT: return R.string.enhanced_timeout;
+            case READ_FAILED: return R.string.enhanced_read_failed;
+            case NO_DATA: return R.string.enhanced_no_data;
+            default: return R.string.enhanced_not_checked;
+        }
     }
     private void recordResult() {
         if (isFinishing() || isDestroyed()) return;

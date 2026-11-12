@@ -42,7 +42,7 @@ Before claiming a physical-device result, verify on Android 17 / HyperOS 4:
 
 1. Start without Shizuku, including upgrading an old authorized installation. No permission prompt, foreground service, notification or settings write should occur.
 2. Change a target app’s battery policy in system settings; system-list membership should refresh if the ROM exports the setting/events. A read/observer failure remains unknown.
-3. Confirm optional Shizuku can connect only when explicitly enabled, reports read-only socket evidence or unavailable accurately, and stops its helper when disabled.
+3. Confirm optional Shizuku can connect only when explicitly enabled, reports read-only socket evidence or a specific unavailability reason accurately, and stops its helper when disabled. Authorization and query outcome must agree in both dashboard sections: a restricted query with an authorized 64-bit helper must never claim missing authorization. Disable/reconnect during a query to verify that stale replies are discarded.
 4. Compare diagnostics observations and timestamps; never infer Diagnostics Connected from network reachability, an existing socket or a heartbeat request. Changing networks invalidates the manual observation.
 5. Check each exact-app settings route. Vendor routes may fail and must fall back to the same app’s Android details, not a broad application list.
 6. Review notification master switches/channels, app-internal mute rules and lock state. Manual confirmation records remain explicitly manual and invalidate after app updates.
