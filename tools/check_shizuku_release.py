@@ -83,7 +83,7 @@ try:
     while time.monotonic() < deadline:
         current = nodes()
         allow = next((n for n in current if n.get('package') == MANAGER and
-                      n.get('text', '').lower().startswith('allow')), None)
+                      n.get('text') == 'Allow all the time' and n.get('clickable') == 'true'), None)
         if allow is not None:
             tap(allow)
             allowed = True
