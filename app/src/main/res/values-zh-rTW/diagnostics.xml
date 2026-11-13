@@ -53,8 +53,8 @@
     <string name="settings_title">檢查方式與偏好設定</string>
     <string name="observe_events">隨系統清單和網路變化重新整理</string>
     <string name="observe_note">沒有常駐通知或定時喚醒。程序無法執行時檢查會暫停，可透過圖塊喚醒。</string>
-    <string name="enhanced_title">選用 Shizuku 增強檢查</string>
-    <string name="enhanced_note">預設關閉。唯讀 GMS 目前狀態。若希望停止透過 ADB 啟動的 Shizuku、關閉偵錯後仍可檢查，請先完成上方的獨立診斷授權。</string>
+    <string name="enhanced_title">備用 Shizuku 檢查</string>
+    <string name="enhanced_note">僅在獨立診斷權限無法使用時備用。獨立授權就緒後，此模式自動關閉並隱藏。一次性授權入口會依需要暫時連線至輔助程序。</string>
     <string name="authorize_optional">授權 Shizuku</string>
     <string name="raw_list_title">查看系統無限制清單（唯讀）</string>
     <string name="raw_unavailable">系統設定不存在或無法讀取</string>
@@ -119,4 +119,5 @@
     <string name="shizuku_grant_confirm">授予診斷權限</string>
     <string name="shizuku_grant_success">已驗證獨立診斷權限，可以停止 Shizuku 並關閉偵錯，再查看首頁和磁貼。</string>
     <string name="shizuku_grant_failed">未能完整授予診斷權限。請保持偵錯開啟，檢查 Shizuku 後重試；系統可能限制授權，也可使用下方手動 ADB 指令。</string>
+    <string name="advanced_options">進階選項</string>
 </resources>

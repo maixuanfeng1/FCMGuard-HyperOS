@@ -54,8 +54,8 @@
     <string name="settings_title">Checks and preferences</string>
     <string name="observe_events">Refresh on system-list and network changes</string>
     <string name="observe_note">No persistent notification or scheduled wakeups. Checks pause when the process cannot run; use the tile to resume.</string>
-    <string name="enhanced_title">Optional Shizuku evidence</string>
-    <string name="enhanced_note">Off by default. Reads current GMS state. To keep checks available after stopping ADB-started Shizuku or turning off debugging, first grant app diagnostic access above.</string>
+    <string name="enhanced_title">Backup Shizuku checks</string>
+    <string name="enhanced_note">Optional fallback for devices without app diagnostic access. Independent authorization disables and hides this mode. The one-time grant action connects the helper temporarily.</string>
     <string name="authorize_optional">Authorize Shizuku</string>
 <string name="raw_list_title">View system no-restrictions list (read-only)</string>
     <string name="raw_unavailable">The system setting is absent or cannot be read</string>
@@ -120,4 +120,5 @@
     <string name="shizuku_grant_confirm">Grant diagnostic access</string>
     <string name="shizuku_grant_success">App diagnostic access verified. Shizuku and debugging no longer need to stay on for these reads.</string>
     <string name="shizuku_grant_failed">Diagnostic access is incomplete. Keep debugging enabled and retry after checking Shizuku. The system may restrict permission grants; manual ADB commands are available below.</string>
+    <string name="advanced_options">Advanced options</string>
 </resources>

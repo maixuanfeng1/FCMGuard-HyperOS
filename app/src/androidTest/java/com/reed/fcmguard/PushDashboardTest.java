@@ -39,8 +39,27 @@ public class PushDashboardTest {
   in.runOnMainSync(() -> {
    assertEquals(View.GONE, activity.ui(R.id.permissionBtn).getVisibility());
    assertFalse(((MaterialSwitch)activity.ui(R.id.enhancedSwitch)).isChecked());
+   assertEquals(View.GONE,activity.ui(R.id.advancedContent).getVisibility());
+   assertFalse(activity.ui(R.id.enhancedSwitch).isShown());
+   assertFalse(activity.ui(R.id.helperText).isShown());
    assertNotNull(activity.ui(R.id.chooseAppsBtn));
   });
+ }
+ @Test public void completedAndInterruptedSetupRetireLegacyModeWithoutLosingPreferences() {
+  Set<String> chosen=new HashSet<>(Arrays.asList("com.example.chat"));
+  DiagnosticPreferences.selected(c,chosen);
+  DiagnosticPreferences.enhanced(c,true);
+  DiagnosticPreferences.retireUnneededShizuku(c,true);
+  assertFalse(DiagnosticPreferences.enhanced(c));
+  assertEquals(chosen,DiagnosticPreferences.selected(c));
+  DiagnosticPreferences.enhanced(c,true);
+  DiagnosticPreferences.prefs(c).edit().putBoolean("shizuku_temporary_setup",true).commit();
+  DiagnosticPreferences.retireUnneededShizuku(c,false);
+  assertFalse(DiagnosticPreferences.enhanced(c));
+  assertFalse(DiagnosticPreferences.prefs(c).contains("shizuku_temporary_setup"));
+  DiagnosticPreferences.enhanced(c,true);
+  DiagnosticPreferences.retireUnneededShizuku(c,false);
+  assertTrue("An explicitly selected backup remains available without independent access",DiagnosticPreferences.enhanced(c));
  }
  @Test public void reachableNetworkNeverClaimsDiagnosticsConnected() {
   PushRuntime.network = NetworkProbe.State.REACHABLE;

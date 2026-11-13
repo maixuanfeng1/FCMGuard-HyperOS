@@ -34,6 +34,10 @@ public class MainActivity extends AppCompatActivity {
     private volatile boolean scanning;
     private boolean scanPending;
     private boolean grantingDiagnosticAccess;
+    private boolean temporaryShizukuSetup;
+    private final Runnable setupTimeout = () -> {
+        if (!grantingDiagnosticAccess) finishShizukuSetup(false);
+    };
     private String lastWhitelist;
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
     private final Runnable connectionRefresh = new Runnable() {
@@ -162,7 +166,12 @@ public class MainActivity extends AppCompatActivity {
         state.putParcelable("list_state", restoredListState != null ? restoredListState : list.getLayoutManager().onSaveInstanceState());
         super.onSaveInstanceState(state);
     }
-    @Override protected void onDestroy() { connectionHandler.removeCallbacks(connectionRefresh); PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy(); }
+    @Override protected void onDestroy() {
+        finishShizukuSetup(false);
+        connectionHandler.removeCallbacks(setupTimeout);
+        connectionHandler.removeCallbacks(connectionRefresh);
+        PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy();
+    }
     private void authorize() {
         if (ShizukuBridge.isRunning()) ShizukuBridge.requestPermission();
         else message(getString(R.string.no_auth_service));
@@ -223,11 +232,14 @@ public class MainActivity extends AppCompatActivity {
         permission.setEnabled(helperAccess != EnhancedStatus.Access.READY && !connecting);
         set(R.id.helperText, getString(R.string.helper_access_status, getString(accessLabel(helperAccess))));
         boolean ownAccess = DirectGmsAccess.isReady(this);
+        ui(R.id.shizukuAdvancedContent).setVisibility(ownAccess ? View.GONE : View.VISIBLE);
         set(R.id.directGrantText, getString(ownAccess ? R.string.direct_grant_ready : R.string.direct_grant_missing));
         MaterialButton grant = ui(R.id.shizukuGrantBtn);
+        boolean preparing = temporaryShizukuSetup && ShizukuBridge.isConnecting();
         grant.setText(ownAccess ? R.string.shizuku_grant_done :
-                grantingDiagnosticAccess ? R.string.shizuku_grant_working : R.string.shizuku_grant_title);
-        grant.setEnabled(!ownAccess && !grantingDiagnosticAccess);
+                grantingDiagnosticAccess ? R.string.shizuku_grant_working :
+                preparing ? R.string.shizuku_connecting : R.string.shizuku_grant_title);
+        grant.setEnabled(!ownAccess && !grantingDiagnosticAccess && !preparing);
         int bits = !direct && status.access == EnhancedStatus.Access.READY ? status.bits : 0;
         set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
                 bits == 0 ? getString(R.string.helper_bits_unknown) : Integer.toString(bits)));
@@ -236,6 +248,10 @@ public class MainActivity extends AppCompatActivity {
         if (grantingDiagnosticAccess || DirectGmsAccess.isReady(this)) return;
         if (!ShizukuBridge.isRunning()) { openShizuku(); return; }
         if (!DiagnosticPreferences.enhanced(this)) {
+            temporaryShizukuSetup = true;
+            DiagnosticPreferences.prefs(this).edit().putBoolean("shizuku_temporary_setup", true).apply();
+            connectionHandler.removeCallbacks(setupTimeout);
+            connectionHandler.postDelayed(setupTimeout, 120000L);
             ((MaterialSwitch) ui(R.id.enhancedSwitch)).setChecked(true);
             message(getString(R.string.shizuku_grant_connect_first)); return;
         }
@@ -245,7 +261,20 @@ public class MainActivity extends AppCompatActivity {
         new MaterialAlertDialogBuilder(this).setTitle(R.string.shizuku_grant_title)
                 .setMessage(R.string.shizuku_grant_consent)
                 .setPositiveButton(R.string.shizuku_grant_confirm, (dialog, which) -> grantWithShizuku())
-                .setNegativeButton(R.string.cancel_action, null).show();
+                .setNegativeButton(R.string.cancel_action, (dialog, which) -> finishShizukuSetup(false))
+                .setOnCancelListener(dialog -> finishShizukuSetup(false)).show();
+    }
+    private void finishShizukuSetup(boolean ownAccess) {
+        if (!ownAccess && !temporaryShizukuSetup) return;
+        temporaryShizukuSetup = false;
+        connectionHandler.removeCallbacks(setupTimeout);
+        DiagnosticPreferences.prefs(this).edit().remove("shizuku_temporary_setup").apply();
+        MaterialSwitch toggle = ui(R.id.enhancedSwitch);
+        if (toggle.isChecked()) toggle.setChecked(false);
+        else {
+            DiagnosticPreferences.enhanced(this, false);
+            ShizukuBridge.disable();
+        }
     }
     private void grantWithShizuku() {
         if (grantingDiagnosticAccess) return;
@@ -260,7 +289,14 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 grantingDiagnosticAccess = false;
                 EnhancedRuntime.invalidate(app);
-                if (isDestroyed()) return;
+                if (isDestroyed()) {
+                    if (ready) {
+                        DiagnosticPreferences.retireUnneededShizuku(app, true);
+                        ShizukuBridge.disable();
+                    }
+                    return;
+                }
+                finishShizukuSetup(ready);
                 renderConnection();
                 message(getString(ready ? R.string.shizuku_grant_success : R.string.shizuku_grant_failed));
             });
