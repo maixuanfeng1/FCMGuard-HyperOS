@@ -1,0 +1,58 @@
+name: Publish verified v3.4.1 APK
+
+on:
+  push:
+    branches: [release/v3.4.1-assets]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          cmdline-tools-version: '16111833'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'build-tools;37.0.0'
+      - name: Require passing device checks for the exact source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CHECK_RUN=$(gh run list --workflow build-apk.yml --commit 295d0e54415e4af5859b5958863fac6adbee0688 --status success --limit 20 --json databaseId --jq '.[0].databaseId // empty')
+          test -n "$CHECK_RUN" || { echo 'Exact source checks have not passed.' >&2; exit 1; }
+      - name: Verify exact signed release artifact
+        working-directory: release-assets/v3.4.1
+        run: |
+          echo 'b9b9388294eb65193aa417815095e9a08e953af974dd62c39c28e09067be809d  FCMGuard-HyperOS.apk' | sha256sum --check
+          python3 ../../tools/check_apk_abi.py FCMGuard-HyperOS.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs FCMGuard-HyperOS.apk | tee certificate.txt
+          grep -F 'c61a0648bfc46534632dc1bc03f1a3379d4ea133c3d5236ac4e31dd92b5b1836' certificate.txt
+          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging FCMGuard-HyperOS.apk > package.txt
+          grep -F "application-label:'Push Sentinel'" package.txt
+          grep -F "versionName='3.4.1'" package.txt
+          unzip -p FCMGuard-HyperOS.apk META-INF/version-control-info.textproto | grep -F 295d0e54415e4af5859b5958863fac6adbee0688
+          grep -F "versionCode='47'" package.txt
+          grep -F "targetSdkVersion:'37'" package.txt
+          if grep -q 'application-debuggable' package.txt; then
+            echo 'Refusing to publish a debuggable APK' >&2
+            exit 1
+          fi
+      - name: Publish single signed APK
+        working-directory: release-assets/v3.4.1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v3.4.1 FCMGuard-HyperOS.apk \
+            --target 295d0e54415e4af5859b5958863fac6adbee0688 \
+            --title '推送哨兵 v3.4.1 · 精简 Shizuku 日常入口' \
+            --notes-file notes.md --latest
