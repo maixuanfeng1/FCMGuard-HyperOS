@@ -16,6 +16,10 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With app diagnostic access (granted once through Shizuku or ADB), or optional running Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
 
+## Version 3.4.1: simpler daily controls
+
+The daily settings show independent diagnostic access and its one-time Shizuku grant action. Manual ADB instructions and fallback Shizuku controls live under collapsed Advanced options. Once independent access is ready, the old enhancement mode is disabled and hidden; the app releases its own helper and does not reconnect it for normal checks. Temporary setup is released on cancellation, completion, expiry or leaving a destroyed activity; interrupted setup is cleared on the next process start. Existing diagnostic grants and selected apps are retained.
+
 ## Version 3.4.0: one-time authorization through Shizuku
 
 Start Shizuku through wireless debugging, connect and authorize it in the app, then tap **Grant once through Shizuku** and confirm the diagnostic permission explanation. The helper grants DUMP, PACKAGE_USAGE_STATS and the usage AppOp only to this package in the verified Binder caller profile. The app verifies its own access before showing success. It can then read current GMS state without a running Shizuku; no computer is needed for this setup path. Manual ADB instructions remain available.

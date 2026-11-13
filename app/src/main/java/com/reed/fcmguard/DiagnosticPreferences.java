@@ -11,6 +11,11 @@ final class DiagnosticPreferences {
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences("push_diagnostics_v3", Context.MODE_PRIVATE); }
     static boolean enhanced(Context c) { return prefs(c).getBoolean("enhanced", false); }
     static void enhanced(Context c, boolean enabled) { prefs(c).edit().putBoolean("enhanced", enabled).apply(); }
+    static void retireUnneededShizuku(Context c, boolean ownAccess) {
+        SharedPreferences p = prefs(c);
+        if (ownAccess || p.getBoolean("shizuku_temporary_setup", false))
+            p.edit().remove("enhanced").remove("shizuku_temporary_setup").apply();
+    }
     static boolean observe(Context c) { return prefs(c).getBoolean("observe", true); }
     static Set<String> selected(Context c) { return new HashSet<>(prefs(c).getStringSet("selected", new HashSet<>())); }
     static void selected(Context c, Set<String> packages) { prefs(c).edit().putStringSet("selected", new HashSet<>(packages)).apply(); }

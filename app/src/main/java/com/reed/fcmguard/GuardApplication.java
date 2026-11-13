@@ -6,6 +6,7 @@ public final class GuardApplication extends Application {
     @Override public void onCreate() {
         super.onCreate();
         DiagnosticPreferences.removeLegacyManualRecords(this);
+        DiagnosticPreferences.retireUnneededShizuku(this, DirectGmsAccess.isReady(this));
         LocaleHelper.followSystem(this);
         ShizukuBridge.initialize(this);
         // Upgrades retire the old whitelist-repair service and its notification.

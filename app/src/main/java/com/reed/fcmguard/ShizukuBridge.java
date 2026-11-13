@@ -123,7 +123,8 @@ public final class ShizukuBridge {
     }
 
     public static void connect() {
-        if (app == null || !DiagnosticPreferences.enhanced(app) || !isAuthorized() || isReady() || binding) return;
+        if (app == null || DirectGmsAccess.isReady(app) || !DiagnosticPreferences.enhanced(app) ||
+                !isAuthorized() || isReady() || binding) return;
         MAIN.removeCallbacks(BIND_TIMEOUT);
         binding = true;
         try {

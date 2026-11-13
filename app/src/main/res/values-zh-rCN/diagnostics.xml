@@ -53,8 +53,8 @@
     <string name="settings_title">检查方式与偏好</string>
     <string name="observe_events">随系统名单和网络变化刷新</string>
     <string name="observe_note">无常驻通知或定时唤醒。进程无法运行时检查会暂停，可通过磁贴唤起。</string>
-    <string name="enhanced_title">可选 Shizuku 增强检查</string>
-    <string name="enhanced_note">默认关闭。只读 GMS 当前状态。若希望停止通过 ADB 启动的 Shizuku、关闭调试后仍能检测，请先完成上方的独立诊断授权。</string>
+    <string name="enhanced_title">备用 Shizuku 检查</string>
+    <string name="enhanced_note">仅在独立诊断权限不可用时备用。独立授权就绪后，此模式自动关闭并隐藏。一次性授权入口会按需临时连接辅助进程。</string>
     <string name="authorize_optional">授权 Shizuku</string>
 <string name="raw_list_title">查看系统无限制名单（只读）</string>
     <string name="raw_unavailable">系统设置不存在或无法读取</string>
@@ -119,4 +119,5 @@
     <string name="shizuku_grant_confirm">授予诊断权限</string>
     <string name="shizuku_grant_success">已验证独立诊断权限，可以停止 Shizuku 并关闭调试，再检查首页和磁贴。</string>
     <string name="shizuku_grant_failed">未能完整授予诊断权限。请保持调试开启，检查 Shizuku 后重试；系统可能限制授权，也可使用下方手动 ADB 命令。</string>
+    <string name="advanced_options">高级选项</string>
 </resources>
