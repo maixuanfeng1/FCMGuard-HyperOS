@@ -54,7 +54,7 @@
     <string name="observe_events">随系统名单和网络变化刷新</string>
     <string name="observe_note">无常驻通知或定时唤醒。进程无法运行时检查会暂停，可通过磁贴唤起。</string>
     <string name="enhanced_title">可选 Shizuku 增强检查</string>
-    <string name="enhanced_note">默认关闭。开启后只读 GMS 当前连接状态，供首页和磁贴显示；不修改系统设置。</string>
+    <string name="enhanced_note">默认关闭。只读 GMS 当前状态。若希望停止通过 ADB 启动的 Shizuku、关闭调试后仍能检测，请先完成上方的独立诊断授权。</string>
     <string name="authorize_optional">授权 Shizuku</string>
 <string name="raw_list_title">查看系统无限制名单（只读）</string>
     <string name="raw_unavailable">系统设置不存在或无法读取</string>
@@ -99,9 +99,9 @@
     <string name="tile_stale">需重新读取 · 点按诊断</string>
     <string name="scan_failed">应用检查刷新失败，请重试。</string>
     <string name="shortcut_fcm_diagnostics">FCM 诊断</string>
-    <string name="direct_grant_title">一次性 ADB 诊断授权</string>
+    <string name="direct_grant_title">手动 ADB 授权／撤销说明</string>
     <string name="direct_grant_ready">应用诊断权限：已就绪 · 无需 Shizuku 持续运行</string>
-    <string name="direct_grant_missing">应用诊断权限：未授予或不完整 · 可选</string>
+    <string name="direct_grant_missing">应用诊断权限：未授予或不完整。它与 Shizuku 授权是两回事。</string>
     <string name="direct_evidence">读取来源：应用自身诊断权限 · 无需运行 Shizuku</string>
     <string name="copy_grant">复制授权命令</string>
     <string name="copy_revoke">复制撤销命令</string>
@@ -111,4 +111,12 @@
     <string name="shizuku_connecting">连接中…</string>
     <string name="shizuku_retry">重新连接 Shizuku</string>
     <string name="shizuku_open_failed">无法打开 Shizuku，请确认已安装，并手动启动服务。</string>
+    <string name="shizuku_grant_title">通过 Shizuku 一次性授权</string>
+    <string name="shizuku_grant_done">独立诊断权限已就绪</string>
+    <string name="shizuku_grant_working">正在授予诊断权限…</string>
+    <string name="shizuku_grant_connect_first">请完成 Shizuku 授权，等待辅助进程连接后，再次点击此按钮。</string>
+    <string name="shizuku_grant_consent">通过已连接的 Shizuku，为本应用授予 DUMP、PACKAGE_USAGE_STATS，并允许读取使用情况。这些权限可读取系统诊断和应用使用信息；本应用使用它们读取 GMS 当前连接状态。\n\n验证成功后，检测将不再依赖 Shizuku 持续运行，可以关闭开发者选项、USB 调试和无线调试。Android 通常会保留授权；厂商策略、撤销或卸载可能使其失效。</string>
+    <string name="shizuku_grant_confirm">授予诊断权限</string>
+    <string name="shizuku_grant_success">已验证独立诊断权限，可以停止 Shizuku 并关闭调试，再检查首页和磁贴。</string>
+    <string name="shizuku_grant_failed">未能完整授予诊断权限。请保持调试开启，检查 Shizuku 后重试；系统可能限制授权，也可使用下方手动 ADB 命令。</string>
 </resources>

@@ -33,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
     AppListAdapter appAdapter;
     private volatile boolean scanning;
     private boolean scanPending;
+    private boolean grantingDiagnosticAccess;
     private String lastWhitelist;
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
     private final Runnable connectionRefresh = new Runnable() {
@@ -114,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
             else authorize();
         });
         ui(R.id.directGrantBtn).setOnClickListener(v -> showDirectGrantHelp());
+        ui(R.id.shizukuGrantBtn).setOnClickListener(v -> showShizukuGrant());
         MaterialSwitch observe = ui(R.id.observeSwitch);
         observe.setChecked(DiagnosticPreferences.observe(this));
         observe.setOnCheckedChangeListener((v, checked) -> {
@@ -220,10 +222,48 @@ public class MainActivity extends AppCompatActivity {
                 connecting ? R.string.shizuku_connecting : R.string.shizuku_retry);
         permission.setEnabled(helperAccess != EnhancedStatus.Access.READY && !connecting);
         set(R.id.helperText, getString(R.string.helper_access_status, getString(accessLabel(helperAccess))));
-        set(R.id.directGrantText, getString(DirectGmsAccess.isReady(this) ? R.string.direct_grant_ready : R.string.direct_grant_missing));
+        boolean ownAccess = DirectGmsAccess.isReady(this);
+        set(R.id.directGrantText, getString(ownAccess ? R.string.direct_grant_ready : R.string.direct_grant_missing));
+        MaterialButton grant = ui(R.id.shizukuGrantBtn);
+        grant.setText(ownAccess ? R.string.shizuku_grant_done :
+                grantingDiagnosticAccess ? R.string.shizuku_grant_working : R.string.shizuku_grant_title);
+        grant.setEnabled(!ownAccess && !grantingDiagnosticAccess);
         int bits = !direct && status.access == EnhancedStatus.Access.READY ? status.bits : 0;
         set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
                 bits == 0 ? getString(R.string.helper_bits_unknown) : Integer.toString(bits)));
+    }
+    private void showShizukuGrant() {
+        if (grantingDiagnosticAccess || DirectGmsAccess.isReady(this)) return;
+        if (!ShizukuBridge.isRunning()) { openShizuku(); return; }
+        if (!DiagnosticPreferences.enhanced(this)) {
+            ((MaterialSwitch) ui(R.id.enhancedSwitch)).setChecked(true);
+            message(getString(R.string.shizuku_grant_connect_first)); return;
+        }
+        if (!ShizukuBridge.isReady()) {
+            authorize(); message(getString(R.string.shizuku_grant_connect_first)); return;
+        }
+        new MaterialAlertDialogBuilder(this).setTitle(R.string.shizuku_grant_title)
+                .setMessage(R.string.shizuku_grant_consent)
+                .setPositiveButton(R.string.shizuku_grant_confirm, (dialog, which) -> grantWithShizuku())
+                .setNegativeButton(R.string.cancel_action, null).show();
+    }
+    private void grantWithShizuku() {
+        if (grantingDiagnosticAccess) return;
+        grantingDiagnosticAccess = true;
+        renderConnection();
+        Context app = getApplicationContext();
+        worker.execute(() -> {
+            try { ShizukuBridge.grantDiagnosticAccess(); } catch (Exception ignored) { }
+            // Verify the actual grants in this app, including when the helper dies before replying.
+            boolean ready = DirectGmsAccess.isReady(app);
+            runOnUiThread(() -> {
+                grantingDiagnosticAccess = false;
+                EnhancedRuntime.invalidate(app);
+                if (isDestroyed()) return;
+                renderConnection();
+                message(getString(ready ? R.string.shizuku_grant_success : R.string.shizuku_grant_failed));
+            });
+        });
     }
     private void showDirectGrantHelp() {
         String grant = DirectGmsAccess.commands(this, true);

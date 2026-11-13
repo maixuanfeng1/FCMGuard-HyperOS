@@ -50,6 +50,15 @@ public class PushDashboardTest {
    assertTrue(((TextView)activity.ui(R.id.networkText)).getText().toString().contains(c.getString(R.string.network_reachable)));
   });
  }
+ @Test public void normalAppIdentityCannotGrantItsOwnProtectedPermissions() {
+  assertTrue(android.os.Process.myUid() >= 10000);
+  assertFalse(DirectGmsAccess.isReady(c));
+  try {
+   new SettingsUserService().grantDiagnosticAccess();
+   fail("An ordinary application process must not grant protected permissions");
+  } catch (SecurityException expected) { }
+  assertFalse(DirectGmsAccess.isReady(c));
+ }
  @Test public void upgradeRemovesManualRecordsButPreservesUserPreferences() {
   Set<String> chosen=new HashSet<>(Arrays.asList("com.example.chat"));
   DiagnosticPreferences.selected(c,chosen);
