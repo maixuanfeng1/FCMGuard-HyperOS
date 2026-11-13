@@ -42,8 +42,11 @@ public final class ShellSettingsProbe {
    Parcel grantData = Parcel.obtain(), grantReply = Parcel.obtain();
    try {
     grantData.writeInterfaceToken(DESCRIPTOR);
-    if (!service.transact(5, grantData, grantReply, 0)) throw new AssertionError("Missing grant transaction");
-    try { grantReply.readException(); throw new AssertionError("Non-application caller accepted for grants"); }
+    try {
+     if (!service.transact(5, grantData, grantReply, 0)) throw new AssertionError("Missing grant transaction");
+     grantReply.readException();
+     throw new AssertionError("Non-application caller accepted for grants");
+    }
     catch (SecurityException expected) { }
    } finally { grantData.recycle(); grantReply.recycle(); }
    if (!java.util.Arrays.asList("CONNECTED", "DISCONNECTED", "SERVICE_UNAVAILABLE", "SYSTEM_RESTRICTED",

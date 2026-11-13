@@ -253,7 +253,8 @@ public class MainActivity extends AppCompatActivity {
         renderConnection();
         Context app = getApplicationContext();
         worker.execute(() -> {
-            try { ShizukuBridge.grantDiagnosticAccess(); } catch (Exception ignored) { }
+            try { ShizukuBridge.grantDiagnosticAccess(); }
+            catch (Exception failure) { android.util.Log.w("FCMGuardGrant", "Diagnostic permission request failed", failure); }
             // Verify the actual grants in this app, including when the helper dies before replying.
             boolean ready = DirectGmsAccess.isReady(app);
             runOnUiThread(() -> {

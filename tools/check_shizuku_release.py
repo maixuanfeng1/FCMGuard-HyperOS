@@ -142,6 +142,8 @@ try:
     assert pid, 'Shizuku must be running until the one-time grant finishes'
     adb('shell', 'kill', *pid.split())
     lines.append('Consent cancel preserves permissions; confirmation grants them through real Shizuku; server stopped: OK')
+    # Outlive the 15-second verdict cache; success must come from a new independent read.
+    time.sleep(16)
     for _ in range(10):
         swipe(False)
         current = nodes()
@@ -164,6 +166,9 @@ try:
     lines.append('SHIZUKU_RELEASE_OK: minified non-debuggable APK, real authorization, actual 64-bit user service and GMS Connected, no system-list write')
     print(lines[-1])
 finally:
+    if not any('SHIZUKU_RELEASE_OK' in line for line in lines):
+        try: lines.append(adb('shell','logcat','-d','-s','FCMGuardGrant:W','AndroidRuntime:E','*:S')[-12000:])
+        except subprocess.SubprocessError: pass
     Path('artifacts/shizuku-release-smoke.log').write_text('\n'.join(lines)+'\n')
     if installed:
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
