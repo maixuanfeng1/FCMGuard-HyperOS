@@ -56,7 +56,7 @@
     <string name="observe_note">No persistent notification or scheduled wakeups. Checks pause when the process cannot run; use the tile to resume.</string>
     <string name="enhanced_title">Optional Shizuku evidence</string>
     <string name="enhanced_note">Off by default. Reads current GMS connection state for the dashboard and tile without changing settings.</string>
-    <string name="authorize_optional">Connect / authorize optional Shizuku</string>
+    <string name="authorize_optional">Authorize Shizuku</string>
 <string name="raw_list_title">View system no-restrictions list (read-only)</string>
     <string name="raw_unavailable">The system setting is absent or cannot be read</string>
     <string name="raw_empty">The system returned an empty list</string>
@@ -73,7 +73,7 @@
     <string name="helper_access_status">Shizuku: %1$s</string>
     <string name="helper_bits_unknown">Not read yet</string>
     <string name="enhanced_ready">Authorized; helper connected</string>
-    <string name="enhanced_connecting">Authorized; connecting helper</string>
+    <string name="enhanced_connecting">Authorized; helper not connected</string>
     <string name="enhanced_not_running">Service not running</string>
     <string name="enhanced_needs_grant">Authorization required</string>
     <string name="enhanced_disabled">Enhanced checks off</string>
@@ -107,4 +107,9 @@
     <string name="copy_grant">Copy grant commands</string>
     <string name="copy_revoke">Copy revoke commands</string>
     <string name="direct_grant_help">Optional: connect this device to ADB and execute all three grant commands. Then return to the dashboard or expand the tile. The app reads the current GMS service using its own identity; Shizuku and wireless debugging can then be stopped.\n\nThese permissions allow system diagnostic and application usage reads. This app queries only current GMS connection information through this path; it does not write battery policies or the system list.\n\nGrant:\n%1$s\n\nRevoke:\n%2$s\n\nAndroid normally retains these grants across app updates and reboot. Uninstalling, revoking access or OEM policy can remove them. Unreadable or unsupported state remains Unknown. This does not add continuous monitoring or guarantee notification delivery.</string>
+    <string name="shizuku_connected">Connected</string>
+    <string name="shizuku_open">Open Shizuku</string>
+    <string name="shizuku_connecting">Connecting…</string>
+    <string name="shizuku_retry">Retry Shizuku connection</string>
+    <string name="shizuku_open_failed">Could not open Shizuku. Make sure it is installed and start its service manually.</string>
 </resources>

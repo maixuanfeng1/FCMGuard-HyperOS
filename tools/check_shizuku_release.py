@@ -98,6 +98,11 @@ try:
         time.sleep(1)
     assert allowed, 'Actual Shizuku authorization prompt was not accepted'
     assert connected, 'Actual Shizuku user-service binding did not connect in the minified release'
+    current = nodes()
+    control = next((n for n in current if n.get('resource-id') == PACKAGE+':id/permissionBtn'), None)
+    assert control is not None and control.get('text') == 'Connected' and control.get('enabled') == 'false', \
+        'Authorized/connected Shizuku action must display Connected and be disabled'
+    lines.append('Connected Shizuku button is disabled with a clear status label: OK')
     for _ in range(10):
         swipe(False)
         current = nodes()

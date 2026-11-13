@@ -297,6 +297,8 @@ public class PushDashboardTest {
    assertTrue(top.contains(c.getString(R.string.enhanced_restricted)));
    assertFalse(top.contains(c.getString(R.string.enhanced_needs_grant)));
    assertTrue(((TextView)activity.ui(R.id.runtimeInfoText)).getText().toString().contains("64"));
+   assertEquals(c.getString(R.string.shizuku_connected),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
+   assertFalse(activity.ui(R.id.permissionBtn).isEnabled());
   });
  }
  @Test public void directEvidenceDoesNotClaimShizukuIsRunning() {
@@ -323,7 +325,26 @@ public class PushDashboardTest {
   assertTrue(revoke.startsWith("adb shell pm revoke --user "));
   assertTrue(revoke.endsWith(" GET_USAGE_STATS default"));
  }
- @Test public void authorizedConnectingHelperDoesNotAskForGrantAgain() {
+ @Test public void authorizedConnectingHelperDoesNotAskForGrantAgain() throws Exception {
+  Field binding=ShizukuBridge.class.getDeclaredField("binding");binding.setAccessible(true);
+  boolean before=binding.getBoolean(null);
+  try {
+   in.runOnMainSync(() -> {
+    try { binding.setBoolean(null,true); } catch (IllegalAccessException e) { throw new AssertionError(e); }
+    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
+        EnhancedStatus.Result.NOT_CHECKED,0,0));
+    assertFalse(activity.ui(R.id.permissionBtn).isEnabled());
+    assertEquals(c.getString(R.string.shizuku_connecting),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
+    // A completed/expired bind must restore a usable retry action.
+    try { binding.setBoolean(null,false); } catch (IllegalAccessException e) { throw new AssertionError(e); }
+    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
+        EnhancedStatus.Result.NOT_CHECKED,0,0));
+    assertTrue(activity.ui(R.id.permissionBtn).isEnabled());
+    assertEquals(c.getString(R.string.shizuku_retry),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
+   });
+  } finally { in.runOnMainSync(() -> {
+   try { binding.setBoolean(null,before); } catch (IllegalAccessException e) { throw new AssertionError(e); }
+  }); }
   in.runOnMainSync(() -> {
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
        EnhancedStatus.Result.NOT_CHECKED, 0, 0));
@@ -333,12 +354,17 @@ public class PushDashboardTest {
  }
  @Test public void lostGrantHidesFormerConnectionEvidence() {
   in.runOnMainSync(() -> {
+   activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,
+       EnhancedStatus.Result.NOT_CHECKED,64,0));
+   assertFalse(activity.ui(R.id.permissionBtn).isEnabled());
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.NOT_AUTHORIZED,
        EnhancedStatus.Result.CONNECTED, 64, 1234567890000L, android.os.SystemClock.elapsedRealtime()));
    String top = ((TextView)activity.ui(R.id.evidenceText)).getText().toString();
    assertTrue(top.contains(c.getString(R.string.enhanced_needs_grant)));
    assertFalse(top.contains(c.getString(R.string.gms_connected)));
    assertTrue(((TextView)activity.ui(R.id.runtimeInfoText)).getText().toString().contains(c.getString(R.string.helper_bits_unknown)));
+   assertTrue(activity.ui(R.id.permissionBtn).isEnabled());
+   assertEquals(c.getString(R.string.authorize_optional),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
   });
  }
  @Test public void freshGmsConnectionLightsTileAndUpdatesDashboard() {
