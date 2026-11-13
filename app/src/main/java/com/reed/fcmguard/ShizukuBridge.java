@@ -155,6 +155,11 @@ public final class ShizukuBridge {
         if (!isReady() || current == null) return EnhancedStatus.Result.NO_DATA.name();
         return current.gcmConnectionState(Process.myUid() / 100000);
     }
+    static void grantDiagnosticAccess() throws RemoteException {
+        ISettingsService current = service;
+        if (!isReady() || current == null) throw new IllegalStateException("Shizuku unavailable");
+        current.grantDiagnosticAccess();
+    }
     public static int runtimeBitness() throws RemoteException {
         ISettingsService current = service;
         if (!isReady() || current == null) return 0;

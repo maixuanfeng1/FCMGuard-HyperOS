@@ -28,6 +28,20 @@ public final class SettingsUserService extends ISettingsService.Stub {
 
     @Override public int runtimeBitness() { return android.os.Process.is64Bit() ? 64 : 32; }
 
+    @Override public synchronized void grantDiagnosticAccess() {
+        int identity = android.os.Process.myUid();
+        if (identity != 0 && identity != android.os.Process.SHELL_UID)
+            throw new SecurityException("Privileged helper required");
+        int caller = android.os.Binder.getCallingUid();
+        String user = Integer.toString(DiagnosticGrantTarget.userForUid(caller));
+        DiagnosticGrantTarget.requireOwnPackage(run("/system/bin/cmd", "package", "list", "packages", "-U",
+                "--user", user, "--uid", Integer.toString(caller)), caller);
+        // The package, permissions and operation are constants; no caller-provided command is run.
+        run("/system/bin/pm", "grant", "--user", user, BuildConfig.APPLICATION_ID, DirectGmsAccess.DUMP);
+        run("/system/bin/pm", "grant", "--user", user, BuildConfig.APPLICATION_ID, DirectGmsAccess.USAGE);
+        run("/system/bin/cmd", "appops", "set", "--user", user, BuildConfig.APPLICATION_ID, "GET_USAGE_STATS", "allow");
+    }
+
     private static void validate(int userId) {
         if (userId < 0 || userId > 21474) throw new IllegalArgumentException("Invalid user");
     }

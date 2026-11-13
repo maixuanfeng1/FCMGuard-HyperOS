@@ -14,7 +14,11 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 2. Choose your notification apps from launchable apps, including those without detected FCM/GCM declarations. Components establish capability, not a working token, actual message route or guaranteed delivery.
 3. Inspect Autostart, read-only `MILLET_NO_RESTRICT_APP` membership, Android notification permission, stopped flag and AOSP Doze exemption. Unknown is distinct from enabled. Notification master switches/channels, in-app mute settings and recents locking require review where a supported query is unavailable. System-list membership and the HyperOS UI's complete battery policy are not treated as interchangeable.
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
-5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With one-time ADB diagnostic access or optional Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
+5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With app diagnostic access (granted once through Shizuku or ADB), or optional running Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
+
+## Version 3.4.0: one-time authorization through Shizuku
+
+Start Shizuku through wireless debugging, connect and authorize it in the app, then tap **Grant once through Shizuku** and confirm the diagnostic permission explanation. The helper grants DUMP, PACKAGE_USAGE_STATS and the usage AppOp only to this package in the verified Binder caller profile. The app verifies its own access before showing success. It can then read current GMS state without a running Shizuku; no computer is needed for this setup path. Manual ADB instructions remain available.
 
 ## Version 3.3.0: diagnostic access without a persistent Shizuku service
 
@@ -48,7 +52,7 @@ The private GMS dump format can change. Denied, unavailable, unsupported or time
 
 ## Optional Shizuku
 
-Off by default, even after upgrading an older authorized installation. Enabling it explicitly allows fixed, read-only helper operations: read the system projection and current GMS push-service state for the correct user. Connection indication no longer depends on restricted socket UID enumeration. No arbitrary command or settings-write interface is exposed.
+Off by default, even after upgrading an older authorized installation. Enabling it explicitly allows fixed, read-only helper operations: read the system projection and current GMS push-service state for the correct user. Connection indication no longer depends on restricted socket UID enumeration. A separate, explicit consent action may grant this application its diagnostic permissions once. That operation verifies the Binder caller UID and exact package; callers cannot supply a target package, permission, command or profile. Other helper operations remain read-only, with no system-list or battery-policy writes.
 
 ## Background limits
 

@@ -38,6 +38,17 @@ public final class ShellSettingsProbe {
    if (args.length > 0 && bits != 64) throw new AssertionError("Expected 64-bit helper");
    stringQuery(service, 1, 0);
    String connection = stringQuery(service, 4, 0);
+   // Even a shell process cannot ask the helper to grant permissions to another identity.
+   Parcel grantData = Parcel.obtain(), grantReply = Parcel.obtain();
+   try {
+    grantData.writeInterfaceToken(DESCRIPTOR);
+    try {
+     if (!service.transact(5, grantData, grantReply, 0)) throw new AssertionError("Missing grant transaction");
+     grantReply.readException();
+     throw new AssertionError("Non-application caller accepted for grants");
+    }
+    catch (SecurityException expected) { }
+   } finally { grantData.recycle(); grantReply.recycle(); }
    if (!java.util.Arrays.asList("CONNECTED", "DISCONNECTED", "SERVICE_UNAVAILABLE", "SYSTEM_RESTRICTED",
            "COMMAND_UNSUPPORTED", "FORMAT_UNSUPPORTED", "TIMEOUT", "READ_FAILED", "NO_DATA").contains(connection)) {
     throw new AssertionError("Unexpected connection result: " + connection);

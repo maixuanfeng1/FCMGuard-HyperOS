@@ -54,7 +54,7 @@
     <string name="observe_events">隨系統清單和網路變化重新整理</string>
     <string name="observe_note">沒有常駐通知或定時喚醒。程序無法執行時檢查會暫停，可透過圖塊喚醒。</string>
     <string name="enhanced_title">選用 Shizuku 增強檢查</string>
-    <string name="enhanced_note">預設關閉。開啟後僅讀取 GMS 目前的連線狀態，供首頁和圖塊顯示；不修改系統設定。</string>
+    <string name="enhanced_note">預設關閉。唯讀 GMS 目前狀態。若希望停止透過 ADB 啟動的 Shizuku、關閉偵錯後仍可檢查，請先完成上方的獨立診斷授權。</string>
     <string name="authorize_optional">授權 Shizuku</string>
     <string name="raw_list_title">查看系統無限制清單（唯讀）</string>
     <string name="raw_unavailable">系統設定不存在或無法讀取</string>
@@ -99,9 +99,9 @@
     <string name="tile_stale">需重新讀取 · 點選診斷</string>
     <string name="scan_failed">應用程式檢查重新整理失敗，請重試。</string>
     <string name="shortcut_fcm_diagnostics">FCM 診斷</string>
-    <string name="direct_grant_title">一次性 ADB 診斷授權</string>
+    <string name="direct_grant_title">手動 ADB 授權／撤銷說明</string>
     <string name="direct_grant_ready">應用程式診斷權限：已就緒 · 無需 Shizuku 持續執行</string>
-    <string name="direct_grant_missing">應用程式診斷權限：尚未授予或不完整 · 選用</string>
+    <string name="direct_grant_missing">應用程式診斷權限：尚未授予或不完整。它與 Shizuku 授權不同。</string>
     <string name="direct_evidence">讀取來源：應用程式自身診斷權限 · 無需執行 Shizuku</string>
     <string name="copy_grant">複製授權指令</string>
     <string name="copy_revoke">複製撤銷指令</string>
@@ -111,4 +111,12 @@
     <string name="shizuku_connecting">連線中…</string>
     <string name="shizuku_retry">重新連線 Shizuku</string>
     <string name="shizuku_open_failed">無法開啟 Shizuku，請確認已安裝，並手動啟動服務。</string>
+    <string name="shizuku_grant_title">透過 Shizuku 一次性授權</string>
+    <string name="shizuku_grant_done">獨立診斷權限已就緒</string>
+    <string name="shizuku_grant_working">正在授予診斷權限…</string>
+    <string name="shizuku_grant_connect_first">請完成 Shizuku 授權，等待輔助程序連線後，再次點選此按鈕。</string>
+    <string name="shizuku_grant_consent">透過已連線的 Shizuku，為本應用程式授予 DUMP、PACKAGE_USAGE_STATS，並允許讀取使用情況。這些權限可讀取系統診斷和應用程式使用資訊；本應用程式使用它們讀取 GMS 目前連線狀態。\n\n驗證成功後，檢查將不再依賴 Shizuku 持續執行，可以關閉開發人員選項、USB 偵錯和無線偵錯。Android 通常會保留授權；廠商政策、撤銷或解除安裝可能使其失效。</string>
+    <string name="shizuku_grant_confirm">授予診斷權限</string>
+    <string name="shizuku_grant_success">已驗證獨立診斷權限，可以停止 Shizuku 並關閉偵錯，再查看首頁和磁貼。</string>
+    <string name="shizuku_grant_failed">未能完整授予診斷權限。請保持偵錯開啟，檢查 Shizuku 後重試；系統可能限制授權，也可使用下方手動 ADB 指令。</string>
 </resources>
