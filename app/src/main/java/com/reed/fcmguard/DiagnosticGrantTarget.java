@@ -8,9 +8,9 @@ final class DiagnosticGrantTarget {
         return uid / 100000;
     }
 
-    static void requireOwnPackage(String packages) {
+    static void requireOwnPackage(String packages, int uid) {
         if (packages != null) for (String line : packages.split("\r?\n")) {
-            if (line.trim().equals("package:" + BuildConfig.APPLICATION_ID)) return;
+            if (line.trim().equals("package:" + BuildConfig.APPLICATION_ID + " uid:" + uid)) return;
         }
         throw new SecurityException("Caller does not own this application");
     }

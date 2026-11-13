@@ -15,9 +15,9 @@ public class DiagnosticGrantTargetTest {
         }
     }
     @Test public void onlyTheExactPackageCanReceiveGrants() {
-        DiagnosticGrantTarget.requireOwnPackage("package:"+BuildConfig.APPLICATION_ID+"\n");
-        for (String output : new String[]{null,"","package:com.example.other", "package:"+BuildConfig.APPLICATION_ID+".fake", "prefixpackage:"+BuildConfig.APPLICATION_ID}) {
-            try { DiagnosticGrantTarget.requireOwnPackage(output); fail("Accepted unrelated package"); }
+        DiagnosticGrantTarget.requireOwnPackage("package:"+BuildConfig.APPLICATION_ID+" uid:10234\n",10234);
+        for (String output : new String[]{null,"","package:com.example.other uid:10234", "package:"+BuildConfig.APPLICATION_ID+".fake uid:10234", "prefixpackage:"+BuildConfig.APPLICATION_ID+" uid:10234", "package:"+BuildConfig.APPLICATION_ID+" uid:10235", "package:"+BuildConfig.APPLICATION_ID}) {
+            try { DiagnosticGrantTarget.requireOwnPackage(output,10234); fail("Accepted unrelated package/UID"); }
             catch (SecurityException expected) { }
         }
     }

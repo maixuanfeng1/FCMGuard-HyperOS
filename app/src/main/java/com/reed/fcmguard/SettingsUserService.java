@@ -34,8 +34,8 @@ public final class SettingsUserService extends ISettingsService.Stub {
             throw new SecurityException("Privileged helper required");
         int caller = android.os.Binder.getCallingUid();
         String user = Integer.toString(DiagnosticGrantTarget.userForUid(caller));
-        DiagnosticGrantTarget.requireOwnPackage(run("/system/bin/cmd", "package", "list", "packages",
-                "--user", user, "--uid", Integer.toString(caller)));
+        DiagnosticGrantTarget.requireOwnPackage(run("/system/bin/cmd", "package", "list", "packages", "-U",
+                "--user", user, "--uid", Integer.toString(caller)), caller);
         // The package, permissions and operation are constants; no caller-provided command is run.
         run("/system/bin/pm", "grant", "--user", user, BuildConfig.APPLICATION_ID, DirectGmsAccess.DUMP);
         run("/system/bin/pm", "grant", "--user", user, BuildConfig.APPLICATION_ID, DirectGmsAccess.USAGE);
