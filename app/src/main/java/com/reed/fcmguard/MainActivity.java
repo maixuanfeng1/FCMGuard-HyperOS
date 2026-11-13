@@ -109,7 +109,10 @@ public class MainActivity extends AppCompatActivity {
             if (checked) authorize(); else ShizukuBridge.disable();
             renderConnection();
         });
-        ui(R.id.permissionBtn).setOnClickListener(v -> authorize());
+        ui(R.id.permissionBtn).setOnClickListener(v -> {
+            if (ShizukuBridge.accessState(this) == EnhancedStatus.Access.NOT_RUNNING) openShizuku();
+            else authorize();
+        });
         ui(R.id.directGrantBtn).setOnClickListener(v -> showDirectGrantHelp());
         MaterialSwitch observe = ui(R.id.observeSwitch);
         observe.setChecked(DiagnosticPreferences.observe(this));
@@ -161,6 +164,14 @@ public class MainActivity extends AppCompatActivity {
     private void authorize() {
         if (ShizukuBridge.isRunning()) ShizukuBridge.requestPermission();
         else message(getString(R.string.no_auth_service));
+        renderConnection();
+    }
+    private void openShizuku() {
+        try {
+            Intent intent = getPackageManager().getLaunchIntentForPackage("moe.shizuku.privileged.api");
+            if (intent != null) { startActivity(intent); return; }
+        } catch (RuntimeException ignored) { }
+        message(getString(R.string.shizuku_open_failed));
     }
     private void check(boolean recovery) {
         if (!PushRuntime.check(this, recovery)) message(getString(R.string.busy_message));
@@ -200,7 +211,14 @@ public class MainActivity extends AppCompatActivity {
         if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
         set(R.id.evidenceText, extra.trim());
         EnhancedStatus.Access helperAccess = direct ? ShizukuBridge.accessState(this) : status.access;
-        ui(R.id.permissionBtn).setVisibility(helperAccess == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
+        MaterialButton permission = ui(R.id.permissionBtn);
+        boolean connecting = helperAccess == EnhancedStatus.Access.CONNECTING && ShizukuBridge.isConnecting();
+        permission.setVisibility(helperAccess == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
+        permission.setText(helperAccess == EnhancedStatus.Access.READY ? R.string.shizuku_connected :
+                helperAccess == EnhancedStatus.Access.NOT_RUNNING ? R.string.shizuku_open :
+                helperAccess == EnhancedStatus.Access.NOT_AUTHORIZED ? R.string.authorize_optional :
+                connecting ? R.string.shizuku_connecting : R.string.shizuku_retry);
+        permission.setEnabled(helperAccess != EnhancedStatus.Access.READY && !connecting);
         set(R.id.helperText, getString(R.string.helper_access_status, getString(accessLabel(helperAccess))));
         set(R.id.directGrantText, getString(DirectGmsAccess.isReady(this) ? R.string.direct_grant_ready : R.string.direct_grant_missing));
         int bits = !direct && status.access == EnhancedStatus.Access.READY ? status.bits : 0;

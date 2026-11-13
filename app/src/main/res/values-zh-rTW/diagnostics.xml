@@ -55,7 +55,7 @@
     <string name="observe_note">沒有常駐通知或定時喚醒。程序無法執行時檢查會暫停，可透過圖塊喚醒。</string>
     <string name="enhanced_title">選用 Shizuku 增強檢查</string>
     <string name="enhanced_note">預設關閉。開啟後僅讀取 GMS 目前的連線狀態，供首頁和圖塊顯示；不修改系統設定。</string>
-    <string name="authorize_optional">連線／授權選用 Shizuku</string>
+    <string name="authorize_optional">授權 Shizuku</string>
     <string name="raw_list_title">查看系統無限制清單（唯讀）</string>
     <string name="raw_unavailable">系統設定不存在或無法讀取</string>
     <string name="raw_empty">系統傳回空白清單</string>
@@ -72,7 +72,7 @@
     <string name="helper_access_status">Shizuku：%1$s</string>
     <string name="helper_bits_unknown">尚未讀取</string>
     <string name="enhanced_ready">已授權，輔助程序已連線</string>
-    <string name="enhanced_connecting">已授權，正在連線至輔助程序</string>
+    <string name="enhanced_connecting">已授權，輔助程序尚未連線</string>
     <string name="enhanced_not_running">服務未執行</string>
     <string name="enhanced_needs_grant">需要授權</string>
     <string name="enhanced_disabled">增強檢查已關閉</string>
@@ -106,4 +106,9 @@
     <string name="copy_grant">複製授權指令</string>
     <string name="copy_revoke">複製撤銷指令</string>
     <string name="direct_grant_help">選用：將此裝置連接到 ADB，執行下方全部三條授權指令，再返回首頁或展開磁貼。應用程式將以自身權限讀取 GMS 目前服務；之後可以停止 Shizuku 和無線偵錯。\n\n這些權限允許讀取系統診斷和應用程式使用資訊。本應用程式透過此路徑只讀取 GMS 目前連線，不修改電池政策或系統清單。\n\n授權：\n%1$s\n\n撤銷：\n%2$s\n\nAndroid 通常會在覆蓋更新、重新啟動後保留授權；解除安裝、撤銷或廠商政策可能使其失效。無法讀取或格式不支援時仍顯示未知。這不會增加全天監控，也不保證通知必達。</string>
+    <string name="shizuku_connected">已連線</string>
+    <string name="shizuku_open">開啟 Shizuku</string>
+    <string name="shizuku_connecting">連線中…</string>
+    <string name="shizuku_retry">重新連線 Shizuku</string>
+    <string name="shizuku_open_failed">無法開啟 Shizuku，請確認已安裝，並手動啟動服務。</string>
 </resources>

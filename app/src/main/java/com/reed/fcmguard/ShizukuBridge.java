@@ -108,6 +108,8 @@ public final class ShizukuBridge {
         return isAuthorized() && current != null && current.asBinder().pingBinder();
     }
 
+    static boolean isConnecting() { return binding; }
+
     static IBinder sessionBinder() {
         ISettingsService current = service;
         return current == null ? null : current.asBinder();
