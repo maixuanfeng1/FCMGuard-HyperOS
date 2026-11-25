@@ -53,7 +53,7 @@ jobs:
           ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --stacktrace
           python3 tools/check_apk_abi.py app/build/outputs/apk/release/*.apk
           "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/fcmguard-certificate.txt"
-          grep -F 'certificate SHA-256 digest: c61a0648bfc46534632dc1bc03f1a3379d4ea133c3d5236ac4e31dd92b5b1836' "$RUNNER_TEMP/fcmguard-certificate.txt"
+          grep -F 'certificate SHA-256 digest: d4efcc7a346e2b717b6da7d0a1dd730864686b525bd1fa005dacda01729f604a' "$RUNNER_TEMP/fcmguard-certificate.txt"
           "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/fcmguard-package.txt"
           if grep -q 'application-debuggable' "$RUNNER_TEMP/fcmguard-package.txt"; then exit 1; fi
           unzip -p app/build/outputs/apk/release/app-release.apk META-INF/version-control-info.textproto | grep -F "$GITHUB_SHA"
