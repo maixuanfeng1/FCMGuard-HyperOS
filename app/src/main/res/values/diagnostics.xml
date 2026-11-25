@@ -127,6 +127,7 @@
     <string name="filter_fcm">FCM/GCM (%1$d)</string>
     <string name="filter_selected">Chosen (%1$d)</string>
     <string name="picker_summary">Chosen: %1$d · Showing: %2$d</string>
+    <string name="picker_fcm_subtitle">%1$s · FCM/GCM</string>
     <string name="picker_empty">No matching apps found</string>
     <string name="watch_this_app">Add to chosen apps</string>
     <string name="unwatch_this_app">Remove from chosen</string>

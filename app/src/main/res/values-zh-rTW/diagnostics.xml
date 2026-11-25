@@ -126,6 +126,7 @@
     <string name="filter_fcm">宣告 FCM (%1$d)</string>
     <string name="filter_selected">已關注 (%1$d)</string>
     <string name="picker_summary">已關注 %1$d 個 · 目前顯示 %2$d 個</string>
+    <string name="picker_fcm_subtitle">%1$s · FCM/GCM</string>
     <string name="picker_empty">找不到符合的應用程式</string>
     <string name="watch_this_app">加入關注</string>
     <string name="unwatch_this_app">取消關注</string>

@@ -587,7 +587,8 @@ public class MainActivity extends AppCompatActivity {
         if (row == null) return;
         if (activeAppSheet != null && activeAppSheet.isShowing()) activeAppSheet.dismiss();
         BottomSheetDialog dialog = new BottomSheetDialog(this);
-        View sheet = getLayoutInflater().inflate(R.layout.bottom_sheet_app_details, null);
+        dialog.setContentView(R.layout.bottom_sheet_app_details);
+        View sheet = dialog.findViewById(R.id.detailContentRoot);
         ((ImageView) sheet.findViewById(R.id.detailAppIcon)).setImageDrawable(AppIconCache.load(this, row.app.packageName));
         ((TextView) sheet.findViewById(R.id.detailAppTitle)).setText(row.app.label);
         ((TextView) sheet.findViewById(R.id.detailAppPackage)).setText(row.app.packageName);
@@ -646,7 +647,6 @@ public class MainActivity extends AppCompatActivity {
                         .setPositiveButton(R.string.done_action, null)
                         .show());
 
-        dialog.setContentView(sheet);
         dialog.setOnDismissListener(d -> { if (activeAppSheet == dialog) activeAppSheet = null; });
         activeAppSheet = dialog;
         dialog.show();

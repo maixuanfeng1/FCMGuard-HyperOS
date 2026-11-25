@@ -9,7 +9,7 @@
     android:paddingEnd="4dp"
     android:paddingTop="8dp"
     android:paddingBottom="8dp"
-    android:background="?attr/selectableItemBackground"
+    android:foreground="?attr/selectableItemBackground"
     android:clickable="true"
     android:focusable="true">
 

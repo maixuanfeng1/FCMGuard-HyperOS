@@ -459,6 +459,9 @@ public class PushDashboardTest {
    holder.itemView.performClick();
    assertTrue(DiagnosticPreferences.selected(c).isEmpty());
    activity.activePickerDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
+  });
+  in.waitForIdleSync();
+  in.runOnMainSync(() -> {
    assertEquals(Collections.singleton("com.example.disabled"), DiagnosticPreferences.selected(c));
    assertEquals(1, activity.appAdapter.getItemCount());
   });

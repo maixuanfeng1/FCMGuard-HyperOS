@@ -71,7 +71,9 @@ final class AppPickerAdapter extends RecyclerView.Adapter<AppPickerAdapter.Holde
         holder.itemView.setTag("picker:" + app.packageName);
         holder.icon.setImageDrawable(AppIconCache.load(context, app.packageName));
         holder.title.setText(app.label);
-        holder.subtitle.setText(app.packageName + (app.declaresFcm ? " · FCM/GCM" : ""));
+        holder.subtitle.setText(app.declaresFcm
+                ? context.getString(R.string.picker_fcm_subtitle, app.packageName)
+                : app.packageName);
         holder.checkBox.setChecked(isChecked);
     }
 
