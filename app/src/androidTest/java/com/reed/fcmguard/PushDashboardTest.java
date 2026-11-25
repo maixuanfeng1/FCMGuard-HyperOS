@@ -436,6 +436,119 @@ public class PushDashboardTest {
    }
   });
  }
+ @Test public void appPickerFiltersByQueryAndFcmAndSavesSelection() {
+  in.runOnMainSync(() -> {
+   showExamples(activity);
+   DiagnosticPreferences.selected(c, Collections.emptySet());
+   activity.renderApps();
+   assertEquals(0, activity.appAdapter.getItemCount());
+   activity.ui(R.id.chooseAppsBtn).performClick();
+   assertNotNull(activity.activePickerDialog);
+   assertTrue(activity.activePickerDialog.isShowing());
+   androidx.recyclerview.widget.RecyclerView recycler = activity.activePickerDialog.findViewById(R.id.pickerRecycler);
+   com.google.android.material.chip.ChipGroup filters = activity.activePickerDialog.findViewById(R.id.pickerFilterGroup);
+   EditText search = activity.activePickerDialog.findViewById(R.id.pickerSearchInput);
+   AppPickerAdapter pickerAdapter = (AppPickerAdapter) recycler.getAdapter();
+   assertEquals(4, pickerAdapter.getItemCount());
+   filters.check(R.id.filterFcmChip);
+   assertEquals(3, pickerAdapter.getItemCount());
+   search.setText("disabled");
+   assertEquals(1, pickerAdapter.getItemCount());
+   AppPickerAdapter.Holder holder = pickerAdapter.onCreateViewHolder(recycler, 0);
+   pickerAdapter.onBindViewHolder(holder, 0);
+   holder.itemView.performClick();
+   assertTrue(DiagnosticPreferences.selected(c).isEmpty());
+   activity.activePickerDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
+  });
+  in.waitForIdleSync();
+  in.runOnMainSync(() -> {
+   assertEquals(Collections.singleton("com.example.disabled"), DiagnosticPreferences.selected(c));
+   assertEquals(1, activity.appAdapter.getItemCount());
+  });
+ }
+ @Test public void appDetailsSheetTogglesWatchedSelection() {
+  in.runOnMainSync(() -> {
+   showExamples(activity);
+   assertEquals(4, activity.appAdapter.getItemCount());
+   activity.showApp(activity.appAdapter.row(0));
+   assertNotNull(activity.activeAppSheet);
+   assertTrue(activity.activeAppSheet.isShowing());
+   TextView watchBtn = activity.activeAppSheet.findViewById(R.id.detailWatchBtn);
+   assertEquals(c.getString(R.string.unwatch_this_app), watchBtn.getText().toString());
+   watchBtn.performClick();
+   assertFalse(DiagnosticPreferences.selected(c).contains("com.example.disabled"));
+   assertEquals(c.getString(R.string.watch_this_app), watchBtn.getText().toString());
+   assertEquals(3, activity.appAdapter.getItemCount());
+   watchBtn.performClick();
+   assertTrue(DiagnosticPreferences.selected(c).contains("com.example.disabled"));
+   assertEquals(4, activity.appAdapter.getItemCount());
+   activity.activeAppSheet.dismiss();
+  });
+ }
+ @Test public void oneTimeShizukuSetupCleansUpWhenPermissionRequestIsDismissed() throws Exception {
+  Field requesting = ShizukuBridge.class.getDeclaredField("requestingPermission");
+  Field awaiting = MainActivity.class.getDeclaredField("awaitingShizukuConsent");
+  Field tempSetup = MainActivity.class.getDeclaredField("temporaryShizukuSetup");
+  requesting.setAccessible(true); awaiting.setAccessible(true); tempSetup.setAccessible(true);
+  try {
+   in.runOnMainSync(() -> {
+    try {
+     DiagnosticPreferences.enhanced(c, true);
+     DiagnosticPreferences.prefs(c).edit().putBoolean("shizuku_temporary_setup", true).commit();
+     ((MaterialSwitch) activity.ui(R.id.enhancedSwitch)).setChecked(true);
+     tempSetup.setBoolean(activity, true);
+     awaiting.setBoolean(activity, true);
+     requesting.setBoolean(null, true);
+     activity.renderEnhanced(new EnhancedStatus.Snapshot(
+         EnhancedStatus.Access.NOT_AUTHORIZED, EnhancedStatus.Result.NOT_CHECKED, 0, 0));
+     assertFalse(activity.ui(R.id.shizukuGrantBtn).isEnabled());
+     assertEquals(c.getString(R.string.shizuku_connecting),
+         ((TextView) activity.ui(R.id.shizukuGrantBtn)).getText().toString());
+     ShizukuBridge.clearStalePermissionRequest();
+     activity.renderConnection();
+     assertFalse(ShizukuBridge.isRequestingPermission());
+     assertFalse(DiagnosticPreferences.enhanced(c));
+     assertFalse(DiagnosticPreferences.prefs(c).contains("shizuku_temporary_setup"));
+     assertTrue(activity.ui(R.id.shizukuGrantBtn).isEnabled());
+     assertEquals(c.getString(R.string.shizuku_grant_title),
+         ((TextView) activity.ui(R.id.shizukuGrantBtn)).getText().toString());
+    } catch (IllegalAccessException e) { throw new AssertionError(e); }
+   });
+  } finally {
+   in.runOnMainSync(() -> {
+    try {
+     requesting.setBoolean(null, false);
+     awaiting.setBoolean(activity, false);
+     tempSetup.setBoolean(activity, false);
+    } catch (IllegalAccessException e) { throw new AssertionError(e); }
+   });
+  }
+ }
+ @Test public void tileSubtitlesDistinguishShizukuAndRefreshStates() {
+  if (android.os.Build.VERSION.SDK_INT < 29) return;
+  in.runOnMainSync(() -> {
+   long now = android.os.SystemClock.elapsedRealtime();
+   android.service.quicksettings.Tile tile = emptyPlatformTile();
+   GuardTileService.applyState(c, tile, new EnhancedStatus.Snapshot(
+       EnhancedStatus.Access.DISABLED, EnhancedStatus.Result.NOT_CHECKED, 0, 0), now);
+   assertEquals(c.getString(R.string.tile_requires_shizuku), tile.getSubtitle().toString());
+   GuardTileService.applyState(c, tile, new EnhancedStatus.Snapshot(
+       EnhancedStatus.Access.NOT_RUNNING, EnhancedStatus.Result.NOT_CHECKED, 0, 0), now);
+   assertEquals(c.getString(R.string.tile_shizuku_not_running), tile.getSubtitle().toString());
+   GuardTileService.applyState(c, tile, new EnhancedStatus.Snapshot(
+       EnhancedStatus.Access.CONNECTING, EnhancedStatus.Result.NOT_CHECKED, 0, 0), now);
+   assertEquals(c.getString(R.string.shizuku_connecting), tile.getSubtitle().toString());
+   GuardTileService.applyState(c, tile, new EnhancedStatus.Snapshot(
+       EnhancedStatus.Access.READY, EnhancedStatus.Result.CHECKING, 64, 0, now), now);
+   assertEquals(c.getString(R.string.checking), tile.getSubtitle().toString());
+   GuardTileService.applyState(c, tile, new EnhancedStatus.Snapshot(
+       EnhancedStatus.Access.READY, EnhancedStatus.Result.CONNECTED, 64, 42, now), now);
+   assertEquals(c.getString(R.string.tile_recent_check), tile.getSubtitle().toString());
+   GuardTileService.applyState(c, tile, new EnhancedStatus.Snapshot(
+       EnhancedStatus.Access.READY, EnhancedStatus.Result.CONNECTED, 64, 42, now - 15000), now);
+   assertEquals(c.getString(R.string.tile_stale), tile.getSubtitle().toString());
+  });
+ }
  // Tile has no public SDK constructor. Build an empty Android 17 Parcelable fixture.
  static android.service.quicksettings.Tile emptyPlatformTile() {
   android.os.Parcel parcel=android.os.Parcel.obtain();

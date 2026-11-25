@@ -52,7 +52,10 @@ public final class FcmAppScanner {
     private static String cachedLocale;
     private static List<AppEntry> cached;
 
-    static void invalidate() { REVISION.incrementAndGet(); }
+    static void invalidate() {
+        REVISION.incrementAndGet();
+        AppIconCache.clear();
+    }
 
     /** Cache only component/label metadata. Per-app permissions and policy are read anew on resume. */
     public static synchronized List<AppEntry> scanAll(Context context) {

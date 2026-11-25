@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 <string name="connection_unknown">FCM 连接：未知</string>
-    <string name="connection_summary">自动状态需要一次性 ADB 诊断授权或可选 Shizuku；无法读取时，请打开 Google 诊断查看。</string>
+    <string name="connection_summary">自动状态可通过一次性独立诊断授权（手机内 Shizuku 或 ADB）或备用 Shizuku 读取；无法读取时请打开 Google 诊断查看。</string>
     <string name="check_now">立即检查</string>
     <string name="request_reconnect">尝试请求重连</string>
     <string name="network_label">网络状况</string>
@@ -67,7 +67,7 @@
     <string name="request_started">正在尝试请求心跳并检查网络，请到诊断页确认结果。</string>
     <string name="no_auth_service">请先启动 Shizuku，也可以保持增强功能关闭</string>
 <string name="appearance_title_v3">外观</string>
-<string name="tile_setup_message">磁贴亮起且显示 Connected，表示刚刚读取到 GMS 已连接；灰色断开图标并显示 Disconnected，表示刚刚读取到未连接。问号和“未知”表示无法读取，不是关闭。可使用一次性 ADB 诊断授权或 Shizuku 增强检查。面板可见时每 5 秒刷新，收起后不轮询。点击尝试心跳并打开诊断，不会关闭 GMS 推送。</string>
+<string name="tile_setup_message">磁贴亮起且显示 Connected，表示刚刚读取到 GMS 已连接；灰色断开图标并显示 Disconnected，表示刚刚读取到未连接。问号和“未知”表示无法读取，不是关闭。可通过手机内 Shizuku 或 ADB 完成一次性诊断授权，或使用备用 Shizuku。面板可见时每 5 秒刷新，收起后不轮询。点击尝试心跳并打开诊断，不会关闭 GMS 推送。</string>
 <string name="diagnostic_observer_unavailable">部分变化无法自动监听，请返回首页或点击刷新重新检查。</string>
     <string name="helper_access_status">Shizuku：%1$s</string>
     <string name="helper_bits_unknown">尚未读取</string>
@@ -114,10 +114,22 @@
     <string name="shizuku_grant_title">通过 Shizuku 一次性授权</string>
     <string name="shizuku_grant_done">独立诊断权限已就绪</string>
     <string name="shizuku_grant_working">正在授予诊断权限…</string>
-    <string name="shizuku_grant_connect_first">请完成 Shizuku 授权，等待辅助进程连接后，再次点击此按钮。</string>
+    <string name="shizuku_grant_connect_first">正在完成 Shizuku 授权并连接辅助进程，就绪后将自动弹出确认窗口…</string>
     <string name="shizuku_grant_consent">通过已连接的 Shizuku，为本应用授予 DUMP、PACKAGE_USAGE_STATS，并允许读取使用情况。这些权限可读取系统诊断和应用使用信息；本应用使用它们读取 GMS 当前连接状态。\n\n验证成功后，检测将不再依赖 Shizuku 持续运行，可以关闭开发者选项、USB 调试和无线调试。Android 通常会保留授权；厂商策略、撤销或卸载可能使其失效。</string>
     <string name="shizuku_grant_confirm">授予诊断权限</string>
     <string name="shizuku_grant_success">已验证独立诊断权限，可以停止 Shizuku 并关闭调试，再检查首页和磁贴。</string>
     <string name="shizuku_grant_failed">未能完整授予诊断权限。请保持调试开启，检查 Shizuku 后重试；系统可能限制授权，也可使用下方手动 ADB 命令。</string>
     <string name="advanced_options">高级选项</string>
+    <string name="tile_shizuku_not_running">Shizuku 未运行 · 点按诊断</string>
+    <string name="search_apps_hint">搜索应用名称或包名</string>
+    <string name="filter_all">全部 (%1$d)</string>
+    <string name="filter_fcm">声明 FCM (%1$d)</string>
+    <string name="filter_selected">已关注 (%1$d)</string>
+    <string name="picker_summary">已关注 %1$d 个 · 当前显示 %2$d 个</string>
+    <string name="picker_fcm_subtitle">%1$s · FCM/GCM</string>
+    <string name="picker_empty">没有匹配的应用</string>
+    <string name="watch_this_app">加入关注</string>
+    <string name="unwatch_this_app">取消关注</string>
+    <string name="badge_needs_attention">需检查</string>
+    <string name="badge_watched">已关注</string>
 </resources>

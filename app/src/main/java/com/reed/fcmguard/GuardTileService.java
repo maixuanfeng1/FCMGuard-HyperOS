@@ -30,7 +30,9 @@ public final class GuardTileService extends TileService {
         PushRuntime.add(listener);
         // Publish the click PendingIntent before starting any diagnostic work.
         render();
-        ShizukuBridge.connect();
+        boolean ownAccess = DirectGmsAccess.isReady(this);
+        DiagnosticPreferences.retireUnneededShizuku(this, ownAccess);
+        if (!ownAccess && DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
         EnhancedRuntime.invalidate(this);
         PushRuntime.start(this); PushRuntime.check(this, false);
         render();
@@ -87,8 +89,11 @@ public final class GuardTileService extends TileService {
         tile.setContentDescription(c.getString(description));
         int subtitle = connected || disconnected ? R.string.tile_recent_check :
                 result == EnhancedStatus.Result.CHECKING ? R.string.checking :
+                status.access == EnhancedStatus.Access.CONNECTING ? R.string.shizuku_connecting :
+                status.access == EnhancedStatus.Access.NOT_RUNNING ? R.string.tile_shizuku_not_running :
                 status.access == EnhancedStatus.Access.DISABLED || status.access == EnhancedStatus.Access.NOT_AUTHORIZED ?
-                R.string.tile_requires_shizuku : result == EnhancedStatus.Result.STALE ? R.string.tile_stale : R.string.tile_unknown_note;
+                R.string.tile_requires_shizuku :
+                result == EnhancedStatus.Result.STALE ? R.string.tile_stale : R.string.tile_unknown_note;
         if (Build.VERSION.SDK_INT >= 29) tile.setSubtitle(c.getString(subtitle));
         if (Build.VERSION.SDK_INT >= 30) tile.setStateDescription(c.getString(description));
     }
