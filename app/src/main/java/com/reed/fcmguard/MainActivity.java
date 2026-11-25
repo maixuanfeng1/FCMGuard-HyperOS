@@ -6,15 +6,19 @@ import android.content.pm.*;
 import android.graphics.drawable.Icon;
 import android.os.*;
 import android.provider.Settings;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.*;
 import android.widget.*;
 import androidx.appcompat.app.*;
 import androidx.core.view.*;
 import androidx.recyclerview.widget.*;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.color.*;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.snackbar.Snackbar;
 import java.text.DateFormat;
@@ -31,12 +35,21 @@ public class MainActivity extends AppCompatActivity {
     private View dashboardHeader, dashboardFooter;
     private RecyclerView list;
     AppListAdapter appAdapter;
+    AlertDialog activePickerDialog;
+    AlertDialog shizukuConsentDialog;
+    BottomSheetDialog activeAppSheet;
     private volatile boolean scanning;
     private boolean scanPending;
     private boolean grantingDiagnosticAccess;
     private boolean temporaryShizukuSetup;
+    private boolean awaitingShizukuConsent;
+    private boolean resumed;
+    private final Runnable stalePermissionCheck = ShizukuBridge::clearStalePermissionRequest;
     private final Runnable setupTimeout = () -> {
-        if (!grantingDiagnosticAccess) finishShizukuSetup(false);
+        if (!grantingDiagnosticAccess && (shizukuConsentDialog == null || !shizukuConsentDialog.isShowing())) {
+            awaitingShizukuConsent = false;
+            finishShizukuSetup(false);
+        }
     };
     private String lastWhitelist;
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
@@ -151,15 +164,26 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onStop() { PushRuntime.remove(stateListener); super.onStop(); }
     @Override protected void onResume() {
         super.onResume();
+        resumed = true;
         WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this)); bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
         PushRuntime.refresh(this); refreshApps();
         if (DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
+        if (ShizukuBridge.isRequestingPermission()) {
+            connectionHandler.removeCallbacks(stalePermissionCheck);
+            connectionHandler.postDelayed(stalePermissionCheck, 1500L);
+        }
         EnhancedRuntime.request(this);
+        renderConnection();
         connectionHandler.removeCallbacks(connectionRefresh);
         connectionHandler.postDelayed(connectionRefresh, 5000L);
     }
-    @Override protected void onPause() { connectionHandler.removeCallbacks(connectionRefresh); super.onPause(); }
+    @Override protected void onPause() {
+        resumed = false;
+        connectionHandler.removeCallbacks(stalePermissionCheck);
+        connectionHandler.removeCallbacks(connectionRefresh);
+        super.onPause();
+    }
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("show_all", showAll);
         state.putBoolean("advanced_expanded", ui(R.id.advancedContent).getVisibility() == View.VISIBLE);
@@ -167,7 +191,21 @@ public class MainActivity extends AppCompatActivity {
         super.onSaveInstanceState(state);
     }
     @Override protected void onDestroy() {
+        if (shizukuConsentDialog != null) {
+            shizukuConsentDialog.setOnDismissListener(null);
+            shizukuConsentDialog.dismiss();
+            shizukuConsentDialog = null;
+        }
+        if (activePickerDialog != null) {
+            activePickerDialog.dismiss();
+            activePickerDialog = null;
+        }
+        if (activeAppSheet != null) {
+            activeAppSheet.dismiss();
+            activeAppSheet = null;
+        }
         finishShizukuSetup(false);
+        connectionHandler.removeCallbacks(stalePermissionCheck);
         connectionHandler.removeCallbacks(setupTimeout);
         connectionHandler.removeCallbacks(connectionRefresh);
         PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy();
@@ -202,6 +240,7 @@ public class MainActivity extends AppCompatActivity {
         renderEnhanced(EnhancedRuntime.snapshot(this));
         set(R.id.currentValueText, SettingsGuard.KEY + "\n\n" + (PushRuntime.whitelist == null ? getString(R.string.raw_unavailable) :
                 PushRuntime.whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : PushRuntime.whitelist.replace(",", "\n")));
+        continuePendingShizukuGrant();
     }
     void renderEnhanced(EnhancedStatus.Snapshot status) {
         EnhancedStatus.Result current = status.currentResult(SystemClock.elapsedRealtime());
@@ -235,7 +274,8 @@ public class MainActivity extends AppCompatActivity {
         ui(R.id.shizukuAdvancedContent).setVisibility(ownAccess ? View.GONE : View.VISIBLE);
         set(R.id.directGrantText, getString(ownAccess ? R.string.direct_grant_ready : R.string.direct_grant_missing));
         MaterialButton grant = ui(R.id.shizukuGrantBtn);
-        boolean preparing = temporaryShizukuSetup && ShizukuBridge.isConnecting();
+        boolean preparing = (temporaryShizukuSetup || awaitingShizukuConsent) &&
+                (ShizukuBridge.isConnecting() || ShizukuBridge.isRequestingPermission());
         grant.setText(ownAccess ? R.string.shizuku_grant_done :
                 grantingDiagnosticAccess ? R.string.shizuku_grant_working :
                 preparing ? R.string.shizuku_connecting : R.string.shizuku_grant_title);
@@ -244,31 +284,68 @@ public class MainActivity extends AppCompatActivity {
         set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
                 bits == 0 ? getString(R.string.helper_bits_unknown) : Integer.toString(bits)));
     }
-    private void showShizukuGrant() {
+    void showShizukuGrant() {
         if (grantingDiagnosticAccess || DirectGmsAccess.isReady(this)) return;
         if (!ShizukuBridge.isRunning()) { openShizuku(); return; }
+        if (ShizukuBridge.isReady() && DiagnosticPreferences.enhanced(this)) {
+            awaitingShizukuConsent = false;
+            presentShizukuConsentDialog();
+            return;
+        }
+        awaitingShizukuConsent = true;
         if (!DiagnosticPreferences.enhanced(this)) {
             temporaryShizukuSetup = true;
             DiagnosticPreferences.prefs(this).edit().putBoolean("shizuku_temporary_setup", true).apply();
             connectionHandler.removeCallbacks(setupTimeout);
             connectionHandler.postDelayed(setupTimeout, 120000L);
-            ((MaterialSwitch) ui(R.id.enhancedSwitch)).setChecked(true);
-            message(getString(R.string.shizuku_grant_connect_first)); return;
+            MaterialSwitch toggle = ui(R.id.enhancedSwitch);
+            if (!toggle.isChecked()) toggle.setChecked(true);
+        } else {
+            authorize();
         }
-        if (!ShizukuBridge.isReady()) {
-            authorize(); message(getString(R.string.shizuku_grant_connect_first)); return;
+        renderConnection();
+        if (!ShizukuBridge.isReady() && (shizukuConsentDialog == null || !shizukuConsentDialog.isShowing())) {
+            message(getString(R.string.shizuku_grant_connect_first));
         }
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.shizuku_grant_title)
+    }
+    void continuePendingShizukuGrant() {
+        if (!awaitingShizukuConsent || isFinishing() || isDestroyed()) return;
+        if (DirectGmsAccess.isReady(this)) {
+            awaitingShizukuConsent = false;
+            finishShizukuSetup(true);
+            return;
+        }
+        if (ShizukuBridge.isReady() && DiagnosticPreferences.enhanced(this)) {
+            if (!resumed) return;
+            awaitingShizukuConsent = false;
+            presentShizukuConsentDialog();
+            return;
+        }
+        if (!ShizukuBridge.isRunning() ||
+                (!ShizukuBridge.isRequestingPermission() && !ShizukuBridge.isConnecting())) {
+            awaitingShizukuConsent = false;
+            finishShizukuSetup(false);
+        }
+    }
+    private void presentShizukuConsentDialog() {
+        if (shizukuConsentDialog != null && shizukuConsentDialog.isShowing()) return;
+        shizukuConsentDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.shizuku_grant_title)
                 .setMessage(R.string.shizuku_grant_consent)
                 .setPositiveButton(R.string.shizuku_grant_confirm, (dialog, which) -> grantWithShizuku())
                 .setNegativeButton(R.string.cancel_action, (dialog, which) -> finishShizukuSetup(false))
-                .setOnCancelListener(dialog -> finishShizukuSetup(false)).show();
+                .setOnCancelListener(dialog -> finishShizukuSetup(false))
+                .create();
+        shizukuConsentDialog.setOnDismissListener(dialog -> shizukuConsentDialog = null);
+        shizukuConsentDialog.show();
     }
     private void finishShizukuSetup(boolean ownAccess) {
+        awaitingShizukuConsent = false;
         if (!ownAccess && !temporaryShizukuSetup) return;
         temporaryShizukuSetup = false;
         connectionHandler.removeCallbacks(setupTimeout);
         DiagnosticPreferences.prefs(this).edit().remove("shizuku_temporary_setup").apply();
+        if (ownAccess) DiagnosticPreferences.retireUnneededShizuku(this, true);
         MaterialSwitch toggle = ui(R.id.enhancedSwitch);
         if (toggle.isChecked()) toggle.setChecked(false);
         else {
@@ -423,38 +500,158 @@ public class MainActivity extends AppCompatActivity {
     int autoLabel(AutostartStatusReader.Status state) { return state == AutostartStatusReader.Status.ENABLED ? R.string.enabled_state : state == AutostartStatusReader.Status.DISABLED ? R.string.disabled_state : state == AutostartStatusReader.Status.PARTIAL ? R.string.partial_state : R.string.unknown_state; }
     int notificationLabel(AppDiagnostics row) { return row.notificationPermission == null ? R.string.permission_unknown : row.notificationPermission ? R.string.permission_granted : R.string.permission_denied; }
     String flag(Boolean value, int yes, int no) { return getString(value == null ? R.string.unknown_state : value ? yes : no); }
-    private void chooseApps() {
+
+    void chooseApps() {
         if (apps.isEmpty()) { refreshApps(); message(getString(R.string.checking)); return; }
+        if (activePickerDialog != null && activePickerDialog.isShowing()) return;
         List<FcmAppScanner.AppEntry> snapshot = new ArrayList<>(apps);
-        Set<String> selected = DiagnosticPreferences.selected(this);
-        CharSequence[] labels = new CharSequence[snapshot.size()]; boolean[] checked = new boolean[snapshot.size()];
-        for (int i = 0; i < snapshot.size(); i++) {
-            FcmAppScanner.AppEntry a = snapshot.get(i); labels[i] = a.label + "\n" + a.packageName + (a.declaresFcm ? " · FCM/GCM" : ""); checked[i] = selected.contains(a.packageName);
-        }
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.choose_apps).setMultiChoiceItems(labels, checked, (d, index, value) -> {
-            if (value) selected.add(snapshot.get(index).packageName); else selected.remove(snapshot.get(index).packageName);
-        }).setPositiveButton(R.string.done_action, (d, w) -> { DiagnosticPreferences.selected(this, selected); renderApps(); })
-                .setNegativeButton(R.string.cancel_action, null).show();
+        Set<String> workingSelected = DiagnosticPreferences.selected(this);
+        Set<String> pinnedSelected = new HashSet<>(workingSelected);
+        int fcmCount = AppPickerFilter.countFcm(snapshot);
+
+        View content = getLayoutInflater().inflate(R.layout.dialog_choose_apps, null);
+        TextView summaryText = content.findViewById(R.id.pickerSummaryText);
+        EditText searchInput = content.findViewById(R.id.pickerSearchInput);
+        View clearBtn = content.findViewById(R.id.pickerClearSearchBtn);
+        ChipGroup filterGroup = content.findViewById(R.id.pickerFilterGroup);
+        Chip allChip = content.findViewById(R.id.filterAllChip);
+        Chip fcmChip = content.findViewById(R.id.filterFcmChip);
+        Chip selectedChip = content.findViewById(R.id.filterSelectedChip);
+        TextView emptyText = content.findViewById(R.id.pickerEmptyText);
+        RecyclerView recycler = content.findViewById(R.id.pickerRecycler);
+
+        int maxListHeight = Math.min(dp(360), Math.max(dp(180),
+                (int) (getResources().getDisplayMetrics().heightPixels * 0.45f)));
+        ViewGroup.LayoutParams lp = recycler.getLayoutParams();
+        lp.height = maxListHeight;
+        recycler.setLayoutParams(lp);
+        recycler.setLayoutManager(new LinearLayoutManager(this));
+        recycler.setItemAnimator(null);
+
+        final AppPickerFilter.Mode[] modeRef = {AppPickerFilter.Mode.ALL};
+        final AppPickerAdapter[] adapterRef = new AppPickerAdapter[1];
+
+        Runnable refreshPicker = () -> {
+            String query = searchInput.getText() == null ? "" : searchInput.getText().toString();
+            clearBtn.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
+            List<FcmAppScanner.AppEntry> filtered = AppPickerFilter.filter(
+                    snapshot, workingSelected, pinnedSelected, modeRef[0], query);
+            int chosenInCatalog = AppPickerFilter.countSelectedInCatalog(snapshot, workingSelected);
+            allChip.setText(getString(R.string.filter_all, snapshot.size()));
+            fcmChip.setText(getString(R.string.filter_fcm, fcmCount));
+            selectedChip.setText(getString(R.string.filter_selected, chosenInCatalog));
+            summaryText.setText(getString(R.string.picker_summary, chosenInCatalog, filtered.size()));
+            emptyText.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
+            recycler.setVisibility(filtered.isEmpty() ? View.GONE : View.VISIBLE);
+            adapterRef[0].submit(filtered, workingSelected);
+        };
+
+        adapterRef[0] = new AppPickerAdapter(this, (packageName, checked) -> {
+            if (checked) workingSelected.add(packageName);
+            else workingSelected.remove(packageName);
+            refreshPicker.run();
+        });
+        recycler.setAdapter(adapterRef[0]);
+
+        clearBtn.setOnClickListener(v -> searchInput.setText(""));
+        searchInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) { refreshPicker.run(); }
+        });
+        filterGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            int id = checkedIds.isEmpty() ? R.id.filterAllChip : checkedIds.get(0);
+            modeRef[0] = id == R.id.filterFcmChip ? AppPickerFilter.Mode.FCM_ONLY :
+                    id == R.id.filterSelectedChip ? AppPickerFilter.Mode.SELECTED_ONLY : AppPickerFilter.Mode.ALL;
+            pinnedSelected.clear();
+            pinnedSelected.addAll(workingSelected);
+            refreshPicker.run();
+            recycler.scrollToPosition(0);
+        });
+
+        refreshPicker.run();
+        activePickerDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.choose_apps)
+                .setView(content)
+                .setPositiveButton(R.string.done_action, (d, w) -> {
+                    DiagnosticPreferences.selected(this, workingSelected);
+                    renderApps();
+                })
+                .setNegativeButton(R.string.cancel_action, null)
+                .create();
+        activePickerDialog.setOnDismissListener(d -> activePickerDialog = null);
+        activePickerDialog.show();
     }
+
     void showApp(AppDiagnostics row) {
+        if (row == null) return;
+        if (activeAppSheet != null && activeAppSheet.isShowing()) activeAppSheet.dismiss();
         BottomSheetDialog dialog = new BottomSheetDialog(this);
-        ScrollView scroll = new ScrollView(this); LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(24), dp(16), dp(24), dp(32)); scroll.addView(content);
-        text(content, row.app.label, true); text(content, row.app.packageName, false);
-        text(content, getString(row.app.declaresFcm ? R.string.fcm_detected : R.string.fcm_not_detected), false);
-        text(content, getString(R.string.auto_label, getString(autoLabel(row.autostart))), true);
-        text(content, getString(R.string.list_label, flag(row.inSystemList, R.string.listed, R.string.not_listed)), true);
-        text(content, getString(R.string.list_explanation), false);
-        text(content, getString(R.string.notifications_label, getString(notificationLabel(row))), true);
-        text(content, getString(R.string.doze_label, flag(row.ignoresDoze, R.string.enabled_state, R.string.disabled_state)), false);
-        text(content, row.stopped == null ? getString(R.string.unknown_state) : getString(row.stopped ? R.string.stopped_yes : R.string.stopped_no), false);
-        text(content, getString(R.string.background_unknown), false);
-        button(content, R.string.open_app_settings, () -> HyperOsSettings.openApplicationSettings(this, row.app.packageName));
-        button(content, R.string.open_app_notifications, () -> HyperOsSettings.openNotificationSettings(this, row.app.packageName));
-        button(content, R.string.open_app_battery, () -> HyperOsSettings.openBatterySettings(this, row.app.packageName));
-        button(content, R.string.lock_instructions, () -> new MaterialAlertDialogBuilder(this).setMessage(R.string.lock_help).setPositiveButton(R.string.done_action, null).show());
-        dialog.setContentView(scroll); dialog.show();
+        View sheet = getLayoutInflater().inflate(R.layout.bottom_sheet_app_details, null);
+        ((ImageView) sheet.findViewById(R.id.detailAppIcon)).setImageDrawable(AppIconCache.load(this, row.app.packageName));
+        ((TextView) sheet.findViewById(R.id.detailAppTitle)).setText(row.app.label);
+        ((TextView) sheet.findViewById(R.id.detailAppPackage)).setText(row.app.packageName);
+
+        MaterialButton watchBtn = sheet.findViewById(R.id.detailWatchBtn);
+        Runnable syncWatchLabel = () -> {
+            boolean watched = DiagnosticPreferences.selected(this).contains(row.app.packageName);
+            watchBtn.setText(watched ? R.string.unwatch_this_app : R.string.watch_this_app);
+        };
+        syncWatchLabel.run();
+        watchBtn.setOnClickListener(v -> {
+            Set<String> selected = DiagnosticPreferences.selected(this);
+            if (!selected.remove(row.app.packageName)) selected.add(row.app.packageName);
+            DiagnosticPreferences.selected(this, selected);
+            syncWatchLabel.run();
+            renderApps();
+        });
+
+        int errorColor = MaterialColors.getColor(sheet, androidx.appcompat.R.attr.colorError);
+        int titleColor = MaterialColors.getColor(sheet, com.google.android.material.R.attr.colorOnSurface);
+        int bodyColor = MaterialColors.getColor(sheet, com.google.android.material.R.attr.colorOnSurfaceVariant);
+
+        ((TextView) sheet.findViewById(R.id.detailFcm)).setText(
+                row.app.declaresFcm ? R.string.fcm_detected : R.string.fcm_not_detected);
+
+        TextView autostart = sheet.findViewById(R.id.detailAutostart);
+        autostart.setText(getString(R.string.auto_label, getString(autoLabel(row.autostart))));
+        autostart.setTextColor(row.autostart == AutostartStatusReader.Status.DISABLED ||
+                row.autostart == AutostartStatusReader.Status.PARTIAL ? errorColor : titleColor);
+
+        TextView notifications = sheet.findViewById(R.id.detailNotifications);
+        notifications.setText(getString(R.string.notifications_label, getString(notificationLabel(row))));
+        notifications.setTextColor(Boolean.FALSE.equals(row.notificationPermission) ? errorColor : titleColor);
+
+        TextView listStatus = sheet.findViewById(R.id.detailList);
+        listStatus.setText(getString(R.string.list_label, flag(row.inSystemList, R.string.listed, R.string.not_listed)));
+        listStatus.setTextColor(Boolean.FALSE.equals(row.inSystemList) ? errorColor : titleColor);
+
+        ((TextView) sheet.findViewById(R.id.detailDoze)).setText(
+                getString(R.string.doze_label, flag(row.ignoresDoze, R.string.enabled_state, R.string.disabled_state)));
+
+        TextView stopped = sheet.findViewById(R.id.detailStopped);
+        stopped.setText(row.stopped == null ? getString(R.string.unknown_state) :
+                getString(row.stopped ? R.string.stopped_yes : R.string.stopped_no));
+        stopped.setTextColor(Boolean.TRUE.equals(row.stopped) ? errorColor : bodyColor);
+
+        sheet.findViewById(R.id.detailOpenSettingsBtn).setOnClickListener(
+                v -> HyperOsSettings.openApplicationSettings(this, row.app.packageName));
+        sheet.findViewById(R.id.detailOpenNotificationsBtn).setOnClickListener(
+                v -> HyperOsSettings.openNotificationSettings(this, row.app.packageName));
+        sheet.findViewById(R.id.detailOpenBatteryBtn).setOnClickListener(
+                v -> HyperOsSettings.openBatterySettings(this, row.app.packageName));
+        sheet.findViewById(R.id.detailLockHelpBtn).setOnClickListener(
+                v -> new MaterialAlertDialogBuilder(this)
+                        .setMessage(R.string.lock_help)
+                        .setPositiveButton(R.string.done_action, null)
+                        .show());
+
+        dialog.setContentView(sheet);
+        dialog.setOnDismissListener(d -> { if (activeAppSheet == dialog) activeAppSheet = null; });
+        activeAppSheet = dialog;
+        dialog.show();
     }
+
     private void addTile() {
         if (Build.VERSION.SDK_INT >= 33) {
             try {
@@ -467,13 +664,5 @@ public class MainActivity extends AppCompatActivity {
     }
     private void launch(Intent intent) { try { startActivity(intent); } catch (RuntimeException e) { message(getString(R.string.page_missing)); } }
     private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
-    private TextView text(LinearLayout parent, String value, boolean title) {
-        TextView text = new TextView(this); text.setText(value); text.setTextAppearance(title ? R.style.SectionTitle : R.style.BodyText);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.topMargin = dp(title ? 16 : 6); text.setLayoutParams(lp); parent.addView(text); return text;
-    }
-    private void button(LinearLayout parent, int label, Runnable action) {
-        MaterialButton button = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        button.setText(label); button.setMinHeight(dp(48)); button.setOnClickListener(v -> action.run()); parent.addView(button);
-    }
     private void message(String message) { Snackbar.make(ui(R.id.root), message, Snackbar.LENGTH_LONG).show(); }
 }

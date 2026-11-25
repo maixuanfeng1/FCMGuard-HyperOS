@@ -16,6 +16,12 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With app diagnostic access (granted once through Shizuku or ADB), or optional running Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
 
+## Version 3.5.0: searchable app picker, card layout and seamless one-time grant
+
+The notification-app picker adds live search by app name or package, app icons, and All / FCM-declared / Chosen filter chips over a recycled list, keeping rows steady while toggling checkboxes. The dashboard arranges actions into responsive rows that wrap cleanly on compact or large-font screens, presents watched apps as Material 3 cards with status badges, and adds a one-tap Chosen toggle inside the per-app details sheet.
+
+Tapping **Grant once through Shizuku** now automatically opens the diagnostic permission confirmation dialog as soon as Shizuku authorization and temporary helper binding finish, and cleans up temporary setup immediately if the Shizuku prompt is dismissed or denied. Quick Settings tile subtitles distinguish Shizuku-stopped and connecting states, and expanding the tile skips unneeded Shizuku binding once independent diagnostic access is ready.
+
 ## Version 3.4.1: simpler daily controls
 
 The daily settings show independent diagnostic access and its one-time Shizuku grant action. Manual ADB instructions and fallback Shizuku controls live under collapsed Advanced options. Once independent access is ready, the old enhancement mode is disabled and hidden; the app releases its own helper and does not reconnect it for normal checks. Temporary setup is released on cancellation, completion, expiry or leaving a destroyed activity; interrupted setup is cleared on the next process start. Existing diagnostic grants and selected apps are retained.

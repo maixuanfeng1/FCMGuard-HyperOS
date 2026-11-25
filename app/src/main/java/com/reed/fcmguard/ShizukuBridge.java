@@ -21,6 +21,7 @@ public final class ShizukuBridge {
     private static Shizuku.UserServiceArgs args;
     private static Context app;
     private static boolean binding;
+    private static boolean requestingPermission;
     private static boolean initialized;
     private static boolean automaticRebindUsed;
     private static final Runnable BIND_TIMEOUT = () -> {
@@ -64,6 +65,7 @@ public final class ShizukuBridge {
         Shizuku.addBinderDeadListener(() -> MAIN.post(ShizukuBridge::disconnected));
         Shizuku.addRequestPermissionResultListener((requestCode, grantResult) -> {
             if (requestCode == REQUEST_CODE) MAIN.post(() -> {
+                requestingPermission = false;
                 if (grantResult == PackageManager.PERMISSION_GRANTED) connect();
                 changed();
             });
@@ -77,6 +79,7 @@ public final class ShizukuBridge {
     private static void disconnected() {
         service = null;
         binding = false;
+        requestingPermission = false;
         MAIN.removeCallbacks(BIND_TIMEOUT);
         changed();
     }
@@ -110,6 +113,15 @@ public final class ShizukuBridge {
 
     static boolean isConnecting() { return binding; }
 
+    static boolean isRequestingPermission() { return requestingPermission; }
+
+    static void clearStalePermissionRequest() {
+        if (!requestingPermission) return;
+        requestingPermission = false;
+        if (isAuthorized()) connect();
+        changed();
+    }
+
     static IBinder sessionBinder() {
         ISettingsService current = service;
         return current == null ? null : current.asBinder();
@@ -138,8 +150,17 @@ public final class ShizukuBridge {
 
     public static void requestPermission() {
         automaticRebindUsed = false;
-        if (isAuthorized()) { connect(); return; }
-        if (isRunning()) Shizuku.requestPermission(REQUEST_CODE);
+        if (isAuthorized()) { requestingPermission = false; connect(); return; }
+        if (isRunning()) {
+            requestingPermission = true;
+            try {
+                Shizuku.requestPermission(REQUEST_CODE);
+                changed();
+            } catch (RuntimeException e) {
+                requestingPermission = false;
+                changed();
+            }
+        }
     }
 
     public static void disable() {

@@ -2,7 +2,7 @@
 <!-- New diagnostic copy is localized in Chinese; other system locales use English. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
 <string name="connection_unknown">FCM connection: unknown</string>
-    <string name="connection_summary">Automatic status needs diagnostic access through a one-time ADB grant or optional Shizuku. Otherwise open Google diagnostics.</string>
+    <string name="connection_summary">Automatic status uses one-time diagnostic access (granted via Shizuku or ADB) or optional Shizuku. Otherwise open Google diagnostics.</string>
     <string name="check_now">Check now</string>
     <string name="request_reconnect">Try a heartbeat request</string>
     <string name="network_label">Network check</string>
@@ -68,7 +68,7 @@
     <string name="request_started">Attempting a heartbeat request and network check. Verify the result in diagnostics.</string>
     <string name="no_auth_service">Start Shizuku first, or leave the optional feature off</string>
 <string name="appearance_title_v3">Appearance</string>
-<string name="tile_setup_message">Lit with Connected means GMS was just observed connected. A grey disconnected icon with Disconnected means GMS was just observed disconnected. A question mark with Unknown means unreadable, not off. Use one-time ADB diagnostic access or optional Shizuku. Refreshes every 5 seconds while visible, with no polling when hidden. Tap to try a heartbeat and open diagnostics; this does not turn off GMS push.</string>
+<string name="tile_setup_message">Lit with Connected means GMS was just observed connected. A grey disconnected icon with Disconnected means GMS was just observed disconnected. A question mark with Unknown means unreadable, not off. Grant diagnostic access once (via Shizuku or ADB) or use optional Shizuku. Refreshes every 5 seconds while visible, with no polling when hidden. Tap to try a heartbeat and open diagnostics; this does not turn off GMS push.</string>
 <string name="diagnostic_observer_unavailable">Automatic refresh is partly unavailable. Return to this page or use Refresh to check again.</string>
     <string name="helper_access_status">Shizuku: %1$s</string>
     <string name="helper_bits_unknown">Not read yet</string>
@@ -115,10 +115,21 @@
     <string name="shizuku_grant_title">Grant once through Shizuku</string>
     <string name="shizuku_grant_done">App diagnostic access is ready</string>
     <string name="shizuku_grant_working">Granting diagnostic access…</string>
-    <string name="shizuku_grant_connect_first">Complete Shizuku authorization and wait for its helper to connect, then tap this button again.</string>
+    <string name="shizuku_grant_connect_first">Authorizing and connecting Shizuku… The confirmation dialog will open automatically when ready.</string>
     <string name="shizuku_grant_consent">Use the connected Shizuku helper to grant DUMP and PACKAGE_USAGE_STATS to this app and allow usage access. These permissions can read system diagnostics and application usage information. This app uses them to read current GMS connection state.\n\nAfter successful verification, the app can check without a running Shizuku. You may then turn off Developer options and USB/wireless debugging. Android normally retains the grants; OEM policy, revocation or uninstalling can remove them.</string>
     <string name="shizuku_grant_confirm">Grant diagnostic access</string>
     <string name="shizuku_grant_success">App diagnostic access verified. Shizuku and debugging no longer need to stay on for these reads.</string>
     <string name="shizuku_grant_failed">Diagnostic access is incomplete. Keep debugging enabled and retry after checking Shizuku. The system may restrict permission grants; manual ADB commands are available below.</string>
     <string name="advanced_options">Advanced options</string>
+    <string name="tile_shizuku_not_running">Shizuku not running · tap for diagnostics</string>
+    <string name="search_apps_hint">Search app name or package</string>
+    <string name="filter_all">All (%1$d)</string>
+    <string name="filter_fcm">FCM/GCM (%1$d)</string>
+    <string name="filter_selected">Chosen (%1$d)</string>
+    <string name="picker_summary">Chosen: %1$d · Showing: %2$d</string>
+    <string name="picker_empty">No matching apps found</string>
+    <string name="watch_this_app">Add to chosen apps</string>
+    <string name="unwatch_this_app">Remove from chosen</string>
+    <string name="badge_needs_attention">Needs review</string>
+    <string name="badge_watched">Chosen</string>
 </resources>
