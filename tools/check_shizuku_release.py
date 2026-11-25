@@ -115,6 +115,8 @@ try:
         done = next((n for n in current if n.get('resource-id') == PACKAGE+':id/shizukuGrantBtn'), None)
         if done is not None and done.get('text') == 'App diagnostic access is ready' and done.get('enabled') == 'false':
             break
+        if done is None:
+            swipe()
         time.sleep(1)
     else:
         raise AssertionError('The actual app-to-helper grant did not produce independent diagnostic access')

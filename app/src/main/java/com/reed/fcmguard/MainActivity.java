@@ -375,6 +375,13 @@ public class MainActivity extends AppCompatActivity {
                 }
                 finishShizukuSetup(ready);
                 renderConnection();
+                list.post(() -> {
+                    View grant = ui(R.id.shizukuGrantBtn);
+                    if (!isDestroyed() && grant != null && grant.isAttachedToWindow()) {
+                        grant.requestRectangleOnScreen(
+                                new android.graphics.Rect(0, 0, grant.getWidth(), grant.getHeight()), true);
+                    }
+                });
                 message(getString(ready ? R.string.shizuku_grant_success : R.string.shizuku_grant_failed));
             });
         });

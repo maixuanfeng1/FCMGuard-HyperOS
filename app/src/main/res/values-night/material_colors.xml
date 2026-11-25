@@ -15,4 +15,6 @@
     <color name="md_surface_container_high">#282A2F</color>
     <color name="md_outline_variant">#44474E</color>
     <color name="md_outline">#8E9099</color>
+    <color name="md_error_container">#93000A</color>
+    <color name="md_on_error_container">#FFDAD6</color>
 </resources>
