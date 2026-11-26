@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    style="?attr/materialCardViewFilledStyle"
+    style="@style/VigilSectionCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginStart="@dimen/screen_horizontal_padding"
-    android:layout_marginEnd="@dimen/screen_horizontal_padding"
     android:layout_marginTop="6dp"
+    android:layout_marginEnd="@dimen/screen_horizontal_padding"
     android:layout_marginBottom="6dp"
-    android:minHeight="48dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp">
+    android:minHeight="48dp"
+    app:cardCornerRadius="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -24,7 +22,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:gravity="top"
             android:orientation="horizontal">
 
             <ImageView
@@ -44,8 +42,6 @@
                     android:id="@+id/appTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="2"
                     android:textAppearance="@style/SectionTitle" />
 
                 <TextView
@@ -57,58 +53,74 @@
                     android:maxLines="1"
                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                     android:textColor="?attr/colorOnSurfaceVariant" />
-            </LinearLayout>
 
-            <TextView
-                android:id="@+id/appAttentionBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/bg_status_badge"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:paddingStart="10dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="4dp"
-                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-                android:visibility="gone" />
+                <TextView
+                    android:id="@+id/appFcm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+
+                <TextView
+                    android:id="@+id/appAttentionBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_status_badge"
+                    android:paddingStart="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="4dp"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:visibility="gone" />
+            </LinearLayout>
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/appAutostart"
+        <com.google.android.material.divider.MaterialDivider
+            style="@style/VigilDivider"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:textAppearance="@style/BodyText" />
+            android:layout_marginBottom="10dp" />
 
-        <TextView
-            android:id="@+id/appNotifications"
+        <com.reed.fcmguard.ActionRowLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/appAutostart"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="0dp"
+                android:paddingEnd="8dp"
+                android:textAppearance="@style/BodyText" />
+
+            <TextView
+                android:id="@+id/appNotifications"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/BodyText" />
+        </com.reed.fcmguard.ActionRowLayout>
+
+        <com.reed.fcmguard.ActionRowLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textAppearance="@style/BodyText" />
+            android:layout_marginTop="6dp">
 
-        <TextView
-            android:id="@+id/appSystemList"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textAppearance="@style/BodyText" />
+            <TextView
+                android:id="@+id/appSystemList"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="0dp"
+                android:paddingEnd="8dp"
+                android:textAppearance="@style/BodyText" />
 
-        <TextView
-            android:id="@+id/appLocked"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textAppearance="@style/BodyText" />
-
-        <TextView
-            android:id="@+id/appFcm"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            <TextView
+                android:id="@+id/appLocked"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/BodyText" />
+        </com.reed.fcmguard.ActionRowLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

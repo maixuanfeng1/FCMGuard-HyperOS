@@ -163,6 +163,8 @@ try:
     def unlocked():
         return adb('shell', 'getprop', 'sys.boot_completed') == '1' and 'RUNNING_UNLOCKED' in adb('shell', 'am', 'get-started-user-state', '0')
     wait_for(unlocked, 'Reboot completes with unlocked user', 120)
+    try: adb('shell', 'wm', 'dismiss-keyguard')
+    except subprocess.SubprocessError: pass
     adb('shell', 'input', 'keyevent', '82')
     compare('Grants survive reboot; Shizuku absent', 'Connected')
     assert before == adb('shell', 'settings', 'get', 'system', 'MILLET_NO_RESTRICT_APP'), 'System list changed'

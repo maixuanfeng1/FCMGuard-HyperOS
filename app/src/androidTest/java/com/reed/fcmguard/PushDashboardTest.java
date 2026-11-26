@@ -555,8 +555,10 @@ public class PushDashboardTest {
    assertNotNull(badge);
    assertTrue(badge.isVisible());
    assertEquals(2, badge.getNumber());
-   assertEquals(c.getString(R.string.watched_health_counts, 4, 4, 2),
+   assertEquals(c.getString(R.string.watched_health_counts, 4, 4),
        ((TextView)activity.ui(R.id.appsSummaryBody)).getText().toString());
+   assertEquals(c.getString(R.string.view_watched_apps),
+       ((TextView)activity.ui(R.id.appsSummaryActionText)).getText().toString());
    assertEquals(View.VISIBLE, activity.ui(R.id.appsSummaryAttention).getVisibility());
    assertEquals(c.getString(R.string.watched_attention_count, 2),
        ((TextView)activity.ui(R.id.appsSummaryAttention)).getText().toString());
@@ -742,6 +744,83 @@ public class PushDashboardTest {
     activity.activeAppSheet.dismiss();
    } catch (Exception e) { throw new AssertionError(e); }
   });
+ }
+ @Test public void uiHierarchyUsesConsistentButtonsAndOmitsRemovedClutterEntries() {
+  in.runOnMainSync(() -> {
+   try {
+    String pkg = c.getPackageName();
+    assertEquals(0, c.getResources().getIdentifier("networkSettingsBtn", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("directGrantBtn", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("detailListNote", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("detailBackgroundNote", "id", pkg));
+
+    TextView source = activity.ui(R.id.connectionSource);
+    assertEquals(View.VISIBLE, source.getVisibility());
+    assertEquals(c.getString(R.string.connection_access_hint), source.getText().toString());
+
+    activity.selectTab(R.id.nav_settings);
+    Set<String> settingsTexts = collectTexts(activity.ui(R.id.settingsScroll));
+    assertTrue(settingsTexts.contains(c.getString(R.string.settings_access_title)));
+    assertTrue(settingsTexts.contains(c.getString(R.string.settings_tile_title)));
+    assertTrue(settingsTexts.contains(c.getString(R.string.settings_title)));
+    assertTrue(settingsTexts.contains(c.getString(R.string.appearance_title_v3)));
+    assertTrue(settingsTexts.contains(c.getString(R.string.advanced_options)));
+
+    View toggle = activity.ui(R.id.advancedToggle);
+    assertEquals(c.getString(R.string.advanced_collapsed_state),
+        String.valueOf(androidx.core.view.ViewCompat.getStateDescription(toggle)));
+    toggle.performClick();
+    assertEquals(View.VISIBLE, activity.ui(R.id.advancedContent).getVisibility());
+    assertEquals(c.getString(R.string.advanced_expanded_state),
+        String.valueOf(androidx.core.view.ViewCompat.getStateDescription(toggle)));
+    toggle.performClick();
+    assertEquals(View.GONE, activity.ui(R.id.advancedContent).getVisibility());
+    assertEquals(c.getString(R.string.advanced_collapsed_state),
+        String.valueOf(androidx.core.view.ViewCompat.getStateDescription(toggle)));
+
+    activity.selectTab(R.id.nav_apps);
+    Set<String> appsTexts = collectTexts(activity.ui(R.id.pageApps));
+    assertTrue(appsTexts.contains(c.getString(R.string.apps_controls_title)));
+
+    FcmAppScanner.AppEntry app = new FcmAppScanner.AppEntry("com.example.stoppednull", "Stopped Unknown", true);
+    AppDiagnostics unknownStoppedRow = healthyRow(activity, app, Collections.singleton(app.packageName), Collections.emptySet());
+    Field stoppedField = AppDiagnostics.class.getDeclaredField("stopped");
+    stoppedField.setAccessible(true);
+    stoppedField.set(unknownStoppedRow, null);
+
+    activity.showApp(unknownStoppedRow);
+    assertNotNull(activity.activeAppSheet);
+    assertTrue(activity.activeAppSheet.isShowing());
+    View detailRoot = activity.activeAppSheet.findViewById(R.id.detailContentRoot);
+    assertNotNull(detailRoot);
+    Set<String> detailTexts = collectTexts(detailRoot);
+    assertTrue(detailTexts.contains(c.getString(R.string.detail_push_title)));
+    assertTrue(detailTexts.contains(c.getString(R.string.detail_background_title)));
+    assertTrue(detailTexts.contains(c.getString(R.string.detail_settings_title)));
+    TextView detailStopped = detailRoot.findViewById(R.id.detailStopped);
+    assertEquals(c.getString(R.string.stopped_unknown), detailStopped.getText().toString());
+    View settingsBtn = detailRoot.findViewById(R.id.detailOpenSettingsBtn);
+    assertTrue(settingsBtn.getParent() instanceof ActionRowLayout);
+    assertSame(settingsBtn.getParent(), detailRoot.findViewById(R.id.detailOpenNotificationsBtn).getParent());
+    assertSame(settingsBtn.getParent(), detailRoot.findViewById(R.id.detailOpenBatteryBtn).getParent());
+    assertSame(settingsBtn.getParent(), detailRoot.findViewById(R.id.detailLockHelpBtn).getParent());
+    activity.activeAppSheet.dismiss();
+   } catch (Exception e) { throw new AssertionError(e); }
+  });
+ }
+ private static Set<String> collectTexts(View root) {
+  Set<String> texts = new HashSet<>();
+  if (root instanceof TextView) {
+   CharSequence text = ((TextView) root).getText();
+   if (text != null) texts.add(text.toString());
+  }
+  if (root instanceof android.view.ViewGroup) {
+   android.view.ViewGroup group = (android.view.ViewGroup) root;
+   for (int i = 0; i < group.getChildCount(); i++) {
+    texts.addAll(collectTexts(group.getChildAt(i)));
+   }
+  }
+  return texts;
  }
  private static AppDiagnostics healthyRow(Context context, FcmAppScanner.AppEntry app,
      Set<String> whitelist, Set<String> lockedApps) throws Exception {

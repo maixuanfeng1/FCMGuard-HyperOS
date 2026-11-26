@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="@style/BodyText"
-        tools:text="Chosen: 3 · Showing: 42" />
+        tools:text="Watched: 3 · Results: 42" />
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
@@ -52,15 +52,12 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/pickerClearSearchBtn"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="48dp"
-                android:minHeight="48dp"
-                android:contentDescription="@string/cancel_action"
-                android:text="✕"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="@string/clear_search"
                 android:visibility="gone"
-                tools:ignore="HardcodedText" />
+                app:icon="@drawable/ic_clear_search" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -98,7 +95,7 @@
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="Chosen (3)" />
+                tools:text="Watched (3)" />
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
 

@@ -1,46 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/pageApps"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:visibility="gone">
+    android:visibility="gone"
+    tools:ignore="UnusedAttribute">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="?attr/colorSurfaceContainerLow"
         android:orientation="vertical"
         android:paddingStart="@dimen/screen_horizontal_padding"
         android:paddingTop="8dp"
         android:paddingEnd="@dimen/screen_horizontal_padding"
         android:paddingBottom="8dp">
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:text="@string/apps_controls_title"
+            android:textAppearance="@style/SectionTitle" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/chooseAppsBtn"
+            style="@style/VigilPrimaryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/choose_apps" />
+
         <com.reed.fcmguard.ActionRowLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/chooseAppsBtn"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:text="@string/choose_apps" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/scanFcmAppsBtn"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/VigilSecondaryButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minHeight="48dp"
                 android:text="@string/scan_apps" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/showAllBtn"
-                style="@style/Widget.Material3.Button.TextButton"
+                style="@style/VigilSecondaryButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minHeight="48dp"
                 android:text="@string/all_apps" />
         </com.reed.fcmguard.ActionRowLayout>
 
@@ -48,19 +58,26 @@
             android:id="@+id/fcmAppsStatusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:text="@string/checking"
-            android:textAppearance="@style/BodyText" />
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
+
+    <com.google.android.material.divider.MaterialDivider
+        style="@style/VigilDivider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:dividerColor="?attr/colorOutline" />
 
     <TextView
         android:id="@+id/noChosenText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingStart="@dimen/screen_horizontal_padding"
-        android:paddingTop="12dp"
+        android:paddingTop="16dp"
         android:paddingEnd="@dimen/screen_horizontal_padding"
-        android:paddingBottom="12dp"
+        android:paddingBottom="16dp"
         android:text="@string/no_chosen"
         android:textAppearance="@style/BodyText"
         android:visibility="gone" />
@@ -71,6 +88,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:clipToPadding="false"
+        android:paddingTop="6dp"
         android:paddingBottom="16dp"
         android:scrollbars="vertical" />
 </LinearLayout>
