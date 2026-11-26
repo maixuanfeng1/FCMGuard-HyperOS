@@ -250,6 +250,9 @@ public class MainActivity extends AppCompatActivity {
             String next = id == R.id.themeDark ? ThemeHelper.MODE_DARK : id == R.id.themeLight ? ThemeHelper.MODE_LIGHT : ThemeHelper.MODE_SYSTEM;
             if (!next.equals(ThemeHelper.getMode(this))) { ThemeHelper.setMode(this, next); recreate(); }
         });
+        ((TextView) ui(R.id.aboutVersionSummary)).setText(
+                getString(R.string.about_entry_summary, getString(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE));
+        ui(R.id.aboutCard).setOnClickListener(v -> startActivity(new Intent(this, AboutActivity.class)));
         PushRuntime.start(this);
         renderConnection();
         renderWatchedSummary();

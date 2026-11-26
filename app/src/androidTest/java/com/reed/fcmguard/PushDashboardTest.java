@@ -823,6 +823,8 @@ public class PushDashboardTest {
     assertTrue(settingsTexts.contains(c.getString(R.string.settings_tile_title)));
     assertTrue(settingsTexts.contains(c.getString(R.string.settings_title)));
     assertTrue(settingsTexts.contains(c.getString(R.string.appearance_title_v3)));
+    assertTrue(settingsTexts.contains(c.getString(R.string.about_title)));
+    assertTrue(activity.ui(R.id.aboutCard).isClickable());
 
     activity.selectTab(R.id.nav_apps);
     Set<String> appsTexts = collectTexts(activity.ui(R.id.pageApps));
