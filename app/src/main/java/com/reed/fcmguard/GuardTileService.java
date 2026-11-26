@@ -24,8 +24,20 @@ public final class GuardTileService extends TileService {
             handler.postDelayed(this, 5000L);
         }
     };
+    @Override public void onTileAdded() {
+        super.onTileAdded();
+        DiagnosticPreferences.setQuickSettingsTileAdded(this, true);
+    }
+    @Override public void onTileRemoved() {
+        super.onTileRemoved();
+        DiagnosticPreferences.setQuickSettingsTileAdded(this, false);
+    }
     @Override public void onStartListening() {
         super.onStartListening(); listening = true;
+        // Existing tiles may start listening without a new onTileAdded callback after upgrade.
+        if (!DiagnosticPreferences.isQuickSettingsTileAdded(this)) {
+            DiagnosticPreferences.setQuickSettingsTileAdded(this, true);
+        }
         android.util.Log.i("FCMGuardTile", "Visible; diagnostics-only; no authorization required; pid=" + android.os.Process.myPid());
         PushRuntime.add(listener);
         // Publish the click PendingIntent before starting any diagnostic work.

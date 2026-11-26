@@ -8,7 +8,15 @@ import java.util.Set;
 
 /** User preferences and rate limits; connection verdicts come only from automatic reads. */
 final class DiagnosticPreferences {
+    static final String QUICK_SETTINGS_TILE_ADDED = "quick_settings_tile_added";
+
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences("push_diagnostics_v3", Context.MODE_PRIVATE); }
+    static boolean isQuickSettingsTileAdded(Context c) {
+        return prefs(c).getBoolean(QUICK_SETTINGS_TILE_ADDED, false);
+    }
+    static void setQuickSettingsTileAdded(Context c, boolean added) {
+        prefs(c).edit().putBoolean(QUICK_SETTINGS_TILE_ADDED, added).apply();
+    }
     static boolean enhanced(Context c) { return prefs(c).getBoolean("enhanced", false); }
     static void enhanced(Context c, boolean enabled) { prefs(c).edit().putBoolean("enhanced", enabled).apply(); }
     static void retireUnneededShizuku(Context c, boolean ownAccess) {
