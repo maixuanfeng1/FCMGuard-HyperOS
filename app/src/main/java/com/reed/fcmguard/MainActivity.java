@@ -183,16 +183,13 @@ public class MainActivity extends AppCompatActivity {
         list.setItemAnimator(null);
         appAdapter = new AppListAdapter(this);
         list.setAdapter(appAdapter);
-        boolean advancedExpanded = false;
         if (state != null) {
             if (state.containsKey(STATE_SELECTED_TAB)) {
                 selectedTabId = tabIdFromKey(state.getString(STATE_SELECTED_TAB));
                 restoredListState = androidx.core.os.BundleCompat.getParcelable(state, "list_state", Parcelable.class);
             }
             showAll = state.getBoolean("show_all", false);
-            advancedExpanded = state.getBoolean("advanced_expanded", false);
         }
-        applyAdvancedExpanded(advancedExpanded);
         BottomNavigationView bottomNav = ui(R.id.bottomNav);
         bottomNav.setOnItemSelectedListener(item -> {
             if (syncingBottomNav) return true;
@@ -240,20 +237,6 @@ public class MainActivity extends AppCompatActivity {
         });
         ui(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; restoredListState = null; renderApps(); });
         ui(R.id.addTileBtn).setOnClickListener(v -> addTile());
-        ui(R.id.advancedToggle).setOnClickListener(v ->
-                applyAdvancedExpanded(ui(R.id.advancedContent).getVisibility() != View.VISIBLE));
-        MaterialSwitch enhanced = ui(R.id.enhancedSwitch);
-        enhanced.setChecked(DiagnosticPreferences.enhanced(this));
-        enhanced.setOnCheckedChangeListener((v, checked) -> {
-            DiagnosticPreferences.enhanced(this, checked);
-            EnhancedRuntime.helperChanged(this);
-            if (checked) authorize(); else ShizukuBridge.disable();
-            renderConnection();
-        });
-        ui(R.id.permissionBtn).setOnClickListener(v -> {
-            if (ShizukuBridge.accessState(this) == EnhancedStatus.Access.NOT_RUNNING) openShizuku();
-            else authorize();
-        });
         ui(R.id.shizukuGrantBtn).setOnClickListener(v -> showShizukuGrant());
         MaterialSwitch observe = ui(R.id.observeSwitch);
         observe.setChecked(DiagnosticPreferences.observe(this));
@@ -323,7 +306,6 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putString(STATE_SELECTED_TAB, tabKey(selectedTabId));
         state.putBoolean("show_all", showAll);
-        state.putBoolean("advanced_expanded", ui(R.id.advancedContent).getVisibility() == View.VISIBLE);
         state.putParcelable("list_state", restoredListState != null ? restoredListState : list.getLayoutManager().onSaveInstanceState());
         super.onSaveInstanceState(state);
     }
@@ -354,11 +336,6 @@ public class MainActivity extends AppCompatActivity {
         EnhancedRuntime.stopRefreshing(connectionSurface);
         PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy();
     }
-    private void authorize() {
-        if (ShizukuBridge.isRunning()) ShizukuBridge.requestPermission();
-        else message(getString(R.string.no_auth_service));
-        renderConnection();
-    }
     private void openShizuku() {
         try {
             Intent intent = getPackageManager().getLaunchIntentForPackage("moe.shizuku.privileged.api");
@@ -370,13 +347,6 @@ public class MainActivity extends AppCompatActivity {
         if (!PushRuntime.check(this, recovery)) message(getString(R.string.busy_message));
         else if (recovery) message(getString(R.string.request_started));
         renderConnection();
-    }
-    private void applyAdvancedExpanded(boolean expanded) {
-        ui(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
-        MaterialButton toggle = ui(R.id.advancedToggle);
-        toggle.setIconResource(expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
-        ViewCompat.setStateDescription(toggle,
-                getString(expanded ? R.string.advanced_expanded_state : R.string.advanced_collapsed_state));
     }
 
     private String time(long date) { return date <= 0 ? getString(R.string.network_none) : DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(date)); }
@@ -397,9 +367,6 @@ public class MainActivity extends AppCompatActivity {
         long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
         if (request > 0) networkLines.add(getString(R.string.request_time, time(request)));
         set(R.id.networkText, TextUtils.join("\n", networkLines));
-        String whitelist = PushRuntime.appPolicy.whitelist();
-        set(R.id.currentValueText, SettingsGuard.KEY + "\n" + (whitelist == null ? getString(R.string.raw_unavailable) :
-                whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : whitelist.replace(",", "\n")));
         renderEnhanced(EnhancedRuntime.snapshot(this));
         continuePendingShizukuGrant();
     }
@@ -441,18 +408,7 @@ public class MainActivity extends AppCompatActivity {
             evidenceView.setText(TextUtils.join("\n", evidenceLines));
             evidenceView.setVisibility(View.VISIBLE);
         }
-        EnhancedStatus.Access helperAccess = direct ? ShizukuBridge.accessState(this) : status.access;
-        MaterialButton permission = ui(R.id.permissionBtn);
-        boolean connecting = helperAccess == EnhancedStatus.Access.CONNECTING && ShizukuBridge.isConnecting();
-        permission.setVisibility(helperAccess == EnhancedStatus.Access.DISABLED ? View.GONE : View.VISIBLE);
-        permission.setText(helperAccess == EnhancedStatus.Access.READY ? R.string.shizuku_connected :
-                helperAccess == EnhancedStatus.Access.NOT_RUNNING ? R.string.shizuku_open :
-                helperAccess == EnhancedStatus.Access.NOT_AUTHORIZED ? R.string.authorize_optional :
-                connecting ? R.string.shizuku_connecting : R.string.shizuku_retry);
-        permission.setEnabled(helperAccess != EnhancedStatus.Access.READY && !connecting);
-        set(R.id.helperText, getString(R.string.helper_access_status, getString(accessLabel(helperAccess))));
         boolean ownAccess = DirectGmsAccess.isReady(this);
-        ui(R.id.shizukuAdvancedContent).setVisibility(ownAccess ? View.GONE : View.VISIBLE);
         set(R.id.directGrantText, getString(ownAccess ? R.string.direct_grant_ready : R.string.direct_grant_missing));
         MaterialButton grant = ui(R.id.shizukuGrantBtn);
         boolean preparing = (temporaryShizukuSetup || awaitingShizukuConsent) &&
@@ -461,9 +417,6 @@ public class MainActivity extends AppCompatActivity {
                 grantingDiagnosticAccess ? R.string.shizuku_grant_working :
                 preparing ? R.string.shizuku_connecting : R.string.shizuku_grant_title);
         grant.setEnabled(!ownAccess && !grantingDiagnosticAccess && !preparing);
-        int bits = !direct && status.access == EnhancedStatus.Access.READY ? status.bits : 0;
-        set(R.id.runtimeInfoText, getString(R.string.architecture, android.os.Process.is64Bit() ? 64 : 32,
-                bits == 0 ? getString(R.string.helper_bits_unknown) : Integer.toString(bits)));
     }
     void showShizukuGrant() {
         if (grantingDiagnosticAccess || DirectGmsAccess.isReady(this)) return;
@@ -476,14 +429,15 @@ public class MainActivity extends AppCompatActivity {
         awaitingShizukuConsent = true;
         if (!DiagnosticPreferences.enhanced(this)) {
             temporaryShizukuSetup = true;
-            DiagnosticPreferences.prefs(this).edit().putBoolean("shizuku_temporary_setup", true).apply();
+            DiagnosticPreferences.prefs(this).edit()
+                    .putBoolean("enhanced", true)
+                    .putBoolean("shizuku_temporary_setup", true)
+                    .apply();
             connectionHandler.removeCallbacks(setupTimeout);
             connectionHandler.postDelayed(setupTimeout, 120000L);
-            MaterialSwitch toggle = ui(R.id.enhancedSwitch);
-            if (!toggle.isChecked()) toggle.setChecked(true);
-        } else {
-            authorize();
+            EnhancedRuntime.helperChanged(this);
         }
+        ShizukuBridge.requestPermission();
         renderConnection();
         if (!ShizukuBridge.isReady() && (shizukuConsentDialog == null || !shizukuConsentDialog.isShowing())) {
             message(getString(R.string.shizuku_grant_connect_first));
@@ -522,17 +476,13 @@ public class MainActivity extends AppCompatActivity {
     }
     private void finishShizukuSetup(boolean ownAccess) {
         awaitingShizukuConsent = false;
-        if (!ownAccess && !temporaryShizukuSetup) return;
+        if (!ownAccess && !temporaryShizukuSetup && !DiagnosticPreferences.enhanced(this)) return;
         temporaryShizukuSetup = false;
         connectionHandler.removeCallbacks(setupTimeout);
-        DiagnosticPreferences.prefs(this).edit().remove("shizuku_temporary_setup").apply();
-        if (ownAccess) DiagnosticPreferences.retireUnneededShizuku(this, true);
-        MaterialSwitch toggle = ui(R.id.enhancedSwitch);
-        if (toggle.isChecked()) toggle.setChecked(false);
-        else {
-            DiagnosticPreferences.enhanced(this, false);
-            ShizukuBridge.disable();
-        }
+        DiagnosticPreferences.retireUnneededShizuku(this);
+        ShizukuBridge.disable();
+        EnhancedRuntime.helperChanged(this);
+        if (!isFinishing() && !isDestroyed()) renderEnhanced(EnhancedRuntime.snapshot(this));
     }
     private void grantWithShizuku() {
         if (grantingDiagnosticAccess) return;
@@ -549,7 +499,7 @@ public class MainActivity extends AppCompatActivity {
                 EnhancedRuntime.invalidate(app);
                 if (isDestroyed()) {
                     if (ready) {
-                        DiagnosticPreferences.retireUnneededShizuku(app, true);
+                        DiagnosticPreferences.retireUnneededShizuku(app);
                         ShizukuBridge.disable();
                     }
                     return;

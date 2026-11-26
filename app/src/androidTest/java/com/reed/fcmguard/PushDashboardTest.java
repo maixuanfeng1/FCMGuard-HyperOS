@@ -44,13 +44,11 @@ public class PushDashboardTest {
    assertEquals(View.GONE, activity.ui(R.id.pageApps).getVisibility());
    assertEquals(View.GONE, activity.ui(R.id.settingsScroll).getVisibility());
    activity.selectTab(R.id.nav_settings);
-   assertEquals(View.GONE, activity.ui(R.id.permissionBtn).getVisibility());
-   assertFalse(((MaterialSwitch)activity.ui(R.id.enhancedSwitch)).isChecked());
-   assertEquals(View.GONE, activity.ui(R.id.advancedContent).getVisibility());
-   assertFalse(activity.ui(R.id.enhancedSwitch).isShown());
-   assertFalse(activity.ui(R.id.helperText).isShown());
-   assertTrue(activity.ui(R.id.addTileBtn).isShown());
+   assertFalse(((MaterialSwitch)activity.ui(R.id.observeSwitch)).isChecked());
    assertTrue(activity.ui(R.id.shizukuGrantBtn).isShown());
+   assertTrue(activity.ui(R.id.addTileBtn).isShown());
+   assertTrue(activity.ui(R.id.observeSwitch).isShown());
+   assertTrue(activity.ui(R.id.appearanceGroup).isShown());
    activity.selectTab(R.id.nav_apps);
    assertTrue(activity.ui(R.id.chooseAppsBtn).isShown());
   });
@@ -115,17 +113,15 @@ public class PushDashboardTest {
   Set<String> chosen=new HashSet<>(Arrays.asList("com.example.chat"));
   DiagnosticPreferences.selected(c,chosen);
   DiagnosticPreferences.enhanced(c,true);
-  DiagnosticPreferences.retireUnneededShizuku(c,true);
+  DiagnosticPreferences.retireUnneededShizuku(c);
   assertFalse(DiagnosticPreferences.enhanced(c));
   assertEquals(chosen,DiagnosticPreferences.selected(c));
   DiagnosticPreferences.enhanced(c,true);
   DiagnosticPreferences.prefs(c).edit().putBoolean("shizuku_temporary_setup",true).commit();
-  DiagnosticPreferences.retireUnneededShizuku(c,false);
+  DiagnosticPreferences.retireUnneededShizuku(c);
   assertFalse(DiagnosticPreferences.enhanced(c));
   assertFalse(DiagnosticPreferences.prefs(c).contains("shizuku_temporary_setup"));
-  DiagnosticPreferences.enhanced(c,true);
-  DiagnosticPreferences.retireUnneededShizuku(c,false);
-  assertTrue("An explicitly selected backup remains available without independent access",DiagnosticPreferences.enhanced(c));
+  assertEquals(chosen,DiagnosticPreferences.selected(c));
  }
  @Test public void reachableNetworkNeverClaimsDiagnosticsConnected() {
   PushRuntime.network = NetworkProbe.State.REACHABLE;
@@ -376,7 +372,6 @@ public class PushDashboardTest {
    assertTrue("Apps list should contain at least one visible item", position >= 0);
    savedPosition.set(position); savedOffset.set(layout.getDecoratedTop(layout.findViewByPosition(position)));
    activity.selectTab(R.id.nav_settings);
-   activity.ui(R.id.advancedToggle).performClick();
   });
   in.waitForIdleSync();
   Instrumentation.ActivityMonitor monitor = in.addMonitor(MainActivity.class.getName(), null, false);
@@ -391,7 +386,6 @@ public class PushDashboardTest {
    in.waitForIdleSync();
    in.runOnMainSync(() -> {
     assertEquals(R.id.nav_settings, activity.currentTab());
-    assertEquals(View.VISIBLE, activity.ui(R.id.advancedContent).getVisibility());
     activity.selectTab(R.id.nav_apps);
    });
    android.os.SystemClock.sleep(300);
@@ -408,19 +402,13 @@ public class PushDashboardTest {
  }
  @Test public void authorizedButSystemRestrictedNeverReportsMissingGrant() throws Exception {
   in.runOnMainSync(() -> {
-   MaterialSwitch toggle = activity.ui(R.id.enhancedSwitch);
-   toggle.setOnCheckedChangeListener(null); toggle.setChecked(true);
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,
        EnhancedStatus.Result.SYSTEM_RESTRICTED, 64, 1234567890000L));
    String top = ((TextView)activity.ui(R.id.evidenceText)).getText().toString();
-   String bottom = ((TextView)activity.ui(R.id.helperText)).getText().toString();
+   assertEquals(c.getString(R.string.connection_unknown), ((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
    assertTrue(top.contains(c.getString(R.string.enhanced_ready)));
-   assertTrue(bottom.contains(c.getString(R.string.enhanced_ready)));
    assertTrue(top.contains(c.getString(R.string.enhanced_restricted)));
    assertFalse(top.contains(c.getString(R.string.enhanced_needs_grant)));
-   assertTrue(((TextView)activity.ui(R.id.runtimeInfoText)).getText().toString().contains("64"));
-   assertEquals(c.getString(R.string.shizuku_connected),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
-   assertFalse(activity.ui(R.id.permissionBtn).isEnabled());
   });
  }
  @Test public void directEvidenceDoesNotClaimShizukuIsRunning() {
@@ -430,11 +418,8 @@ public class PushDashboardTest {
        EnhancedStatus.Result.CONNECTED,64,System.currentTimeMillis(),now,EnhancedStatus.Source.DIRECT));
    assertEquals(c.getString(R.string.gms_connected),((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
    String top=((TextView)activity.ui(R.id.evidenceText)).getText().toString();
-   String bottom=((TextView)activity.ui(R.id.helperText)).getText().toString();
    assertTrue(top.contains(c.getString(R.string.direct_evidence)));
    assertFalse(top.contains(c.getString(R.string.enhanced_ready)));
-   assertTrue(bottom.contains(c.getString(R.string.enhanced_disabled)));
-   assertEquals(View.GONE,activity.ui(R.id.permissionBtn).getVisibility());
   });
  }
  @Test public void openingTilePreservesInFlightShizukuSetup() {
@@ -456,23 +441,30 @@ public class PushDashboardTest {
  }
  @Test public void authorizedConnectingHelperDoesNotAskForGrantAgain() throws Exception {
   Field binding=ShizukuBridge.class.getDeclaredField("binding");binding.setAccessible(true);
+  Field tempSetup=MainActivity.class.getDeclaredField("temporaryShizukuSetup");tempSetup.setAccessible(true);
   boolean before=binding.getBoolean(null);
   try {
    in.runOnMainSync(() -> {
-    try { binding.setBoolean(null,true); } catch (IllegalAccessException e) { throw new AssertionError(e); }
+    try {
+     tempSetup.setBoolean(activity,true);
+     binding.setBoolean(null,true);
+    } catch (IllegalAccessException e) { throw new AssertionError(e); }
     activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
         EnhancedStatus.Result.NOT_CHECKED,0,0));
-    assertFalse(activity.ui(R.id.permissionBtn).isEnabled());
-    assertEquals(c.getString(R.string.shizuku_connecting),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
-    // A completed/expired bind must restore a usable retry action.
+    assertFalse(activity.ui(R.id.shizukuGrantBtn).isEnabled());
+    assertEquals(c.getString(R.string.shizuku_connecting),((TextView)activity.ui(R.id.shizukuGrantBtn)).getText().toString());
+    // A completed/expired bind must restore a usable grant action.
     try { binding.setBoolean(null,false); } catch (IllegalAccessException e) { throw new AssertionError(e); }
     activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
         EnhancedStatus.Result.NOT_CHECKED,0,0));
-    assertTrue(activity.ui(R.id.permissionBtn).isEnabled());
-    assertEquals(c.getString(R.string.shizuku_retry),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
+    assertTrue(activity.ui(R.id.shizukuGrantBtn).isEnabled());
+    assertEquals(c.getString(R.string.shizuku_grant_title),((TextView)activity.ui(R.id.shizukuGrantBtn)).getText().toString());
    });
   } finally { in.runOnMainSync(() -> {
-   try { binding.setBoolean(null,before); } catch (IllegalAccessException e) { throw new AssertionError(e); }
+   try {
+    binding.setBoolean(null,before);
+    tempSetup.setBoolean(activity,false);
+   } catch (IllegalAccessException e) { throw new AssertionError(e); }
   }); }
   in.runOnMainSync(() -> {
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.CONNECTING,
@@ -485,15 +477,12 @@ public class PushDashboardTest {
   in.runOnMainSync(() -> {
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.READY,
        EnhancedStatus.Result.NOT_CHECKED,64,0));
-   assertFalse(activity.ui(R.id.permissionBtn).isEnabled());
    activity.renderEnhanced(new EnhancedStatus.Snapshot(EnhancedStatus.Access.NOT_AUTHORIZED,
        EnhancedStatus.Result.CONNECTED, 64, 1234567890000L, android.os.SystemClock.elapsedRealtime()));
+   assertEquals(c.getString(R.string.connection_unknown),((TextView)activity.ui(R.id.statusHeadline)).getText().toString());
    String top = ((TextView)activity.ui(R.id.evidenceText)).getText().toString();
    assertTrue(top.contains(c.getString(R.string.enhanced_needs_grant)));
    assertFalse(top.contains(c.getString(R.string.gms_connected)));
-   assertTrue(((TextView)activity.ui(R.id.runtimeInfoText)).getText().toString().contains(c.getString(R.string.helper_bits_unknown)));
-   assertTrue(activity.ui(R.id.permissionBtn).isEnabled());
-   assertEquals(c.getString(R.string.authorize_optional),((TextView)activity.ui(R.id.permissionBtn)).getText().toString());
   });
  }
  @Test public void freshGmsConnectionLightsTileAndUpdatesDashboard() {
@@ -653,7 +642,6 @@ public class PushDashboardTest {
      activity.selectTab(R.id.nav_settings);
      DiagnosticPreferences.enhanced(c, true);
      DiagnosticPreferences.prefs(c).edit().putBoolean("shizuku_temporary_setup", true).commit();
-     ((MaterialSwitch) activity.ui(R.id.enhancedSwitch)).setChecked(true);
      tempSetup.setBoolean(activity, true);
      awaiting.setBoolean(activity, true);
      requesting.setBoolean(null, true);
@@ -816,6 +804,14 @@ public class PushDashboardTest {
     assertEquals(0, c.getResources().getIdentifier("directGrantBtn", "id", pkg));
     assertEquals(0, c.getResources().getIdentifier("detailListNote", "id", pkg));
     assertEquals(0, c.getResources().getIdentifier("detailBackgroundNote", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("advancedToggle", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("advancedContent", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("shizukuAdvancedContent", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("enhancedSwitch", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("helperText", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("permissionBtn", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("runtimeInfoText", "id", pkg));
+    assertEquals(0, c.getResources().getIdentifier("currentValueText", "id", pkg));
 
     TextView source = activity.ui(R.id.connectionSource);
     assertEquals(View.VISIBLE, source.getVisibility());
@@ -827,19 +823,6 @@ public class PushDashboardTest {
     assertTrue(settingsTexts.contains(c.getString(R.string.settings_tile_title)));
     assertTrue(settingsTexts.contains(c.getString(R.string.settings_title)));
     assertTrue(settingsTexts.contains(c.getString(R.string.appearance_title_v3)));
-    assertTrue(settingsTexts.contains(c.getString(R.string.advanced_options)));
-
-    View toggle = activity.ui(R.id.advancedToggle);
-    assertEquals(c.getString(R.string.advanced_collapsed_state),
-        String.valueOf(androidx.core.view.ViewCompat.getStateDescription(toggle)));
-    toggle.performClick();
-    assertEquals(View.VISIBLE, activity.ui(R.id.advancedContent).getVisibility());
-    assertEquals(c.getString(R.string.advanced_expanded_state),
-        String.valueOf(androidx.core.view.ViewCompat.getStateDescription(toggle)));
-    toggle.performClick();
-    assertEquals(View.GONE, activity.ui(R.id.advancedContent).getVisibility());
-    assertEquals(c.getString(R.string.advanced_collapsed_state),
-        String.valueOf(androidx.core.view.ViewCompat.getStateDescription(toggle)));
 
     activity.selectTab(R.id.nav_apps);
     Set<String> appsTexts = collectTexts(activity.ui(R.id.pageApps));

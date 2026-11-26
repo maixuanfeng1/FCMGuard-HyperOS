@@ -85,11 +85,10 @@ public class MaterialUiScreenshotTest {
             instrumentation.runOnMainSync(() -> {
                 if (activity.activeAppSheet != null) activity.activeAppSheet.dismiss();
                 activity.selectTab(R.id.nav_settings);
-                activity.ui(R.id.advancedToggle).performClick();
             });
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
-            saveScreenshot(instrumentation, context, name + "-advanced");
+            saveScreenshot(instrumentation, context, name + "-settings");
         }
         instrumentation.runOnMainSync(activity::finish);
         instrumentation.waitForIdleSync();

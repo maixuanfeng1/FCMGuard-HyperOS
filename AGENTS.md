@@ -17,10 +17,9 @@
 
 ## 2. Material 3 UI 与文案设计准则
 
-- **统一三级按钮体系（`app/src/main/res/values/styles.xml`）**：
+- **统一二级按钮体系（`app/src/main/res/values/styles.xml`）**：
   1. `VigilPrimaryButton`（全宽实心主按钮）：每个功能区块**最多 1 个**核心入口（如 `diagBtn`、`chooseAppsBtn`、`detailWatchBtn`、`shizukuGrantBtn`）。
-  2. `VigilSecondaryButton`（描边次级按钮）：所有辅助操作与对等系统设置跳转统一使用描边样式，禁止在同一操作组混排无边框 `TextButton`。
-  3. `VigilDisclosureButton`（左对齐折叠标题行 + 右侧 `24dp` 展开箭头）：仅用于可折叠卡片标题（如 `advancedToggle`）；输入框内联清除使用标准矢量 `IconButton`。
+  2. `VigilSecondaryButton`（描边次级按钮）：所有辅助操作与对等系统设置跳转统一使用描边样式，禁止在同一操作组混排无边框 `TextButton`；输入框内联清除使用标准矢量 `IconButton`。
 - **清晰模块分区**：各页面卡片统一使用 `VigilSectionCard`（`1dp` `colorOutlineVariant` 描边、`0dp` 阴影）与 `VigilDivider` 明确切分边界；避免在手机端塞入无意义的跳转（如已移除的系统无线设置与内嵌复制 ADB 命令弹窗）。
 - **精炼友好文案**：拒绝冗长防御性免责声明；所有新增或修改的字符串必须在 `values/diagnostics.xml`、`values-zh-rCN/diagnostics.xml`、`values-zh-rTW/diagnostics.xml`（及 `material_strings.xml`）三处保持 **100% 键名与格式化占位符对齐**，且确保零 `UnusedResources` 与零 `ExtraTranslation`。
 
