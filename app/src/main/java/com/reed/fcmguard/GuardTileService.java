@@ -36,7 +36,7 @@ public final class GuardTileService extends TileService {
     }
     static void startDiagnostics(Context context, Object surface) {
         if (DirectGmsAccess.isReady(context)) {
-            DiagnosticPreferences.retireUnneededShizuku(context, true);
+            DiagnosticPreferences.retireUnneededShizuku(context);
         } else if (DiagnosticPreferences.enhanced(context)) {
             ShizukuBridge.connect();
         }

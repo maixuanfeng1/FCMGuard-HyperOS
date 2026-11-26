@@ -44,7 +44,7 @@ The emulator runner must use the pinned command-line tools through its `latest` 
 
 Use the [HyperOS 4 device checklist](HYPEROS_CHECKS.md) to verify upgrades, permissions, settings links, live connection states and locked-screen notification delivery on a physical phone.
 
-`python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit/unknown bundled ELF libraries. An APK with no native libraries is ABI-neutral and works on ARM64. The optional Shizuku section under **Settings → Advanced options** shows app and helper bitness when the section is available.
+`python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit/unknown bundled ELF libraries. An APK with no native libraries is ABI-neutral and works on ARM64.
 
 Run `python3 -m unittest discover -s tools/tests -v` for APK ABI-validator cases.
 

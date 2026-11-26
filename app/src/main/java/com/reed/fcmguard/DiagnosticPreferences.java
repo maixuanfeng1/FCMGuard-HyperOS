@@ -19,10 +19,8 @@ final class DiagnosticPreferences {
     }
     static boolean enhanced(Context c) { return prefs(c).getBoolean("enhanced", false); }
     static void enhanced(Context c, boolean enabled) { prefs(c).edit().putBoolean("enhanced", enabled).apply(); }
-    static void retireUnneededShizuku(Context c, boolean ownAccess) {
-        SharedPreferences p = prefs(c);
-        if (ownAccess || p.getBoolean("shizuku_temporary_setup", false))
-            p.edit().remove("enhanced").remove("shizuku_temporary_setup").apply();
+    static void retireUnneededShizuku(Context c) {
+        prefs(c).edit().remove("enhanced").remove("shizuku_temporary_setup").apply();
     }
     static boolean observe(Context c) { return prefs(c).getBoolean("observe", true); }
     static Set<String> selected(Context c) { return new HashSet<>(prefs(c).getStringSet("selected", new HashSet<>())); }

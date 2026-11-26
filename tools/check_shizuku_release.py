@@ -95,7 +95,8 @@ try:
         current = nodes()
     assert find_node(current, PACKAGE+':id/shizukuGrantBtn') is not None, 'shizukuGrantBtn not found in Settings tab'
     assert not any(n.get('resource-id') in {PACKAGE+':id/enhancedSwitch', PACKAGE+':id/helperText',
-                    PACKAGE+':id/permissionBtn', PACKAGE+':id/runtimeInfoText'} for n in current), 'Legacy controls leaked into daily UI'
+                    PACKAGE+':id/permissionBtn', PACKAGE+':id/runtimeInfoText',
+                    PACKAGE+':id/advancedToggle', PACKAGE+':id/currentValueText'} for n in current), 'Legacy controls leaked into daily UI'
     allowed = False
     def open_consent():
         global allowed
@@ -142,7 +143,8 @@ try:
         raise AssertionError('The actual app-to-helper grant did not produce independent diagnostic access')
     assert own_permissions() == (True, True), 'The Shizuku flow did not grant both app permissions'
     assert not any(n.get('resource-id') in {PACKAGE+':id/enhancedSwitch', PACKAGE+':id/helperText',
-                    PACKAGE+':id/permissionBtn', PACKAGE+':id/runtimeInfoText'} for n in current), 'Legacy controls visible after independent authorization'
+                    PACKAGE+':id/permissionBtn', PACKAGE+':id/runtimeInfoText',
+                    PACKAGE+':id/advancedToggle', PACKAGE+':id/currentValueText'} for n in current), 'Legacy controls visible after independent authorization'
     # Verify the app released its helper without stopping Shizuku used by other apps.
     deadline = time.monotonic()+15
     while time.monotonic()<deadline:
