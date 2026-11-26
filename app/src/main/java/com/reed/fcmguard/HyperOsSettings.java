@@ -12,8 +12,16 @@ import android.provider.Settings;
 public final class HyperOsSettings {
     private static final String SECURITY_CENTER = "com.miui.securitycenter";
     private static final String ACTION_APP_DETAILS = "miui.intent.action.APP_MANAGER_APPLICATION_DETAIL";
+    static final String ACTION_OPTIMIZE_MANAGE_SETTINGS = "miui.intent.action.OPTIMIZE_MANAGE_SETTINGS";
 
     private HyperOsSettings() {}
+
+    public static boolean openLockedAppsSettings(Context context) {
+        Intent intent = new Intent(ACTION_OPTIMIZE_MANAGE_SETTINGS)
+                .setPackage(SECURITY_CENTER)
+                .addCategory(Intent.CATEGORY_DEFAULT);
+        return launch(context, intent);
+    }
 
     /**
      * Opens the selected application's own settings, including the vendor battery,

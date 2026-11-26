@@ -98,4 +98,64 @@ public class SettingsObserverTest {
             shell("settings --user " + user + " delete system " + OTHER_KEY);
         }
     }
+
+    @Test public void simultaneousMonitorsDeliverOnlyTheirOwnKeyAndStopCleanly() throws Exception {
+        String suffix = Long.toString(System.nanoTime());
+        String keyA = "FCMGUARD_OBSERVER_A_" + suffix;
+        String keyB = "FCMGUARD_OBSERVER_B_" + suffix;
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        int user = Process.myUid() / 100000;
+        HandlerThread thread = new HandlerThread("dual-observer-device-test");
+        thread.start();
+        Handler handler = new Handler(thread.getLooper());
+        SettingsChangeMonitor monitorA = new SettingsChangeMonitor(context.getContentResolver(), handler);
+        SettingsChangeMonitor monitorB = new SettingsChangeMonitor(context.getContentResolver(), handler);
+        AtomicInteger eventsA = new AtomicInteger();
+        AtomicInteger eventsB = new AtomicInteger();
+        CountDownLatch latchA = new CountDownLatch(1);
+        CountDownLatch latchB1 = new CountDownLatch(1);
+        CountDownLatch latchB2 = new CountDownLatch(2);
+        try {
+            monitorA.start(keyA, user, () -> {
+                eventsA.incrementAndGet();
+                latchA.countDown();
+            });
+            monitorB.start(keyB, user, () -> {
+                eventsB.incrementAndGet();
+                latchB1.countDown();
+                latchB2.countDown();
+            });
+
+            shell("settings --user " + user + " put system " + keyA + " valA1");
+            assertTrue("Monitor A must receive key A mutations", latchA.await(5, TimeUnit.SECONDS));
+            assertFalse("Monitor B must ignore key A mutations", latchB1.await(400, TimeUnit.MILLISECONDS));
+            assertEquals(0, eventsB.get());
+
+            int countABeforeB = eventsA.get();
+            shell("settings --user " + user + " put system " + keyB + " valB1");
+            assertTrue("Monitor B must receive key B mutations", latchB1.await(5, TimeUnit.SECONDS));
+            Thread.sleep(400);
+            assertEquals("Monitor A must ignore key B mutations", countABeforeB, eventsA.get());
+
+            monitorA.stop();
+            int stoppedA = eventsA.get();
+            shell("settings --user " + user + " put system " + keyA + " valA2");
+            shell("settings --user " + user + " put system " + keyB + " valB2");
+            assertTrue("Monitor B must continue receiving key B after monitor A stops", latchB2.await(5, TimeUnit.SECONDS));
+            Thread.sleep(400);
+            assertEquals("Stopped monitor A must not receive further events", stoppedA, eventsA.get());
+
+            monitorB.stop();
+            int stoppedB = eventsB.get();
+            shell("settings --user " + user + " put system " + keyB + " valB3");
+            Thread.sleep(400);
+            assertEquals("Stopped monitor B must not receive further events", stoppedB, eventsB.get());
+        } finally {
+            monitorA.stop();
+            monitorB.stop();
+            thread.quitSafely();
+            shell("settings --user " + user + " delete system " + keyA);
+            shell("settings --user " + user + " delete system " + keyB);
+        }
+    }
 }

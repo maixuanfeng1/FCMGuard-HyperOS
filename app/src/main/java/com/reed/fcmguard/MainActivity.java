@@ -46,7 +46,9 @@ public class MainActivity extends AppCompatActivity {
     AppListAdapter appAdapter;
     AlertDialog activePickerDialog;
     AlertDialog shizukuConsentDialog;
+    AlertDialog activeLockHelpDialog;
     BottomSheetDialog activeAppSheet;
+    private String activeSheetPackage;
     private volatile boolean scanning;
     private boolean scanPending;
     private boolean grantingDiagnosticAccess;
@@ -61,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
         }
     };
     private String lastWhitelist;
+    private Set<String> lastLockedApps;
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
     private final Runnable connectionRefresh = new Runnable() {
         @Override public void run() {
@@ -72,7 +75,8 @@ public class MainActivity extends AppCompatActivity {
     private final Runnable stateListener = () -> {
         if (isDestroyed()) return;
         renderConnection();
-        if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)) refreshApps();
+        if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)
+                || !Objects.equals(lastLockedApps, PushRuntime.lockedApps)) refreshApps();
     };
 
     <T extends View> T ui(int id) {
@@ -210,7 +214,12 @@ public class MainActivity extends AppCompatActivity {
         ui(R.id.checkBtn).setOnClickListener(v -> check(false));
         ui(R.id.reconnectBtn).setOnClickListener(v -> check(true));
         ui(R.id.chooseAppsBtn).setOnClickListener(v -> chooseApps());
-        ui(R.id.scanFcmAppsBtn).setOnClickListener(v -> { FcmAppScanner.invalidate(); refreshApps(); });
+        ui(R.id.scanFcmAppsBtn).setOnClickListener(v -> {
+            FcmAppScanner.invalidate();
+            SettingsGuard.invalidateLockedAppsCache();
+            PushRuntime.refresh(this);
+            refreshApps();
+        });
         ui(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; restoredListState = null; renderApps(); });
         ui(R.id.networkSettingsBtn).setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIRELESS_SETTINGS)));
         ui(R.id.addTileBtn).setOnClickListener(v -> addTile());
@@ -271,6 +280,7 @@ public class MainActivity extends AppCompatActivity {
         resumed = true;
         WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this)); bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
+        SettingsGuard.invalidateLockedAppsCache();
         PushRuntime.refresh(this); refreshApps();
         if (DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
         if (ShizukuBridge.isRequestingPermission()) {
@@ -305,9 +315,16 @@ public class MainActivity extends AppCompatActivity {
             activePickerDialog.dismiss();
             activePickerDialog = null;
         }
+        if (activeLockHelpDialog != null) {
+            activeLockHelpDialog.setOnDismissListener(null);
+            activeLockHelpDialog.dismiss();
+            activeLockHelpDialog = null;
+        }
         if (activeAppSheet != null) {
+            activeAppSheet.setOnDismissListener(null);
             activeAppSheet.dismiss();
             activeAppSheet = null;
+            activeSheetPackage = null;
         }
         finishShizukuSetup(false);
         connectionHandler.removeCallbacks(stalePermissionCheck);
@@ -483,6 +500,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 finishShizukuSetup(ready);
                 renderConnection();
+                SettingsGuard.invalidateLockedAppsCache();
+                PushRuntime.refresh(this);
+                refreshApps();
                 View settingsScroll = ui(R.id.settingsScroll);
                 if (settingsScroll != null && settingsScroll.getVisibility() == View.VISIBLE) {
                     settingsScroll.post(() -> {
@@ -567,13 +587,14 @@ public class MainActivity extends AppCompatActivity {
             List<FcmAppScanner.AppEntry> found = FcmAppScanner.scanAll(this);
             String list = SettingsGuard.read(this);
             Set<String> packages = list == null ? null : PackageList.parse(list);
+            Set<String> locked = SettingsGuard.readLockedApps(this);
             List<AppDiagnostics> result = new ArrayList<>();
-            for (FcmAppScanner.AppEntry app : found) result.add(new AppDiagnostics(this, app, packages));
+            for (FcmAppScanner.AppEntry app : found) result.add(new AppDiagnostics(this, app, packages, locked));
             runOnUiThread(() -> {
                 scanning = false;
                 if (isDestroyed()) return;
                 appsLoaded = true;
-                apps = found; rows = result; lastWhitelist = list; renderApps();
+                apps = found; rows = result; lastWhitelist = list; lastLockedApps = locked; renderApps();
                 // An event received during scanning must not be lost.
                 if (!Objects.equals(list, PushRuntime.whitelist)) PushRuntime.refresh(this);
                 if (scanPending) { scanPending = false; refreshApps(); }
@@ -606,6 +627,21 @@ public class MainActivity extends AppCompatActivity {
         appAdapter.submit(visible, chosen);
         maybeRestoreListState();
         renderWatchedSummary(chosen);
+        if (activeAppSheet != null && activeAppSheet.isShowing() && activeSheetPackage != null) {
+            AppDiagnostics matchedRow = null;
+            for (AppDiagnostics row : rows) {
+                if (row.app.packageName.equals(activeSheetPackage)) {
+                    matchedRow = row;
+                    break;
+                }
+            }
+            if (matchedRow != null) {
+                View sheet = activeAppSheet.findViewById(R.id.detailContentRoot);
+                if (sheet != null) bindAppSheetDetails(sheet, matchedRow, chosen);
+            } else if (appsLoaded) {
+                activeAppSheet.dismiss();
+            }
+        }
     }
 
     private void renderWatchedSummary() {
@@ -750,7 +786,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void showApp(AppDiagnostics row) {
-        if (row == null) return;
+        if (row == null || isFinishing() || isDestroyed()) return;
         if (activeAppSheet != null && activeAppSheet.isShowing()) activeAppSheet.dismiss();
         BottomSheetDialog dialog = new BottomSheetDialog(this);
         dialog.setContentView(R.layout.bottom_sheet_app_details);
@@ -760,19 +796,56 @@ public class MainActivity extends AppCompatActivity {
         ((TextView) sheet.findViewById(R.id.detailAppPackage)).setText(row.app.packageName);
 
         MaterialButton watchBtn = sheet.findViewById(R.id.detailWatchBtn);
-        Runnable syncWatchLabel = () -> {
-            boolean watched = DiagnosticPreferences.selected(this).contains(row.app.packageName);
-            watchBtn.setText(watched ? R.string.unwatch_this_app : R.string.watch_this_app);
-        };
-        syncWatchLabel.run();
         watchBtn.setOnClickListener(v -> {
             Set<String> selected = DiagnosticPreferences.selected(this);
             if (!selected.remove(row.app.packageName)) selected.add(row.app.packageName);
             DiagnosticPreferences.selected(this, selected);
-            syncWatchLabel.run();
+            watchBtn.setText(selected.contains(row.app.packageName) ? R.string.unwatch_this_app : R.string.watch_this_app);
             renderApps();
         });
 
+        bindAppSheetDetails(sheet, row, DiagnosticPreferences.selected(this));
+
+        sheet.findViewById(R.id.detailOpenSettingsBtn).setOnClickListener(
+                v -> HyperOsSettings.openApplicationSettings(this, row.app.packageName));
+        sheet.findViewById(R.id.detailOpenNotificationsBtn).setOnClickListener(
+                v -> HyperOsSettings.openNotificationSettings(this, row.app.packageName));
+        sheet.findViewById(R.id.detailOpenBatteryBtn).setOnClickListener(
+                v -> HyperOsSettings.openBatterySettings(this, row.app.packageName));
+        sheet.findViewById(R.id.detailLockHelpBtn).setOnClickListener(v -> {
+            if (!HyperOsSettings.openLockedAppsSettings(this)) {
+                if (isFinishing() || isDestroyed()) return;
+                if (activeLockHelpDialog != null && activeLockHelpDialog.isShowing()) {
+                    activeLockHelpDialog.dismiss();
+                }
+                AlertDialog help = new MaterialAlertDialogBuilder(this)
+                        .setMessage(R.string.lock_help)
+                        .setPositiveButton(R.string.done_action, null)
+                        .create();
+                help.setOnDismissListener(d -> {
+                    if (activeLockHelpDialog == help) activeLockHelpDialog = null;
+                });
+                activeLockHelpDialog = help;
+                help.show();
+            }
+        });
+
+        dialog.setOnDismissListener(d -> {
+            if (activeAppSheet == dialog) {
+                activeAppSheet = null;
+                activeSheetPackage = null;
+            }
+        });
+        activeAppSheet = dialog;
+        activeSheetPackage = row.app.packageName;
+        dialog.show();
+    }
+
+    private void bindAppSheetDetails(View sheet, AppDiagnostics row, Set<String> chosen) {
+        MaterialButton watchBtn = sheet.findViewById(R.id.detailWatchBtn);
+        if (watchBtn != null) {
+            watchBtn.setText(chosen.contains(row.app.packageName) ? R.string.unwatch_this_app : R.string.watch_this_app);
+        }
         int errorColor = MaterialColors.getColor(sheet, androidx.appcompat.R.attr.colorError);
         int titleColor = MaterialColors.getColor(sheet, com.google.android.material.R.attr.colorOnSurface);
         int bodyColor = MaterialColors.getColor(sheet, com.google.android.material.R.attr.colorOnSurfaceVariant);
@@ -801,21 +874,10 @@ public class MainActivity extends AppCompatActivity {
                 getString(row.stopped ? R.string.stopped_yes : R.string.stopped_no));
         stopped.setTextColor(Boolean.TRUE.equals(row.stopped) ? errorColor : bodyColor);
 
-        sheet.findViewById(R.id.detailOpenSettingsBtn).setOnClickListener(
-                v -> HyperOsSettings.openApplicationSettings(this, row.app.packageName));
-        sheet.findViewById(R.id.detailOpenNotificationsBtn).setOnClickListener(
-                v -> HyperOsSettings.openNotificationSettings(this, row.app.packageName));
-        sheet.findViewById(R.id.detailOpenBatteryBtn).setOnClickListener(
-                v -> HyperOsSettings.openBatterySettings(this, row.app.packageName));
-        sheet.findViewById(R.id.detailLockHelpBtn).setOnClickListener(
-                v -> new MaterialAlertDialogBuilder(this)
-                        .setMessage(R.string.lock_help)
-                        .setPositiveButton(R.string.done_action, null)
-                        .show());
-
-        dialog.setOnDismissListener(d -> { if (activeAppSheet == dialog) activeAppSheet = null; });
-        activeAppSheet = dialog;
-        dialog.show();
+        TextView locked = sheet.findViewById(R.id.detailLocked);
+        locked.setText(getString(R.string.recents_lock_label,
+                flag(row.lockedInRecents, R.string.recents_locked, R.string.recents_not_locked)));
+        locked.setTextColor(titleColor);
     }
 
     private void addTile() {

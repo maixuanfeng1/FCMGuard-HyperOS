@@ -1,81 +1,87 @@
 <p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 
-# Push Sentinel · Push diagnostics
+# Vigil · HyperOS App Keep-Alive & Push Diagnostics
 
-Previously FCM Guard. Package identity, signing certificate and upgrade data are retained.
+Formerly **Push Sentinel / FCM Guard**. Package identity (`com.reed.fcmguard`), signing certificate, and user data are preserved for seamless in-place upgrades.
 
-[Download APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
+[Download Latest APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
 
-Version 3 refocuses this HyperOS tool on the apps whose notifications matter to you. The dashboard, system-list reader, component scan, app settings links and Quick Settings entry work without Shizuku authorization. No whitelist writes, persistent notification, foreground service, background periodic polling, wake lock, or scheduled wakeup is used.
+---
 
-## Workflow
+## Why Vigil
 
-1. View the recent automatically read GMS connection state. Open Google Play services’ FCM diagnostics using the fixed home-screen button when needed; returning resumes automatic checks without a recording or confirmation dialog.
-2. Choose your notification apps from launchable apps, including those without detected FCM/GCM declarations. Components establish capability, not a working token, actual message route or guaranteed delivery.
-3. Inspect Autostart, read-only `MILLET_NO_RESTRICT_APP` membership, Android notification permission, stopped flag and AOSP Doze exemption. Unknown is distinct from enabled. Notification master switches/channels, in-app mute settings and recents locking require review where a supported query is unavailable. System-list membership and the HyperOS UI's complete battery policy are not treated as interchangeable.
-4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
-5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With app diagnostic access (granted once through Shizuku or ADB), or optional running Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
+On HyperOS, reliable app notifications depend on more than the FCM socket alone — they rely on the entire survival and delivery chain across **GMS live connection state, Autostart, battery/no-restrictions policy, Recents task locking, notification permissions, and Android stopped state**.
 
-## Version 3.6.0: three-tab Material 3 navigation
+**Vigil** brings these checks together in a lightweight, transparent, strictly read-only diagnostic console:
 
-Reorganizes the single scrolling screen into a Material 3 three-tab layout with bottom navigation (**Connection**, **Apps**, **Settings**). The Connection tab brings together the FCM status card, Google diagnostics entry, a tappable watched-app health summary card, and network probe/heartbeat actions; the Apps tab gives the watched/all app list a dedicated full-height view with a compact fixed filter header and an attention-count badge on the bottom navigation bar; the Settings tab places one-time Shizuku diagnostic authorization and Quick Settings tile setup at the top, followed by refresh/appearance preferences and collapsed Advanced options. Selected tab, list mode, advanced expansion, and list scroll position survive activity recreation, and snackbars anchor cleanly above the bottom bar.
+- **Permission-free by default**: App discovery, Autostart and notification permission checks, read-only system-list checks, exact per-app settings links, Google FCM diagnostics, and the Quick Settings entry work without Shizuku.
+- **Strictly read-only**: Never writes to system whitelists, never mutates battery policies, and exposes no arbitrary shell execution.
+- **Zero-background architecture**: No foreground service, no persistent notification, no background periodic polling, no wake locks, and no scheduled wakeups.
 
-## Version 3.5.0: searchable app picker, card layout and seamless one-time grant
+---
 
-The notification-app picker adds live search by app name or package, app icons, and All / FCM-declared / Chosen filter chips over a recycled list, keeping rows steady while toggling checkboxes. The dashboard arranges actions into responsive rows that wrap cleanly on compact or large-font screens, presents watched apps as Material 3 cards with status badges, and adds a one-tap Chosen toggle inside the per-app details sheet.
+## Four Core Diagnostic Pillars
 
-Tapping **Grant once through Shizuku** now automatically opens the diagnostic permission confirmation dialog as soon as Shizuku authorization and temporary helper binding finish, and cleans up temporary setup immediately if the Shizuku prompt is dismissed or denied. Quick Settings tile subtitles distinguish Shizuku-stopped and connecting states, and expanding the tile skips unneeded Shizuku binding once independent diagnostic access is ready.
+| Pillar | What Vigil Inspects | Direct Actions & Boundaries |
+| --- | --- | --- |
+| **1. GMS / FCM Live Connection & Wakeup** | Reads current-user GMS service connection state, clearly distinguishing `Connected`, `Disconnected`, and `Unknown`; includes network reachability probing and GMS availability checks | Fixed button opens Google Play services’ FCM diagnostics; launcher long-press shortcut and rate-limited (1/min) heartbeat requests (network reachability never claims GMS Connected) |
+| **2. App Autostart (`Autostart`)** | Reads HyperOS Autostart status (`Enabled`, `Disabled`, `Partially enabled`, or `Unable to read`) | Disabled/partial apps sort first with clear error emphasis and feed the bottom-nav attention badge; opens the exact app’s settings page |
+| **3. Battery Policy & No-Restrictions List (`MILLET_NO_RESTRICT_APP` & Doze)** | Read-only check of HyperOS `MILLET_NO_RESTRICT_APP` membership alongside AOSP Doze exemption | Explicitly separates the system reference list from HyperOS’s full battery policy; deep-links directly to that app’s battery page without falling back to a global app list |
+| **4. Recents Task Lock (`locked_apps`)** | Read-only parser for HyperOS’s multi-user `locked_apps` setting, displaying `Locked`, `Not locked`, or `Unable to read` with live updates on change | Locking keeps the task when clearing recent apps; standard FCM can still deliver with the lock off, so lock status stays neutral and never triggers false alarms. Direct shortcut opens HyperOS Security Center’s lock-task settings (falling back to guided instructions when unavailable) |
 
-## Version 3.4.1: simpler daily controls
+For every watched app, Vigil also checks **Android notification permission (`POST_NOTIFICATIONS`)** and the **force-stopped flag (`FLAG_STOPPED`)**, with direct links to that app’s own notification, battery, and details screens. Launchable apps without FCM/GCM component declarations can also be watched and inspected.
 
-The daily settings show independent diagnostic access and its one-time Shizuku grant action. Manual ADB instructions and fallback Shizuku controls live under collapsed Advanced options. Once independent access is ready, the old enhancement mode is disabled and hidden; the app releases its own helper and does not reconnect it for normal checks. Temporary setup is released on cancellation, completion, expiry or leaving a destroyed activity; interrupted setup is cleared on the next process start. Existing diagnostic grants and selected apps are retained.
+---
 
-## Version 3.4.0: one-time authorization through Shizuku
+## Three-Tab Material 3 Interface
 
-Start Shizuku through wireless debugging, connect and authorize it in the app, then tap **Grant once through Shizuku** and confirm the diagnostic permission explanation. The helper grants DUMP, PACKAGE_USAGE_STATS and the usage AppOp only to this package in the verified Binder caller profile. The app verifies its own access before showing success. It can then read current GMS state without a running Shizuku; no computer is needed for this setup path. Manual ADB instructions remain available.
+- **Connection**: Combines the live FCM status card, fixed Google diagnostics entry, a tappable watched-app health summary card, and manual network probe / heartbeat actions.
+- **Apps**: Dedicated full-height Material 3 card list showing Autostart, notifications, system no-restrictions list, Recents lock, and FCM component declarations, paired with a compact fixed header, a live-searchable app picker (`All` / `FCM/GCM` / `Chosen`), and an attention-count badge on the bottom bar. Tapping any card opens a live-updating per-app details sheet with a one-tap watch toggle and exact settings routes.
+- **Settings**: Places one-time diagnostic authorization and Quick Settings tile setup at the top, followed by event-driven refresh preferences, appearance (`System` / `Light` / `Dark`), and collapsed **Advanced options** (manual ADB grant/revoke instructions, backup Shizuku checks, and read-only raw system-list viewer).
 
-## Version 3.3.0: diagnostic access without a persistent Shizuku service
+**Quick Settings Tile & Launcher Shortcut**:
+- The Quick Settings tile refreshes every 5 seconds only while the panel is visible (lit/`Connected`, grey disconnected/`Disconnected`, or question mark/`Unknown`), stops polling when hidden, and clears cached lit state on collapse. Tapping attempts a rate-limited heartbeat and opens Google diagnostics.
+- Long-press the **Vigil** launcher icon and select **FCM diagnostics** to jump straight to Google’s diagnostic screen with zero extra permissions.
 
-Optional one-time ADB grants let the app read current GMS service state using its own UID, even after wireless debugging and Shizuku stop. The dashboard distinguishes this source from the independent Shizuku status. Permission/AppOp loss clears evidence; unsupported reads remain Unknown. No persistent notification, foreground service or hidden polling was added. See [grant/revoke instructions and validation limits](docs/DIRECT_DIAGNOSTIC_ACCESS.md).
+---
 
-## Version 3.2.0: smaller APK and efficient lists
+## Zero-Background & One-Time Independent Grant
 
-The signed APK is 1.55 MiB, 72.8% smaller than 3.1.3, using R8 and resource shrinking with verified Shizuku helper entry points. RecyclerView recycles visible app rows and applies diffs; disabled apps retain their priority, red text and counts. Component metadata is cached on demand, while mutable policy/permissions are reread when returning to the app. List mode, advanced expansion and position survive recreation.
+### Zero-Background Guarantees & Honest Limits
 
-All 105 Traditional Chinese application strings are complete. App data is explicitly excluded from cloud backup and device transfer. Application/test dependencies are locked and CI actions use immutable commits. Validation includes 35 device tests on each Android 17 image, actual minified-helper queries and real Shizuku authorization/64-bit binding. Use the [HyperOS 4 phone checklist](docs/HYPEROS_CHECKS.md) for OEM settings and locked-screen delivery.
+- Vigil declares no foreground service permission, shows no persistent notification, and runs no background timers or wake locks.
+- System-list (`MILLET_NO_RESTRICT_APP`), Recents lock (`locked_apps`), and default-network observers only run while Android keeps the process alive; process freezing or reclamation pauses passive updates until you open Vigil or expand the Quick Settings tile.
+- Automatic connection verdicts expire after 15 monotonic seconds and invalidate immediately on network or permission changes. Unreadable or unsupported outputs stay `Unknown`.
+- Vigil is a diagnostic tool — it does not promise continuous offline monitoring or guaranteed message delivery (network/VPN routing, Google services, notification channels, and app-specific push policies all apply).
 
-## Version 3.1.3: launcher shortcut
+### One-Time Independent Diagnostic Access (No Running Shizuku Needed)
 
-Long-press the FCM Guard launcher icon and choose **FCM diagnostics** to open Google diagnostics directly. This is a native Android app shortcut, with menu styling supplied by the launcher and no Shizuku/extra permission requirement. Cold launches and existing activities use the same diagnostic routing without a recording prompt on return.
+To enable automatic GMS connection status — and read-only fallback inspection of `locked_apps` when direct settings access is restricted — you can grant Vigil its own diagnostic permissions once:
 
-## Version 3.1.2: project audit
+1. **On-device one-time grant via Shizuku (no computer required)**: Start Shizuku via wireless debugging, open **Vigil → Settings**, and tap **Grant once through Shizuku**. Vigil requests Shizuku permission if needed, binds its temporary helper, and opens the permission confirmation dialog automatically. The helper verifies the actual Binder caller UID and package name before granting only `DUMP`, `PACKAGE_USAGE_STATS`, and the `GET_USAGE_STATS` AppOp to Vigil itself, then verifies access and retires the helper.
+2. **Manual one-time grant via ADB**: Open **Settings → Advanced options → Manual ADB grant / revoke instructions** to copy exact commands scoped to your current Android user.
 
-Fixed stale callbacks/results, helper lifecycle and recovery-request handling; bounded duplicate refresh work; reduced per-app scan overhead; removed obsolete socket/repair resources and strengthened release verification. [Full audit and follow-up decisions](docs/PROJECT_AUDIT.md).
+Once verified, Vigil executes its fixed read-only queries under **its own UID**, allowing you to **stop Shizuku and turn off USB debugging, wireless debugging, and Developer options completely**. See [grant/revoke instructions and validation scope](docs/DIRECT_DIAGNOSTIC_ACCESS.md).
 
-## Version 3.1.1: automatic checks without manual records
+---
 
-Remove diagnostic recording, the confirmation dialog on return, historical user-reported connection state and per-app confirmation checklists. Upgrades clear old records and pending-dialog flags while retaining selected apps, Shizuku preferences, themes and request rate limits. Connection status comes only from automatic reads; unreadable state stays unknown.
+## Recent Releases
 
-## Version 3.1: connection tile
+- **`v3.7.0`**: Rebranded to **Vigil** as a full-chain HyperOS app keep-alive & push diagnostics tool; added read-only HyperOS Recents lock (`locked_apps`) detection, change observation, live details-sheet updates, and a direct Security Center Recents lock settings route; overhauled English and Chinese documentation.
+- **`v3.6.0`**: Reorganized into a Material 3 three-tab bottom-navigation layout (**Connection**, **Apps**, **Settings**) with a tappable watched-app health summary card, bottom-bar attention badge, and full state/scroll preservation across activity recreation.
+- **`v3.5.0`**: Added live search, app icons, and filter chips to the app picker; upgraded app rows to Material 3 cards with status badges and in-sheet watch toggling; streamlined one-time Shizuku authorization and Quick Settings tile subtitles.
+- **`v3.4.x`**: Introduced computer-free one-time diagnostic grants via Shizuku (`v3.4.0`) and simplified daily Settings by retiring the backup helper automatically once independent access is ready (`v3.4.1`).
 
-Only a successful read of the correct profile and current GMS connection fields supplies Connected/Disconnected. Historical events, reachability, sockets and authorization cannot light the tile. The dashboard and tile share the same snapshot.
+---
 
-Reads refresh every five seconds only while the dashboard or quick-settings panel is visible. Hidden surfaces stop their refresh callbacks. Verdicts expire after 15 monotonic seconds and invalidate immediately on network, authorization or helper changes. Hiding the panel clears its lit state so SystemUI cannot cache a stale connection claim. Tapping still checks, attempts a heartbeat and opens diagnostics; it does not turn off GMS push.
+## Build, Verification & License
 
-The private GMS dump format can change. Denied, unavailable, unsupported or timed-out reads remain Unknown. Permission-free mode retains the diagnostic shortcut; automatic connection indication needs optional diagnostic access through ADB or Shizuku.
+- **Toolchain**: AGP 9.5.1, SHA-256-verified Gradle 9.9.1, JDK 21 / Java 17 source level, `compileSdk 37.2`, `targetSdk 37`, `minSdk 24`.
+- **UI & Packaging**: Official Material Components 1.14.0 (Material 3 Views), system-following locale, R8 code/resource shrinking, ABI-neutral pure DEX (64-bit compatible without dummy native libraries). Releases publish a single signed `FCMGuard-HyperOS.apk` with SHA-256 checksums in release notes.
+- **Documentation**:
+  - [Building, Signing & Android 17 CI Validation](docs/BUILDING.md)
+  - [One-Time Diagnostic Grants & Validation Scope](docs/DIRECT_DIAGNOSTIC_ACCESS.md)
+  - [HyperOS 4 On-Device Verification Checklist](docs/HYPEROS_CHECKS.md)
+  - [Project Audit & Architectural Decisions](docs/PROJECT_AUDIT.md)
 
-## Optional Shizuku
-
-Off by default, even after upgrading an older authorized installation. Enabling it explicitly allows fixed, read-only helper operations: read the system projection and current GMS push-service state for the correct user. Connection indication no longer depends on restricted socket UID enumeration. A separate, explicit consent action may grant this application its diagnostic permissions once. That operation verifies the Binder caller UID and exact package; callers cannot supply a target package, permission, command or profile. Other helper operations remain read-only, with no system-list or battery-policy writes.
-
-## Background limits
-
-While Android lets the app process run, system-list and network callbacks refresh checks. Process freezing/reclamation can interrupt them until the tile or app is opened. There is no claim of continuous offline detection, permanent Connected state, or guaranteed delivery for Twitter/X, Telegram, Slack or other apps. Network/VPN conditions, Google services, platform delivery, notification channels and app-specific policies all matter. Telegram variants can use their own connection.
-
-## Build and validation
-
-AGP 9.5.1, SHA-256-verified Gradle 9.9.1, JDK 21 / Java 17, compile SDK 37.2, target API 37, minSdk 24. Official Material Components 1.14.0 and Material 3 Views; language follows the system. ABI-neutral DEX supports 64-bit devices without dummy native libraries. Only Android 17 images are used for device CI. See [BUILDING](docs/BUILDING.md).
-
-Releases attach one signed `FCMGuard-HyperOS.apk`; previews/test reports stay in CI and checksums are included in release notes. The signing key is unchanged from v2.x.
-
-Based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS). System-policy research: [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix). MIT, see [LICENSE](LICENSE).
+Based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS), with HyperOS system-policy research informed by [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix). Licensed under MIT — see [LICENSE](LICENSE).

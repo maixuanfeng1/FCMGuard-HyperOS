@@ -6,6 +6,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Handler;
 import android.os.Looper;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -17,8 +18,10 @@ final class PushRuntime {
     private static boolean initialized, busy, pendingCheck, pendingRecovery, refreshing, refreshPending;
     private static volatile int networkRevision;
     private static SettingsChangeMonitor observer;
+    private static SettingsChangeMonitor lockedAppsObserver;
     private static ConnectivityManager.NetworkCallback callback;
     static volatile String whitelist, monitorError;
+    static volatile Set<String> lockedApps;
     static volatile NetworkProbe.State network = NetworkProbe.State.NOT_CHECKED;
     static volatile long checkedAt;
     static volatile Boolean gmsAvailable;
@@ -31,9 +34,17 @@ final class PushRuntime {
         if (!initialized) {
             initialized = true;
             if (DiagnosticPreferences.observe(c)) {
+                int userId = android.os.Process.myUid() / 100000;
                 try {
                     observer = new SettingsChangeMonitor(c.getContentResolver(), MAIN);
-                    observer.start(SettingsGuard.KEY, android.os.Process.myUid() / 100000, () -> refresh(c));
+                    observer.start(SettingsGuard.KEY, userId, () -> refresh(c));
+                } catch (RuntimeException e) { monitorError = "settings"; }
+                try {
+                    lockedAppsObserver = new SettingsChangeMonitor(c.getContentResolver(), MAIN);
+                    lockedAppsObserver.start(SettingsGuard.LOCKED_APPS_KEY, userId, () -> {
+                        SettingsGuard.invalidateLockedAppsCache();
+                        refresh(c);
+                    });
                 } catch (RuntimeException e) { monitorError = "settings"; }
                 try {
                     callback = new ConnectivityManager.NetworkCallback() {
@@ -75,6 +86,7 @@ final class PushRuntime {
         WORKER.execute(() -> {
           try {
             whitelist = SettingsGuard.read(c);
+            lockedApps = SettingsGuard.readLockedApps(c);
             try { gmsAvailable = c.getPackageManager().getApplicationInfo("com.google.android.gms", 0).enabled; }
             catch (Exception e) { gmsAvailable = false; }
           } finally {
@@ -125,12 +137,14 @@ final class PushRuntime {
     static synchronized boolean busy() { return busy; }
     static synchronized void configure(Context context) {
         if (observer != null) { observer.stop(); observer = null; }
+        if (lockedAppsObserver != null) { lockedAppsObserver.stop(); lockedAppsObserver = null; }
         if (callback != null) {
             try { context.getSystemService(ConnectivityManager.class).unregisterNetworkCallback(callback); }
             catch (RuntimeException ignored) { }
             callback = null;
         }
         initialized = false; monitorError = null;
+        SettingsGuard.invalidateLockedAppsCache();
         start(context);
     }
 }

@@ -11,10 +11,16 @@ import java.util.Set;
 final class AppDiagnostics {
     final FcmAppScanner.AppEntry app;
     final AutostartStatusReader.Status autostart;
-    final Boolean inSystemList, notificationPermission, ignoresDoze, stopped;
+    final Boolean inSystemList, notificationPermission, ignoresDoze, stopped, lockedInRecents;
+
     AppDiagnostics(Context c, FcmAppScanner.AppEntry app, Set<String> whitelist) {
+        this(c, app, whitelist, null);
+    }
+
+    AppDiagnostics(Context c, FcmAppScanner.AppEntry app, Set<String> whitelist, Set<String> lockedApps) {
         this.app = app;
         inSystemList = whitelist == null ? null : whitelist.contains(app.packageName);
+        lockedInRecents = lockedApps == null ? null : lockedApps.contains(app.packageName);
         Boolean permission = null, doze = null, stop = null;
         int uid = -1;
         PackageManager pm = c.getPackageManager();
