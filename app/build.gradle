@@ -13,8 +13,8 @@ android {
         applicationId "com.reed.fcmguard"
         minSdk 24
         targetSdk 37
-        versionCode 49
-        versionName "3.6.0"
+        versionCode 50
+        versionName "3.7.0"
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 

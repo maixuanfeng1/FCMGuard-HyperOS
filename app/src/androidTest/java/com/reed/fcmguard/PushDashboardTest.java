@@ -642,6 +642,121 @@ public class PushDashboardTest {
    assertEquals(c.getString(R.string.tile_stale), tile.getSubtitle().toString());
   });
  }
+ @Test public void recentsLockStateDisplaysNeutrallyWithoutAffectingAttentionOrOrder() {
+  in.runOnMainSync(() -> {
+   try {
+    activity.selectTab(R.id.nav_apps);
+    FcmAppScanner.AppEntry alpha = new FcmAppScanner.AppEntry("com.example.alpha", "Alpha", true);
+    FcmAppScanner.AppEntry beta = new FcmAppScanner.AppEntry("com.example.beta", "Beta", true);
+    FcmAppScanner.AppEntry gamma = new FcmAppScanner.AppEntry("com.example.gamma", "Gamma", true);
+    Set<String> whitelist = new HashSet<>(Arrays.asList(alpha.packageName, beta.packageName, gamma.packageName));
+    AppDiagnostics lockedRow = healthyRow(activity, alpha, whitelist, Collections.singleton(alpha.packageName));
+    AppDiagnostics unlockedRow = healthyRow(activity, beta, whitelist, Collections.emptySet());
+    AppDiagnostics unknownRow = healthyRow(activity, gamma, whitelist, null);
+    assertEquals(Boolean.TRUE, lockedRow.lockedInRecents);
+    assertEquals(Boolean.FALSE, unlockedRow.lockedInRecents);
+    assertNull(unknownRow.lockedInRecents);
+    assertFalse(lockedRow.needsAttention());
+    assertFalse(unlockedRow.needsAttention());
+    assertFalse(unknownRow.needsAttention());
+
+    DiagnosticPreferences.selected(c, whitelist);
+    List<AppDiagnostics> input = Arrays.asList(unknownRow, unlockedRow, lockedRow);
+    Field rowsField = MainActivity.class.getDeclaredField("rows");
+    rowsField.setAccessible(true);
+    rowsField.set(activity, input);
+    activity.renderApps();
+
+    BottomNavigationView nav = activity.ui(R.id.bottomNav);
+    assertNull(nav.getBadge(R.id.nav_apps));
+    AppListAdapter adapter = activity.appAdapter;
+    assertEquals(3, adapter.getItemCount());
+    AppListAdapter.Holder holder = adapter.createViewHolder(activity.ui(R.id.scroll), 0);
+    int onSurface = com.google.android.material.color.MaterialColors.getColor(
+        holder.title, com.google.android.material.R.attr.colorOnSurface);
+    int onVariant = com.google.android.material.color.MaterialColors.getColor(
+        holder.locked, com.google.android.material.R.attr.colorOnSurfaceVariant);
+
+    adapter.bindViewHolder(holder, 0);
+    assertEquals("app:com.example.alpha", holder.itemView.getTag());
+    assertEquals(c.getString(R.string.recents_lock_label, c.getString(R.string.recents_locked)),
+        holder.locked.getText().toString());
+    assertEquals(onVariant, holder.locked.getCurrentTextColor());
+    assertEquals(onSurface, holder.title.getCurrentTextColor());
+
+    adapter.bindViewHolder(holder, 1);
+    assertEquals("app:com.example.beta", holder.itemView.getTag());
+    assertEquals(c.getString(R.string.recents_lock_label, c.getString(R.string.recents_not_locked)),
+        holder.locked.getText().toString());
+    assertEquals(onVariant, holder.locked.getCurrentTextColor());
+    assertEquals(onSurface, holder.title.getCurrentTextColor());
+
+    adapter.bindViewHolder(holder, 2);
+    assertEquals("app:com.example.gamma", holder.itemView.getTag());
+    assertEquals(c.getString(R.string.recents_lock_label, c.getString(R.string.unknown_state)),
+        holder.locked.getText().toString());
+    assertEquals(onVariant, holder.locked.getCurrentTextColor());
+    assertEquals(onSurface, holder.title.getCurrentTextColor());
+   } catch (Exception e) { throw new AssertionError(e); }
+  });
+ }
+ @Test public void openAppDetailsSheetUpdatesRecentsLockLiveAndShowsFallbackHelpDialog() {
+  in.runOnMainSync(() -> {
+   try {
+    activity.selectTab(R.id.nav_apps);
+    FcmAppScanner.AppEntry app = new FcmAppScanner.AppEntry("com.example.live", "Live App", true);
+    Set<String> whitelist = Collections.singleton(app.packageName);
+    AppDiagnostics initial = healthyRow(activity, app, whitelist, Collections.emptySet());
+    DiagnosticPreferences.selected(c, whitelist);
+    Field appsField = MainActivity.class.getDeclaredField("apps");
+    appsField.setAccessible(true);
+    appsField.set(activity, Collections.singletonList(app));
+    Field rowsField = MainActivity.class.getDeclaredField("rows");
+    rowsField.setAccessible(true);
+    rowsField.set(activity, Collections.singletonList(initial));
+    activity.renderApps();
+
+    activity.showApp(activity.appAdapter.row(0));
+    assertNotNull(activity.activeAppSheet);
+    assertTrue(activity.activeAppSheet.isShowing());
+    TextView detailLocked = activity.activeAppSheet.findViewById(R.id.detailLocked);
+    assertEquals(c.getString(R.string.recents_lock_label, c.getString(R.string.recents_not_locked)),
+        detailLocked.getText().toString());
+    assertEquals(com.google.android.material.color.MaterialColors.getColor(
+        detailLocked, com.google.android.material.R.attr.colorOnSurface), detailLocked.getCurrentTextColor());
+
+    AppDiagnostics updated = healthyRow(activity, app, whitelist, Collections.singleton(app.packageName));
+    rowsField.set(activity, Collections.singletonList(updated));
+    activity.renderApps();
+    assertTrue(activity.activeAppSheet.isShowing());
+    assertEquals(c.getString(R.string.recents_lock_label, c.getString(R.string.recents_locked)),
+        detailLocked.getText().toString());
+
+    activity.activeAppSheet.findViewById(R.id.detailLockHelpBtn).performClick();
+    assertNotNull(activity.activeLockHelpDialog);
+    assertTrue(activity.activeLockHelpDialog.isShowing());
+    TextView message = activity.activeLockHelpDialog.findViewById(android.R.id.message);
+    assertNotNull(message);
+    assertEquals(c.getString(R.string.lock_help), message.getText().toString());
+    activity.activeLockHelpDialog.dismiss();
+    activity.activeAppSheet.dismiss();
+   } catch (Exception e) { throw new AssertionError(e); }
+  });
+ }
+ private static AppDiagnostics healthyRow(Context context, FcmAppScanner.AppEntry app,
+     Set<String> whitelist, Set<String> lockedApps) throws Exception {
+  AppDiagnostics row = new AppDiagnostics(context, app, whitelist, lockedApps);
+  Field autostart = AppDiagnostics.class.getDeclaredField("autostart");
+  autostart.setAccessible(true);
+  autostart.set(row, AutostartStatusReader.Status.ENABLED);
+  Field permission = AppDiagnostics.class.getDeclaredField("notificationPermission");
+  permission.setAccessible(true);
+  permission.set(row, Boolean.TRUE);
+  Field stopped = AppDiagnostics.class.getDeclaredField("stopped");
+  stopped.setAccessible(true);
+  stopped.set(row, Boolean.FALSE);
+  return row;
+ }
  // Tile has no public SDK constructor. Build an empty Android 17 Parcelable fixture.
  static android.service.quicksettings.Tile emptyPlatformTile() {
   android.os.Parcel parcel=android.os.Parcel.obtain();

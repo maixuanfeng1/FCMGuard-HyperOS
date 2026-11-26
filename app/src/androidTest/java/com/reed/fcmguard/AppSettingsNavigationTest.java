@@ -51,6 +51,7 @@ public class AppSettingsNavigationTest {
         for (Intent attempted : context.attempts) {
             assertNotEquals(Settings.ACTION_APPLICATION_SETTINGS, attempted.getAction());
             assertNotEquals("miui.intent.action.OP_AUTO_START", attempted.getAction());
+            assertNotEquals(HyperOsSettings.ACTION_OPTIMIZE_MANAGE_SETTINGS, attempted.getAction());
         }
     }
 
@@ -74,6 +75,24 @@ public class AppSettingsNavigationTest {
         assertTrue(HyperOsSettings.openBatterySettings(context, "com.android.settings"));
         assertEquals("com.android.settings", context.attempts.get(0).getStringExtra("package_name"));
         assertEquals("package:com.android.settings", context.attempts.get(context.attempts.size()-1).getDataString());
+    }
+
+    @Test public void lockedAppsRouteTargetsSecurityCenterOptimizeSettings() {
+        RecordingContext context = new RecordingContext(false);
+        assertTrue(HyperOsSettings.openLockedAppsSettings(context));
+        assertEquals(1, context.attempts.size());
+        Intent launched = context.attempts.get(0);
+        assertEquals(HyperOsSettings.ACTION_OPTIMIZE_MANAGE_SETTINGS, launched.getAction());
+        assertEquals("com.miui.securitycenter", launched.getPackage());
+        assertTrue(launched.hasCategory(Intent.CATEGORY_DEFAULT));
+        assertTrue((launched.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0);
+    }
+
+    @Test public void unavailableLockedAppsRouteReturnsFalseWithoutFallback() {
+        RecordingContext context = new RecordingContext(true);
+        assertFalse(HyperOsSettings.openLockedAppsSettings(context));
+        assertEquals(1, context.attempts.size());
+        assertEquals(HyperOsSettings.ACTION_OPTIMIZE_MANAGE_SETTINGS, context.attempts.get(0).getAction());
     }
 
     private static final class RecordingContext extends ContextWrapper {

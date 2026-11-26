@@ -124,11 +124,18 @@
                     android:textAppearance="@style/BodyText" />
 
                 <TextView
+                    android:id="@+id/detailLocked"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/SectionTitle" />
+
+                <TextView
                     android:id="@+id/detailBackgroundNote"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/background_unknown"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/recents_lock_note"
                     android:textAppearance="@style/BodyText" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -169,7 +176,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minHeight="48dp"
-                android:text="@string/lock_instructions" />
+                android:text="@string/open_recents_lock_settings" />
         </com.reed.fcmguard.ActionRowLayout>
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

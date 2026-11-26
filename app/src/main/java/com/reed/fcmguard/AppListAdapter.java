@@ -32,6 +32,7 @@ final class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.Holder> {
                 AppDiagnostics a = before.get(oldIndex), b = copy.get(newIndex);
                 return a.app.label.equals(b.app.label) && a.app.declaresFcm == b.app.declaresFcm &&
                         a.autostart == b.autostart && Objects.equals(a.inSystemList, b.inSystemList) &&
+                        Objects.equals(a.lockedInRecents, b.lockedInRecents) &&
                         Objects.equals(a.notificationPermission, b.notificationPermission) &&
                         Objects.equals(a.ignoresDoze, b.ignoresDoze) && Objects.equals(a.stopped, b.stopped) &&
                         oldSelection.contains(a.app.packageName) == selected.contains(b.app.packageName);
@@ -56,6 +57,8 @@ final class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.Holder> {
         holder.fcm.setText(row.app.declaresFcm ? R.string.fcm_detected : R.string.fcm_not_detected);
         holder.autostart.setText(activity.getString(R.string.auto_label, activity.getString(activity.autoLabel(row.autostart))));
         holder.list.setText(activity.getString(R.string.list_label, activity.flag(row.inSystemList, R.string.listed, R.string.not_listed)));
+        holder.locked.setText(activity.getString(R.string.recents_lock_label,
+                activity.flag(row.lockedInRecents, R.string.recents_locked, R.string.recents_not_locked)));
         holder.notifications.setText(activity.getString(R.string.notifications_label, activity.getString(activity.notificationLabel(row))));
 
         int errorColor = MaterialColors.getColor(holder.itemView, androidx.appcompat.R.attr.colorError);
@@ -66,6 +69,7 @@ final class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.Holder> {
                 row.autostart == AutostartStatusReader.Status.PARTIAL ? errorColor : onVariant);
         holder.notifications.setTextColor(Boolean.FALSE.equals(row.notificationPermission) ? errorColor : onVariant);
         holder.list.setTextColor(Boolean.FALSE.equals(row.inSystemList) ? errorColor : onVariant);
+        holder.locked.setTextColor(onVariant);
 
         if (attention) {
             holder.badge.setVisibility(View.VISIBLE);
@@ -87,7 +91,7 @@ final class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.Holder> {
     }
     final class Holder extends RecyclerView.ViewHolder {
         final ImageView icon;
-        final TextView title, packageName, badge, fcm, autostart, list, notifications;
+        final TextView title, packageName, badge, fcm, autostart, list, locked, notifications;
         AppDiagnostics bound;
         Holder(View view) {
             super(view);
@@ -95,7 +99,8 @@ final class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.Holder> {
             title = view.findViewById(R.id.appTitle); packageName = view.findViewById(R.id.appPackage);
             badge = view.findViewById(R.id.appAttentionBadge);
             fcm = view.findViewById(R.id.appFcm); autostart = view.findViewById(R.id.appAutostart);
-            list = view.findViewById(R.id.appSystemList); notifications = view.findViewById(R.id.appNotifications);
+            list = view.findViewById(R.id.appSystemList); locked = view.findViewById(R.id.appLocked);
+            notifications = view.findViewById(R.id.appNotifications);
             view.setOnClickListener(v -> activity.showApp(bound));
         }
     }
