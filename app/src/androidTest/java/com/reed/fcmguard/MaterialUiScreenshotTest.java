@@ -89,6 +89,13 @@ public class MaterialUiScreenshotTest {
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-settings");
+            AboutActivity about = (AboutActivity) instrumentation.startActivitySync(
+                    new Intent(context, AboutActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-about");
+            instrumentation.runOnMainSync(about::finish);
+            instrumentation.waitForIdleSync();
         }
         instrumentation.runOnMainSync(activity::finish);
         instrumentation.waitForIdleSync();

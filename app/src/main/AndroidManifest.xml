@@ -60,6 +60,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:resizeableActivity="true" />
+
         <service
             android:name=".GuardTileService"
             android:icon="@drawable/ic_guard_tile"
