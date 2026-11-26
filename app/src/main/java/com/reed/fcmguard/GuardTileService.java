@@ -5,8 +5,6 @@ import android.content.Intent;
 import android.content.Context;
 import android.graphics.drawable.Icon;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
@@ -14,16 +12,8 @@ import android.service.quicksettings.TileService;
 /** Fresh GMS verdict while visible; an unknown state remains an accessible diagnostics entry. */
 public final class GuardTileService extends TileService {
     private boolean listening;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Object connectionSurface = new Object();
     private final Runnable listener = this::render;
-    private final Runnable refresh = new Runnable() {
-        @Override public void run() {
-            if (!listening) return;
-            EnhancedRuntime.request(GuardTileService.this);
-            render();
-            handler.postDelayed(this, 5000L);
-        }
-    };
     @Override public void onTileAdded() {
         super.onTileAdded();
         DiagnosticPreferences.setQuickSettingsTileAdded(this, true);
@@ -42,14 +32,16 @@ public final class GuardTileService extends TileService {
         PushRuntime.add(listener);
         // Publish the click PendingIntent before starting any diagnostic work.
         render();
-        boolean ownAccess = DirectGmsAccess.isReady(this);
-        DiagnosticPreferences.retireUnneededShizuku(this, ownAccess);
-        if (!ownAccess && DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
-        EnhancedRuntime.invalidate(this);
-        PushRuntime.start(this); PushRuntime.check(this, false);
-        render();
-        handler.removeCallbacks(refresh);
-        handler.postDelayed(refresh, 5000L);
+        startDiagnostics(this, connectionSurface);
+    }
+    static void startDiagnostics(Context context, Object surface) {
+        if (DirectGmsAccess.isReady(context)) {
+            DiagnosticPreferences.retireUnneededShizuku(context, true);
+        } else if (DiagnosticPreferences.enhanced(context)) {
+            ShizukuBridge.connect();
+        }
+        PushRuntime.start(context);
+        EnhancedRuntime.startRefreshing(context, surface);
     }
     @Override public void onStopListening() {
         // Do not leave a cached lit verdict in SystemUI while this service cannot observe changes.
@@ -58,9 +50,17 @@ public final class GuardTileService extends TileService {
                     EnhancedStatus.Result.STALE, 0, 0), SystemClock.elapsedRealtime());
             getQsTile().updateTile();
         }
-        listening = false; handler.removeCallbacks(refresh); PushRuntime.remove(listener); super.onStopListening();
+        listening = false;
+        EnhancedRuntime.stopRefreshing(connectionSurface);
+        PushRuntime.remove(listener);
+        super.onStopListening();
     }
-    @Override public void onDestroy() { handler.removeCallbacks(refresh); PushRuntime.remove(listener); super.onDestroy(); }
+    @Override public void onDestroy() {
+        listening = false;
+        EnhancedRuntime.stopRefreshing(connectionSurface);
+        PushRuntime.remove(listener);
+        super.onDestroy();
+    }
     @Override public void onClick() {
         super.onClick();
         if (isLocked()) unlockAndRun(this::recover); else recover();

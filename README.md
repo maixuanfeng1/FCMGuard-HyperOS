@@ -2,9 +2,9 @@
 
 # Vigil · HyperOS App Keep-Alive & Push Diagnostics
 
-Formerly **Push Sentinel / FCM Guard**. Package identity (`com.reed.fcmguard`), signing certificate, and user data are preserved for seamless in-place upgrades.
+Formerly **Push Sentinel / FCM Guard**. The package name is `com.reed.fcmguard`. Official releases signed with the current certificate, starting with `v3.5.0`, support in-place upgrades that preserve app data and diagnostic grants. The published `v3.4.1` uses the previous certificate. Upgrading from it requires a fresh install, which resets app data and grants.
 
-[Download Latest APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
+[Download Latest APK](https://github.com/maixuanfeng1/vigil/releases/latest/download/FCMGuard-HyperOS.apk)
 
 ---
 
@@ -67,6 +67,7 @@ Once verified, Vigil executes its fixed read-only queries under **its own UID**,
 
 ## Recent Releases
 
+- **`v3.8.1`**: Added Quick Settings tile placement tracking and system add-request feedback in Settings, showing **Tile added to Quick Settings** once placed and restoring **Add tile** if removed.
 - **`v3.8.0`**: Standardized Material 3 button hierarchy (Primary / Secondary / Disclosure) and outlined card boundaries across all screens; split Settings into five clear module cards and App Details into Push, Background, and System settings cards; removed redundant helper notes and the in-app ADB popup; tightened copy across English, Simplified Chinese, and Traditional Chinese; and improved compact/large-font card wrapping and search-clear iconography.
 - **`v3.7.0`**: Rebranded to **Vigil** as a full-chain HyperOS app keep-alive & push diagnostics tool; added read-only HyperOS Recents lock (`locked_apps`) detection, change observation, live details-sheet updates, and a direct Security Center Recents lock settings route; overhauled English and Chinese documentation.
 - **`v3.6.0`**: Reorganized into a Material 3 three-tab bottom-navigation layout (**Connection**, **Apps**, **Settings**) with a tappable watched-app health summary card, bottom-bar attention badge, and full state/scroll preservation across activity recreation.
@@ -83,6 +84,6 @@ Once verified, Vigil executes its fixed read-only queries under **its own UID**,
   - [Building, Signing & Android 17 CI Validation](docs/BUILDING.md)
   - [One-Time Diagnostic Grants & Validation Scope](docs/DIRECT_DIAGNOSTIC_ACCESS.md)
   - [HyperOS 4 On-Device Verification Checklist](docs/HYPEROS_CHECKS.md)
-  - [Project Audit & Architectural Decisions](docs/PROJECT_AUDIT.md)
+  - [Historical Project Audit (3.1.2–3.2.0)](docs/PROJECT_AUDIT.md)
 
 Based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS), with HyperOS system-policy research informed by [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix). Licensed under MIT — see [LICENSE](LICENSE).

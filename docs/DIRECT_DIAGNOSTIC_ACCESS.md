@@ -1,6 +1,6 @@
 # 一次性诊断授权 / One-time diagnostic grants
 
-Vigil 3.3.0 增加可选的应用自身诊断权限。它避免自动连接状态依赖持续运行的 Shizuku，不会阻止或自动重启 Shizuku 服务。普通诊断入口、关注应用和设置检查仍默认免授权。
+Vigil 可以用应用自身的诊断权限读取自动连接状态。授予该权限后即可停止 Shizuku。普通诊断入口、关注应用和设置检查默认免授权。
 
 ## 手机内通过 Shizuku 授权（3.4.0+）
 
@@ -14,7 +14,7 @@ Vigil 3.3.0 增加可选的应用自身诊断权限。它避免自动连接状�
 
 ## 手动通过 ADB 授权
 
-先覆盖安装 3.3.0 或更新版本，再将手机连接到你信任的电脑 ADB。主用户（用户编号 `0`）执行：
+先安装 3.3.0 或更新版本。覆盖升级前先核对 [签名兼容范围](BUILDING.md#upgrade-compatibility)。将手机连接到可信电脑的 ADB 后，主用户（用户编号 `0`）执行以下命令。
 
 ```sh
 adb shell pm grant --user 0 com.reed.fcmguard android.permission.DUMP
@@ -24,7 +24,7 @@ adb shell cmd appops set --user 0 com.reed.fcmguard GET_USAGE_STATS allow
 
 `0` 对应设备主用户；如果 Vigil 安装在次级用户、应用双开或工作资料中，先运行 `adb shell pm list users` 查出对应用户编号，并将命令中的 `0` 替换为实际用户编号。这不是普通运行时权限弹窗。未升级的旧版没有声明这些权限，不能通过相同命令启用此功能。
 
-执行完成后返回首页或展开磁贴，读取来源应显示「应用自身诊断权限」。此时可关闭无线调试、停止 Shizuku。Android 通常在重启和同签名更新后保留这些授权；卸载、撤销或厂商策略可能使其失效。权限具备比连接状态更广的系统诊断、应用使用信息读取能力，应用通过新路径仅执行当前用户的固定 GMS 服务读取及直接读取受限时的后台任务锁定（`locked_apps`）只读提取，不提供任意命令或系统策略写入接口；新增的一次性授权仅作用于本应用的诊断权限。
+执行完成后返回连接页或展开磁贴，读取来源应显示「应用自身诊断权限」。此时可关闭无线调试、停止 Shizuku。Android 通常在重启和同签名更新后保留这些授权；卸载、撤销或厂商策略可能使其失效。权限具备比连接状态更广的系统诊断、应用使用信息读取能力，应用通过新路径仅执行当前用户的固定 GMS 服务读取及直接读取受限时的后台任务锁定（`locked_apps`）只读提取，不提供任意命令或系统策略写入接口；新增的一次性授权仅作用于本应用的诊断权限。
 
 ## 撤销
 
@@ -43,18 +43,18 @@ adb shell cmd appops set --user 0 com.reed.fcmguard GET_USAGE_STATS default
 - 应用自身权限可用时优先使用该来源；高级选项中的 Shizuku 状态仍单独报告它自己的授权、服务状态。
 - 只有读取到受支持的 GMS 当前字段才报告已连接／已断开（英文界面为 Connected／Disconnected）。网络可达、权限已授予、旧结果均不代替实际连接。
 - 缺少任一权限、使用情况 AppOp 被拒绝、查询超时、系统拒绝或 GMS 格式变化都不会伪造连接状态。
-- 首页、快捷面板可见时刷新；无常驻通知、前台服务、定时唤醒。进程无法运行时仍有检查空档。连接正常不保证每个应用的通知必达。
+- 连接页、快捷面板可见时刷新；无常驻通知、前台服务、定时唤醒。进程无法运行时仍有检查空档。连接正常不保证每个应用的通知必达。
 
 ## 验证范围
 
-隔离实验 [Android 17 Google APIs run 43263551987](https://github.com/maixuanfeng1/FCMGuard-HyperOS/actions/runs/43263551987) 在普通应用 UID 10234 下运行，没有安装 Shizuku，也没有借用 shell 权限身份。未授权和仅 DUMP 均被系统拒绝；完整授权后，联网、断网、恢复与真实 Google Diagnostics 一致，关闭无线调试和重启后仍可读取，撤销 DUMP 后被拒绝。源码保存在实验提交 `052addfc81ea5216bb15f2f6c96d4aaa04bc954f`。
+隔离实验 [Android 17 Google APIs run 43263551987](https://github.com/maixuanfeng1/vigil/actions/runs/43263551987) 在普通应用 UID 10234 下运行，没有安装 Shizuku，也没有借用 shell 权限身份。未授权和仅 DUMP 均被系统拒绝；完整授权后，联网、断网、恢复与真实 Google Diagnostics 一致，关闭无线调试和重启后仍可读取，撤销 DUMP 后被拒绝。源码保存在实验提交 `052addfc81ea5216bb15f2f6c96d4aaa04bc954f`。
 
 正式检查另覆盖实际压缩、非调试 APK 的首页、SystemUI 磁贴和授权撤销。Android 17 Google 模拟器结果不能证明 HyperOS 4 会采用完全相同的权限策略；仍需按 [实机检查表](HYPEROS_CHECKS.md) 核对。
 
 ## 关闭调试的受控补测
 
-[Android 17 补测 43347647380](https://github.com/maixuanfeng1/FCMGuard-HyperOS/actions/runs/43347647380) 在普通应用 UID 10234 下，将 USB、无线调试及开发者选项对应的三个 Global 设置置为 0 后，DUMP 和 PACKAGE_USAGE_STATS 仍保留，自身读取返回 Connected。该实验在隔离分支使用额外的、仅用于控制实验开关的 WRITE_SECURE_SETTINGS；正式应用和授权流程都不请求或授予这项权限。它没有模拟 HyperOS 全部设置控制器，仍需手机核对厂商策略。
+[Android 17 补测 43347647380](https://github.com/maixuanfeng1/vigil/actions/runs/43347647380) 在普通应用 UID 10234 下，将 USB、无线调试及开发者选项对应的三个 Global 设置置为 0 后，DUMP 和 PACKAGE_USAGE_STATS 仍保留，自身读取返回 Connected。该实验在隔离分支使用额外的、仅用于控制实验开关的 WRITE_SECURE_SETTINGS；正式应用和授权流程都不请求或授予这项权限。它没有模拟 HyperOS 全部设置控制器，仍需手机核对厂商策略。
 
 ## English
 
-From 3.4.0, a connected, authorized Shizuku can perform the one-time grants via **Settings → Diagnostic access → Grant via Shizuku** after a separate in-app consent; its fixed helper verifies the actual caller UID/profile and exact package. A computer is not required. Alternatively, after installing 3.3.0 or later, explicitly grant `DUMP`, `PACKAGE_USAGE_STATS`, and the `GET_USAGE_STATS` AppOp once through trusted ADB using the commands above (`0` is the primary user; run `adb shell pm list users` to identify secondary or work profile user IDs). The app then reads only the fixed, current-user GMS service and (when direct access is restricted) the read-only `locked_apps` Recents-lock setting under its own UID, without needing a running Shizuku or wireless debugging. Grants normally survive updates/reboots; uninstalling, revocation, or OEM policy can remove them. The permissions themselves allow broader diagnostic/usage reads. Revoke them with the commands above when no longer wanted. Unknown, unsupported, and expired evidence remain distinct from Disconnected. This does not add permanent background monitoring or guarantee message delivery.
+From 3.4.0, a connected, authorized Shizuku can perform the one-time grants via **Settings → Diagnostic access → Grant via Shizuku** after a separate in-app consent; its fixed helper verifies the actual caller UID/profile and exact package. A computer is not required. Alternatively, after installing 3.3.0 or later, explicitly grant `DUMP`, `PACKAGE_USAGE_STATS`, and the `GET_USAGE_STATS` AppOp once through trusted ADB using the commands above (`0` is the primary user; run `adb shell pm list users` to identify secondary or work profile user IDs). The app then reads only the fixed, current-user GMS service and (when direct access is restricted) the read-only `locked_apps` Recents-lock setting under its own UID, without needing a running Shizuku or wireless debugging. Grants normally survive same-certificate updates and reboots (see [upgrade compatibility](BUILDING.md#upgrade-compatibility)); uninstalling, revocation, or OEM policy can remove them. The permissions themselves allow broader diagnostic/usage reads. Revoke them with the commands above when no longer wanted. Unknown, unsupported, and expired evidence remain distinct from Disconnected. This does not add permanent background monitoring or guarantee message delivery.

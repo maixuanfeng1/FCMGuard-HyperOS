@@ -66,21 +66,22 @@ public class MainActivity extends AppCompatActivity {
             finishShizukuSetup(false);
         }
     };
-    private String lastWhitelist;
-    private Set<String> lastLockedApps;
+    private PushRuntime.AppPolicy observedAppPolicy = PushRuntime.appPolicy;
+    private volatile boolean awaitingAppPolicy;
+    private volatile int targetPolicyRevision;
+    private final Object connectionSurface = new Object();
     private final Handler connectionHandler = new Handler(Looper.getMainLooper());
-    private final Runnable connectionRefresh = new Runnable() {
-        @Override public void run() {
-            EnhancedRuntime.request(MainActivity.this);
-            renderConnection();
-            connectionHandler.postDelayed(this, 5000L);
-        }
-    };
     private final Runnable stateListener = () -> {
         if (isDestroyed()) return;
         renderConnection();
-        if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)
-                || !Objects.equals(lastLockedApps, PushRuntime.lockedApps)) refreshApps();
+        PushRuntime.AppPolicy policy = PushRuntime.appPolicy;
+        if (policy != observedAppPolicy) {
+            boolean reachedTarget = PushRuntime.completedPolicyRevision >= targetPolicyRevision;
+            boolean rescan = (awaitingAppPolicy && reachedTarget) || !policy.equals(observedAppPolicy);
+            observedAppPolicy = policy;
+            if (reachedTarget) awaitingAppPolicy = false;
+            if (rescan) refreshApps();
+        }
     };
 
     private final SharedPreferences.OnSharedPreferenceChangeListener tileSettingsListener = (preferences, key) -> {
@@ -133,7 +134,16 @@ public class MainActivity extends AppCompatActivity {
         ui(R.id.connectionScroll).setVisibility(tabId == R.id.nav_connection ? View.VISIBLE : View.GONE);
         ui(R.id.pageApps).setVisibility(tabId == R.id.nav_apps ? View.VISIBLE : View.GONE);
         ui(R.id.settingsScroll).setVisibility(tabId == R.id.nav_settings ? View.VISIBLE : View.GONE);
+        updateConnectionRefresh();
         if (tabId == R.id.nav_apps) maybeRestoreListState();
+    }
+
+    private void updateConnectionRefresh() {
+        if (resumed && selectedTabId == R.id.nav_connection) {
+            EnhancedRuntime.startRefreshing(this, connectionSurface);
+        } else {
+            EnhancedRuntime.stopRefreshing(connectionSurface);
+        }
     }
 
     private void scrollTabToTop(int tabId) {
@@ -226,8 +236,7 @@ public class MainActivity extends AppCompatActivity {
         ui(R.id.scanFcmAppsBtn).setOnClickListener(v -> {
             FcmAppScanner.invalidate();
             SettingsGuard.invalidateLockedAppsCache();
-            PushRuntime.refresh(this);
-            refreshApps();
+            requestAppRefresh();
         });
         ui(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; restoredListState = null; renderApps(); });
         ui(R.id.addTileBtn).setOnClickListener(v -> addTile());
@@ -295,22 +304,20 @@ public class MainActivity extends AppCompatActivity {
         WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this)); bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
         SettingsGuard.invalidateLockedAppsCache();
-        PushRuntime.refresh(this); refreshApps();
+        requestAppRefresh();
         if (DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
         if (ShizukuBridge.isRequestingPermission()) {
             connectionHandler.removeCallbacks(stalePermissionCheck);
             connectionHandler.postDelayed(stalePermissionCheck, 1500L);
         }
-        EnhancedRuntime.request(this);
+        updateConnectionRefresh();
         renderConnection();
-        connectionHandler.removeCallbacks(connectionRefresh);
-        connectionHandler.postDelayed(connectionRefresh, 5000L);
     }
     @Override protected void onPause() {
         resumed = false;
         if (tileFeedbackActivity.get() == this) tileFeedbackActivity.clear();
         connectionHandler.removeCallbacks(stalePermissionCheck);
-        connectionHandler.removeCallbacks(connectionRefresh);
+        updateConnectionRefresh();
         super.onPause();
     }
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -344,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
         finishShizukuSetup(false);
         connectionHandler.removeCallbacks(stalePermissionCheck);
         connectionHandler.removeCallbacks(setupTimeout);
-        connectionHandler.removeCallbacks(connectionRefresh);
+        EnhancedRuntime.stopRefreshing(connectionSurface);
         PushRuntime.remove(stateListener); worker.shutdownNow(); super.onDestroy();
     }
     private void authorize() {
@@ -390,8 +397,9 @@ public class MainActivity extends AppCompatActivity {
         long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
         if (request > 0) networkLines.add(getString(R.string.request_time, time(request)));
         set(R.id.networkText, TextUtils.join("\n", networkLines));
-        set(R.id.currentValueText, SettingsGuard.KEY + "\n" + (PushRuntime.whitelist == null ? getString(R.string.raw_unavailable) :
-                PushRuntime.whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : PushRuntime.whitelist.replace(",", "\n")));
+        String whitelist = PushRuntime.appPolicy.whitelist();
+        set(R.id.currentValueText, SettingsGuard.KEY + "\n" + (whitelist == null ? getString(R.string.raw_unavailable) :
+                whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : whitelist.replace(",", "\n")));
         renderEnhanced(EnhancedRuntime.snapshot(this));
         continuePendingShizukuGrant();
     }
@@ -549,8 +557,7 @@ public class MainActivity extends AppCompatActivity {
                 finishShizukuSetup(ready);
                 renderConnection();
                 SettingsGuard.invalidateLockedAppsCache();
-                PushRuntime.refresh(this);
-                refreshApps();
+                requestAppRefresh();
                 View settingsScroll = ui(R.id.settingsScroll);
                 if (settingsScroll != null && settingsScroll.getVisibility() == View.VISIBLE) {
                     settingsScroll.post(() -> {
@@ -608,31 +615,46 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } catch (RuntimeException e) { return false; }
     }
-    void refreshApps() {
+    private void requestAppRefresh() {
+        observedAppPolicy = PushRuntime.appPolicy;
+        awaitingAppPolicy = true;
+        targetPolicyRevision = PushRuntime.refresh(this);
+    }
+
+    private void refreshApps() {
         if (worker.isShutdown()) return;
         if (scanning) { scanPending = true; return; }
         scanning = true;
+        PushRuntime.AppPolicy policy = PushRuntime.appPolicy;
         worker.execute(() -> {
           try {
             List<FcmAppScanner.AppEntry> found = FcmAppScanner.scanAll(this);
-            String list = SettingsGuard.read(this);
+            String list = policy.whitelist();
             Set<String> packages = list == null ? null : PackageList.parse(list);
-            Set<String> locked = SettingsGuard.readLockedApps(this);
             List<AppDiagnostics> result = new ArrayList<>();
-            for (FcmAppScanner.AppEntry app : found) result.add(new AppDiagnostics(this, app, packages, locked));
+            for (FcmAppScanner.AppEntry app : found) {
+                result.add(new AppDiagnostics(this, app, packages, policy.lockedApps()));
+            }
             runOnUiThread(() -> {
                 scanning = false;
                 if (isDestroyed()) return;
+                if (scanPending || !policy.equals(PushRuntime.appPolicy)) {
+                    scanPending = false;
+                    refreshApps();
+                    return;
+                }
                 appsLoaded = true;
-                apps = found; rows = result; lastWhitelist = list; lastLockedApps = locked; renderApps();
-                // An event received during scanning must not be lost.
-                if (!Objects.equals(list, PushRuntime.whitelist)) PushRuntime.refresh(this);
-                if (scanPending) { scanPending = false; refreshApps(); }
+                apps = found; rows = result; renderApps();
             });
           } catch (RuntimeException e) {
             runOnUiThread(() -> {
-                scanning = false; scanPending = false;
-                if (!isDestroyed()) message(getString(R.string.scan_failed));
+                scanning = false;
+                boolean retry = scanPending || !policy.equals(PushRuntime.appPolicy);
+                scanPending = false;
+                if (!isDestroyed()) {
+                    message(getString(R.string.scan_failed));
+                    if (retry) refreshApps();
+                }
             });
           }
         });
@@ -764,6 +786,8 @@ public class MainActivity extends AppCompatActivity {
 
         final AppPickerFilter.Mode[] modeRef = {AppPickerFilter.Mode.ALL};
         final AppPickerAdapter[] adapterRef = new AppPickerAdapter[1];
+        allChip.setText(getString(R.string.filter_all, snapshot.size()));
+        fcmChip.setText(getString(R.string.filter_fcm, fcmCount));
 
         Runnable refreshPicker = () -> {
             String query = searchInput.getText() == null ? "" : searchInput.getText().toString();
@@ -771,8 +795,6 @@ public class MainActivity extends AppCompatActivity {
             List<FcmAppScanner.AppEntry> filtered = AppPickerFilter.filter(
                     snapshot, workingSelected, pinnedSelected, modeRef[0], query);
             int chosenInCatalog = AppPickerFilter.countSelectedInCatalog(snapshot, workingSelected);
-            allChip.setText(getString(R.string.filter_all, snapshot.size()));
-            fcmChip.setText(getString(R.string.filter_fcm, fcmCount));
             selectedChip.setText(getString(R.string.filter_selected, chosenInCatalog));
             summaryText.setText(getString(R.string.picker_summary, chosenInCatalog, filtered.size()));
             emptyText.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
@@ -832,7 +854,6 @@ public class MainActivity extends AppCompatActivity {
             Set<String> selected = DiagnosticPreferences.selected(this);
             if (!selected.remove(row.app.packageName)) selected.add(row.app.packageName);
             DiagnosticPreferences.selected(this, selected);
-            watchBtn.setText(selected.contains(row.app.packageName) ? R.string.unwatch_this_app : R.string.watch_this_app);
             renderApps();
         });
 
