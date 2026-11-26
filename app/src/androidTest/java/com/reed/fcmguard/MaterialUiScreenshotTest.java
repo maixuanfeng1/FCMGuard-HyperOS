@@ -30,6 +30,7 @@ public class MaterialUiScreenshotTest {
         float oldFont = Settings.System.getFloat(context.getContentResolver(), Settings.System.FONT_SCALE, 1f);
         try {
             DiagnosticPreferences.enhanced(context, false);
+            DiagnosticPreferences.selected(context, java.util.Collections.emptySet());
             capture(instrumentation, context, "01-light", ThemeHelper.MODE_LIGHT);
             capture(instrumentation, context, "02-dark", ThemeHelper.MODE_DARK);
             shell(instrumentation, "wm size 960x2160");
@@ -38,6 +39,7 @@ public class MaterialUiScreenshotTest {
             shell(instrumentation, "settings put system font_scale 1.3");
             capture(instrumentation, context, "04-compact-large-font", ThemeHelper.MODE_LIGHT);
         } finally {
+            DiagnosticPreferences.selected(context, java.util.Collections.emptySet());
             shell(instrumentation, "wm size reset");
             shell(instrumentation, "wm density reset");
             shell(instrumentation, "settings put system font_scale " + oldFont);
@@ -47,6 +49,7 @@ public class MaterialUiScreenshotTest {
 
     private static void capture(Instrumentation instrumentation, Context context, String name, String mode)
             throws Exception {
+        DiagnosticPreferences.selected(context, java.util.Collections.emptySet());
         ThemeHelper.setMode(context, mode);
         MainActivity activity = (MainActivity) instrumentation.startActivitySync(
                 new Intent(context, MainActivity.class)
@@ -54,36 +57,39 @@ public class MaterialUiScreenshotTest {
         instrumentation.waitForIdleSync();
         PushDashboardTest.awaitApps(activity);
         SystemClock.sleep(400);
+        if ("03-compact-320dp".equals(name) || "04-compact-large-font".equals(name)) {
+            instrumentation.runOnMainSync(() -> {
+                android.view.View nav = activity.ui(R.id.bottomNav);
+                android.graphics.Rect visible = new android.graphics.Rect();
+                assertTrue("Bottom navigation must be visible", nav.isShown() && nav.getGlobalVisibleRect(visible));
+                assertTrue("Bottom navigation must have non-zero size", nav.getWidth() > 0 && nav.getHeight() > 0);
+                assertEquals("Bottom navigation must not be clipped horizontally", nav.getWidth(), visible.width());
+                assertEquals("Bottom navigation must not be clipped vertically", nav.getHeight(), visible.height());
+            });
+        }
         saveScreenshot(instrumentation, context, name);
         if ("01-light".equals(name) || "02-dark".equals(name)) {
             instrumentation.runOnMainSync(() -> {
-                activity.ui(R.id.advancedToggle).performClick();
-                androidx.recyclerview.widget.RecyclerView scroll = activity.ui(R.id.scroll);
-                scroll.post(() -> scroll.scrollToPosition(activity.appAdapter.getItemCount()+1));
-            });
-            instrumentation.waitForIdleSync();
-            SystemClock.sleep(400);
-            saveScreenshot(instrumentation, context, name + "-advanced");
-            instrumentation.runOnMainSync(() -> {
                 PushDashboardTest.showExamples(activity);
+                activity.selectTab(R.id.nav_apps);
                 androidx.recyclerview.widget.RecyclerView scroll = activity.ui(R.id.scroll);
-                scroll.post(() -> scroll.scrollToPosition(1));
+                scroll.post(() -> scroll.scrollToPosition(0));
             });
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-app-list-examples");
-            instrumentation.runOnMainSync(() -> {
-                try {
-                    java.lang.reflect.Field field = MainActivity.class.getDeclaredField("rows"); field.setAccessible(true);
-                    java.util.List<AppDiagnostics> rows = (java.util.List<AppDiagnostics>) field.get(activity);
-                    activity.showApp(rows.get(0));
-                } catch (Exception e) { throw new AssertionError(e); }
-            });
+            instrumentation.runOnMainSync(() -> activity.showApp(activity.appAdapter.row(0)));
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-app-checks");
-            shell(instrumentation, "input keyevent KEYCODE_BACK");
-
+            instrumentation.runOnMainSync(() -> {
+                if (activity.activeAppSheet != null) activity.activeAppSheet.dismiss();
+                activity.selectTab(R.id.nav_settings);
+                activity.ui(R.id.advancedToggle).performClick();
+            });
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-advanced");
         }
         instrumentation.runOnMainSync(activity::finish);
         instrumentation.waitForIdleSync();

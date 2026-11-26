@@ -18,13 +18,12 @@
 <string name="request_note">请求可能被系统忽略，请在诊断页确认结果；每分钟最多尝试一次。</string>
     <string name="request_time">上次请求尝试：%1$s</string>
     <string name="network_settings">网络设置</string>
-    <string name="watch_title">我关心的通知应用</string>
-    <string name="watch_summary">选择关注应用，检查推送组件、通知权限和后台设置。</string>
+    <string name="watch_title">关注应用健康</string>
     <string name="choose_apps">选择关注应用</string>
     <string name="all_apps">查看全部应用</string>
     <string name="watched_apps">仅显示关注应用</string>
     <string name="scan_apps">刷新应用检查</string>
-    <string name="apps_counts">共扫描 %1$d 个应用 · %2$d 个声明 FCM/GCM · 已关注 %3$d 个\n当前列表自启动：已开启 %4$d · 未开启 %5$d · 部分开启 %6$d · 无法读取 %7$d\n检测到问题的应用优先展示，点击查看检查项和设置入口。</string>
+    <string name="apps_counts">已扫描 %1$d · FCM/GCM %2$d · 已关注 %3$d\n自启动：已开启 %4$d · 未开启 %5$d · 部分 %6$d · 未知 %7$d</string>
     <string name="no_chosen">请选择你希望及时接收通知的应用。</string>
     <string name="fcm_detected">检测到 FCM/GCM 组件</string>
     <string name="fcm_not_detected">未检测到 FCM/GCM 组件；可能使用其他推送通道</string>
@@ -132,4 +131,11 @@
     <string name="unwatch_this_app">取消关注</string>
     <string name="badge_needs_attention">需检查</string>
     <string name="badge_watched">已关注</string>
+    <string name="nav_connection_title">连接</string>
+    <string name="nav_apps_title">应用</string>
+    <string name="nav_settings_title">设置</string>
+    <string name="watched_health_counts">已关注 %1$d 个 · 已检查 %2$d 个 · 待查看 %3$d 个</string>
+    <string name="watched_attention_count">%1$d 个关注应用有待检查项</string>
+    <string name="watched_attention_overflow">99+ 个关注应用有待检查项</string>
+    <string name="settings_access_tile_title">独立诊断权限与快捷磁贴</string>
 </resources>

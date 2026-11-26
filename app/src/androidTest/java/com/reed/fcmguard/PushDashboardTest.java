@@ -8,6 +8,8 @@ import android.view.View;
 import android.widget.*;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import com.google.android.material.badge.BadgeDrawable;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import org.junit.*;
 import org.junit.runner.RunWith;
@@ -37,12 +39,20 @@ public class PushDashboardTest {
   PackageInfo info = c.getPackageManager().getPackageInfo(c.getPackageName(), android.content.pm.PackageManager.GET_PERMISSIONS);
   for (String permission : info.requestedPermissions) assertFalse(permission.startsWith("android.permission.FOREGROUND_SERVICE"));
   in.runOnMainSync(() -> {
+   assertEquals(R.id.nav_connection, activity.currentTab());
+   assertTrue(activity.ui(R.id.connectionScroll).isShown());
+   assertEquals(View.GONE, activity.ui(R.id.pageApps).getVisibility());
+   assertEquals(View.GONE, activity.ui(R.id.settingsScroll).getVisibility());
+   activity.selectTab(R.id.nav_settings);
    assertEquals(View.GONE, activity.ui(R.id.permissionBtn).getVisibility());
    assertFalse(((MaterialSwitch)activity.ui(R.id.enhancedSwitch)).isChecked());
-   assertEquals(View.GONE,activity.ui(R.id.advancedContent).getVisibility());
+   assertEquals(View.GONE, activity.ui(R.id.advancedContent).getVisibility());
    assertFalse(activity.ui(R.id.enhancedSwitch).isShown());
    assertFalse(activity.ui(R.id.helperText).isShown());
-   assertNotNull(activity.ui(R.id.chooseAppsBtn));
+   assertTrue(activity.ui(R.id.addTileBtn).isShown());
+   assertTrue(activity.ui(R.id.shizukuGrantBtn).isShown());
+   activity.selectTab(R.id.nav_apps);
+   assertTrue(activity.ui(R.id.chooseAppsBtn).isShown());
   });
  }
  @Test public void completedAndInterruptedSetupRetireLegacyModeWithoutLosingPreferences() {
@@ -159,9 +169,11 @@ public class PushDashboardTest {
  }
  @Test public void recoveryLaunchIsConsumedImmediatelyWithoutWaitingForAnObserver() {
   in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_settings);
    Intent intent=new Intent(c,MainActivity.class).putExtra("request_recovery",true);
    in.callActivityOnNewIntent(activity,intent);
    assertFalse(activity.getIntent().hasExtra("request_recovery"));
+   assertEquals(R.id.nav_settings, activity.currentTab());
   });
  }
  @Test public void appProcessRuns64BitWhenRequested() {
@@ -178,11 +190,18 @@ public class PushDashboardTest {
   };
   in.addMonitor(monitor);
   try {
-   Rect before = new Rect();
-   in.runOnMainSync(() -> { assertTrue(activity.ui(R.id.diagBtn).getGlobalVisibleRect(before));
-    ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).scrollToPosition(activity.appAdapter.getItemCount()+1); });
-   in.waitForIdleSync(); android.os.SystemClock.sleep(400);
-   in.runOnMainSync(() -> { Rect after = new Rect(); assertTrue(activity.ui(R.id.diagBtn).getGlobalVisibleRect(after)); assertEquals(before, after); activity.ui(R.id.diagBtn).performClick(); });
+   in.runOnMainSync(() -> {
+    assertEquals(R.id.nav_connection, activity.currentTab());
+    assertTrue(activity.ui(R.id.diagBtn).isShown());
+    assertTrue(activity.ui(R.id.diagBtn).getGlobalVisibleRect(new Rect()));
+    activity.selectTab(R.id.nav_apps);
+    assertFalse(activity.ui(R.id.diagBtn).isShown());
+    activity.selectTab(R.id.nav_settings);
+    assertFalse(activity.ui(R.id.diagBtn).isShown());
+    activity.selectTab(R.id.nav_connection);
+    assertTrue(activity.ui(R.id.diagBtn).isShown());
+    activity.ui(R.id.diagBtn).performClick();
+   });
    assertNotNull(opened.get()); assertEquals("com.google.android.gms.gcm.GcmDiagnostics", opened.get().getComponent().getClassName());
    assertFalse(DiagnosticPreferences.prefs(c).contains("awaiting_report"));
   } finally { in.removeMonitor(monitor); }
@@ -224,8 +243,12 @@ public class PushDashboardTest {
     in.runOnMainSync(activity::finish);
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);
     activity=(MainActivity)in.startActivitySync(intent);
-   } else in.runOnMainSync(() -> in.callActivityOnNewIntent(activity,intent));
+   } else in.runOnMainSync(() -> {
+    activity.selectTab(R.id.nav_settings);
+    in.callActivityOnNewIntent(activity,intent);
+   });
    in.waitForIdleSync();
+   in.runOnMainSync(() -> assertEquals(R.id.nav_connection, activity.currentTab()));
    assertEquals(1,opened.size());
    assertEquals("com.google.android.gms.gcm.GcmDiagnostics",opened.get(0).getComponent().getClassName());
    assertFalse(activity.getIntent().hasExtra("open_diagnostics"));
@@ -237,6 +260,7 @@ public class PushDashboardTest {
  }
  @Test public void disabledAppsSortBeforeEnabledAndCountsUseRenderedList() {
   in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_apps);
    showExamples(activity);
    AppListAdapter adapter = activity.appAdapter;
    assertEquals(4, adapter.getItemCount());
@@ -247,7 +271,7 @@ public class PushDashboardTest {
    adapter.bindViewHolder(holder, 3);
    assertEquals("app:com.example.enabled", holder.itemView.getTag());
    assertEquals(com.google.android.material.color.MaterialColors.getColor(holder.title, com.google.android.material.R.attr.colorOnSurface), holder.title.getCurrentTextColor());
-   assertTrue(((TextView)activity.ui(R.id.fcmAppsStatusText)).getText().toString().contains("4"));
+   assertEquals(c.getString(R.string.apps_counts, 4, 3, 4, 1, 1, 1, 1), ((TextView)activity.ui(R.id.fcmAppsStatusText)).getText().toString());
   });
  }
  @Test public void largeListRecyclesViewsInsteadOfCreatingEveryRow() throws Exception {
@@ -258,28 +282,34 @@ public class PushDashboardTest {
   }
   DiagnosticPreferences.selected(c, chosen);
   in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_apps);
    try { Field f=MainActivity.class.getDeclaredField("rows"); f.setAccessible(true); f.set(activity, examples); }
    catch (Exception e) { throw new AssertionError(e); }
    activity.renderApps();
-   ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).scrollToPosition(151);
+   androidx.recyclerview.widget.RecyclerView list = activity.ui(R.id.scroll);
+   assertSame(activity.appAdapter, list.getAdapter());
+   list.scrollToPosition(150);
   });
   android.os.SystemClock.sleep(400); in.waitForIdleSync();
   in.runOnMainSync(() -> {
    androidx.recyclerview.widget.RecyclerView list = activity.ui(R.id.scroll);
    assertEquals(300, activity.appAdapter.getItemCount());
    assertTrue("Only visible rows should exist", list.getChildCount() < 20);
-   assertNotNull("The middle of the list must be visible", list.findViewHolderForAdapterPosition(151));
+   assertNotNull("The middle of the list must be visible", list.findViewHolderForAdapterPosition(150));
   });
  }
  @Test public void recreationPreservesListModeExpansionAndScroll() throws Exception {
   in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_apps);
    activity.ui(R.id.showAllBtn).performClick();
-   activity.ui(R.id.advancedToggle).performClick();
   });
   in.waitForIdleSync();
-  in.runOnMainSync(() -> ((androidx.recyclerview.widget.LinearLayoutManager)
-          ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).getLayoutManager())
-          .scrollToPositionWithOffset(activity.appAdapter.getItemCount()+1, -60));
+  in.runOnMainSync(() -> {
+   int target = Math.max(0, activity.appAdapter.getItemCount() - 1);
+   ((androidx.recyclerview.widget.LinearLayoutManager)
+           ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).getLayoutManager())
+           .scrollToPositionWithOffset(target, -60);
+  });
   in.waitForIdleSync();
   java.util.concurrent.atomic.AtomicInteger savedPosition = new java.util.concurrent.atomic.AtomicInteger();
   java.util.concurrent.atomic.AtomicInteger savedOffset = new java.util.concurrent.atomic.AtomicInteger();
@@ -287,8 +317,12 @@ public class PushDashboardTest {
    androidx.recyclerview.widget.LinearLayoutManager layout = (androidx.recyclerview.widget.LinearLayoutManager)
            ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).getLayoutManager();
    int position = layout.findFirstVisibleItemPosition();
+   assertTrue("Apps list should contain at least one visible item", position >= 0);
    savedPosition.set(position); savedOffset.set(layout.getDecoratedTop(layout.findViewByPosition(position)));
+   activity.selectTab(R.id.nav_settings);
+   activity.ui(R.id.advancedToggle).performClick();
   });
+  in.waitForIdleSync();
   Instrumentation.ActivityMonitor monitor = in.addMonitor(MainActivity.class.getName(), null, false);
   try {
    in.runOnMainSync(activity::recreate);
@@ -300,15 +334,19 @@ public class PushDashboardTest {
    android.os.SystemClock.sleep(400);
    in.waitForIdleSync();
    in.runOnMainSync(() -> {
+    assertEquals(R.id.nav_settings, activity.currentTab());
+    assertEquals(View.VISIBLE, activity.ui(R.id.advancedContent).getVisibility());
+    activity.selectTab(R.id.nav_apps);
+   });
+   android.os.SystemClock.sleep(300);
+   in.waitForIdleSync();
+   in.runOnMainSync(() -> {
+    assertEquals(c.getString(R.string.watched_apps), ((TextView)activity.ui(R.id.showAllBtn)).getText().toString());
     androidx.recyclerview.widget.LinearLayoutManager layout = (androidx.recyclerview.widget.LinearLayoutManager)
             ((androidx.recyclerview.widget.RecyclerView)activity.ui(R.id.scroll)).getLayoutManager();
     int position = layout.findFirstVisibleItemPosition();
     assertEquals("Visible item survives asynchronous loading", savedPosition.get(), position);
     assertEquals("Offset survives asynchronous loading", savedOffset.get(), layout.getDecoratedTop(layout.findViewByPosition(position)));
-   });
-   in.runOnMainSync(() -> {
-    assertEquals(View.VISIBLE, activity.ui(R.id.advancedContent).getVisibility());
-    assertEquals(c.getString(R.string.watched_apps), ((TextView)activity.ui(R.id.showAllBtn)).getText().toString());
    });
   } finally { in.removeMonitor(monitor); }
  }
@@ -438,10 +476,12 @@ public class PushDashboardTest {
  }
  @Test public void appPickerFiltersByQueryAndFcmAndSavesSelection() {
   in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_apps);
    showExamples(activity);
    DiagnosticPreferences.selected(c, Collections.emptySet());
    activity.renderApps();
    assertEquals(0, activity.appAdapter.getItemCount());
+   assertNull(((BottomNavigationView)activity.ui(R.id.bottomNav)).getBadge(R.id.nav_apps));
    activity.ui(R.id.chooseAppsBtn).performClick();
    assertNotNull(activity.activePickerDialog);
    assertTrue(activity.activePickerDialog.isShowing());
@@ -464,12 +504,20 @@ public class PushDashboardTest {
   in.runOnMainSync(() -> {
    assertEquals(Collections.singleton("com.example.disabled"), DiagnosticPreferences.selected(c));
    assertEquals(1, activity.appAdapter.getItemCount());
+   BadgeDrawable badge = ((BottomNavigationView)activity.ui(R.id.bottomNav)).getBadge(R.id.nav_apps);
+   assertNotNull(badge);
+   assertTrue(badge.isVisible());
+   assertEquals(1, badge.getNumber());
   });
  }
  @Test public void appDetailsSheetTogglesWatchedSelection() {
   in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_apps);
    showExamples(activity);
    assertEquals(4, activity.appAdapter.getItemCount());
+   BottomNavigationView nav = activity.ui(R.id.bottomNav);
+   assertNotNull(nav.getBadge(R.id.nav_apps));
+   assertEquals(2, nav.getBadge(R.id.nav_apps).getNumber());
    activity.showApp(activity.appAdapter.row(0));
    assertNotNull(activity.activeAppSheet);
    assertTrue(activity.activeAppSheet.isShowing());
@@ -479,10 +527,54 @@ public class PushDashboardTest {
    assertFalse(DiagnosticPreferences.selected(c).contains("com.example.disabled"));
    assertEquals(c.getString(R.string.watch_this_app), watchBtn.getText().toString());
    assertEquals(3, activity.appAdapter.getItemCount());
+   assertNotNull(nav.getBadge(R.id.nav_apps));
+   assertEquals(1, nav.getBadge(R.id.nav_apps).getNumber());
    watchBtn.performClick();
    assertTrue(DiagnosticPreferences.selected(c).contains("com.example.disabled"));
    assertEquals(4, activity.appAdapter.getItemCount());
+   assertNotNull(nav.getBadge(R.id.nav_apps));
+   assertEquals(2, nav.getBadge(R.id.nav_apps).getNumber());
    activity.activeAppSheet.dismiss();
+  });
+ }
+ @Test public void bottomNavigationSwitchesPagesAndSummaryCardRoutesAndUpdatesBadge() {
+  in.runOnMainSync(() -> {
+   BottomNavigationView nav = activity.ui(R.id.bottomNav);
+   assertEquals(R.id.nav_connection, activity.currentTab());
+   assertTrue(activity.ui(R.id.connectionScroll).isShown());
+   assertFalse(activity.ui(R.id.pageApps).isShown());
+   assertFalse(activity.ui(R.id.settingsScroll).isShown());
+   assertNull(nav.getBadge(R.id.nav_apps));
+   activity.ui(R.id.appsSummaryCard).performClick();
+   assertNotNull(activity.activePickerDialog);
+   assertTrue(activity.activePickerDialog.isShowing());
+   activity.activePickerDialog.dismiss();
+
+   showExamples(activity);
+   BadgeDrawable badge = nav.getBadge(R.id.nav_apps);
+   assertNotNull(badge);
+   assertTrue(badge.isVisible());
+   assertEquals(2, badge.getNumber());
+   assertEquals(c.getString(R.string.watched_health_counts, 4, 4, 2),
+       ((TextView)activity.ui(R.id.appsSummaryBody)).getText().toString());
+   assertEquals(View.VISIBLE, activity.ui(R.id.appsSummaryAttention).getVisibility());
+   assertEquals(c.getString(R.string.watched_attention_count, 2),
+       ((TextView)activity.ui(R.id.appsSummaryAttention)).getText().toString());
+
+   activity.ui(R.id.appsSummaryCard).performClick();
+   assertEquals(R.id.nav_apps, activity.currentTab());
+   assertTrue(activity.ui(R.id.pageApps).isShown());
+   assertFalse(activity.ui(R.id.connectionScroll).isShown());
+
+   nav.setSelectedItemId(R.id.nav_settings);
+   assertEquals(R.id.nav_settings, activity.currentTab());
+   assertTrue(activity.ui(R.id.settingsScroll).isShown());
+   assertFalse(activity.ui(R.id.pageApps).isShown());
+
+   DiagnosticPreferences.selected(c, Collections.emptySet());
+   activity.renderApps();
+   assertNull(nav.getBadge(R.id.nav_apps));
+   assertEquals(View.GONE, activity.ui(R.id.appsSummaryAttention).getVisibility());
   });
  }
  @Test public void oneTimeShizukuSetupCleansUpWhenPermissionRequestIsDismissed() throws Exception {
@@ -493,6 +585,7 @@ public class PushDashboardTest {
   try {
    in.runOnMainSync(() -> {
     try {
+     activity.selectTab(R.id.nav_settings);
      DiagnosticPreferences.enhanced(c, true);
      DiagnosticPreferences.prefs(c).edit().putBoolean("shizuku_temporary_setup", true).commit();
      ((MaterialSwitch) activity.ui(R.id.enhancedSwitch)).setChecked(true);
