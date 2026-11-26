@@ -44,7 +44,7 @@
     <string name="stopped_yes">執行狀態：已被強制停止（請先開啟一次應用程式）</string>
     <string name="stopped_no">執行狀態：正常（未被強制停止）</string>
     <string name="stopped_unknown">執行狀態：未知</string>
-    <string name="recents_lock_label">背景工作鎖定：%1$s</string>
+    <string name="recents_lock_label">最近任務鎖定：%1$s</string>
     <string name="recents_locked">已鎖定</string>
     <string name="recents_not_locked">未鎖定</string>
     <string name="detail_push_title">推播檢查</string>
@@ -69,7 +69,7 @@
     <string name="done_action">完成</string>
     <string name="page_missing">無法開啟此頁面</string>
     <string name="busy_message">檢查中</string>
-    <string name="request_started">正在檢查網路…</string>
+    <string name="request_started">正在嘗試傳送心跳並檢查網路…</string>
     <string name="no_auth_service">請先啟動 Shizuku</string>
     <string name="appearance_title_v3">外觀</string>
     <string name="tile_setup_message">編輯快速設定並新增 Vigil。\n點選 Vigil 可嘗試傳送心跳並開啟 FCM 診斷。</string>
@@ -133,7 +133,7 @@
     <string name="picker_empty">找不到符合的應用程式</string>
     <string name="watch_this_app">加入關注</string>
     <string name="unwatch_this_app">取消關注</string>
-    <string name="badge_needs_attention">需檢查</string>
+    <string name="badge_needs_attention">待檢查</string>
     <string name="badge_watched">已關注</string>
     <string name="nav_connection_title">連線</string>
     <string name="nav_apps_title">應用程式</string>

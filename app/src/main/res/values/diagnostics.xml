@@ -70,7 +70,7 @@
     <string name="done_action">Done</string>
     <string name="page_missing">Could not open this page</string>
     <string name="busy_message">Check in progress</string>
-    <string name="request_started">Running network check…</string>
+    <string name="request_started">Sending heartbeat and checking network…</string>
     <string name="no_auth_service">Start Shizuku first</string>
     <string name="appearance_title_v3">Appearance</string>
     <string name="tile_setup_message">Edit Quick Settings and add Vigil.\nTap Vigil to try a heartbeat and open FCM diagnostics.</string>

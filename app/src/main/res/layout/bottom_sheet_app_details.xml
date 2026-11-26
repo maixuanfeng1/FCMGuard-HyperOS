@@ -81,18 +81,18 @@
                     android:textAppearance="@style/SectionLabel" />
 
                 <TextView
-                    android:id="@+id/detailFcm"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textAppearance="@style/BodyText" />
-
-                <TextView
                     android:id="@+id/detailNotifications"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="8dp"
                     android:textAppearance="@style/SectionTitle" />
+
+                <TextView
+                    android:id="@+id/detailFcm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/BodyText" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -131,10 +131,17 @@
                     android:textAppearance="@style/SectionTitle" />
 
                 <TextView
-                    android:id="@+id/detailDoze"
+                    android:id="@+id/detailLocked"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
+                    android:textAppearance="@style/SectionTitle" />
+
+                <TextView
+                    android:id="@+id/detailDoze"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
                     android:textAppearance="@style/BodyText" />
 
                 <TextView
@@ -143,13 +150,6 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:textAppearance="@style/BodyText" />
-
-                <TextView
-                    android:id="@+id/detailLocked"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:textAppearance="@style/SectionTitle" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
