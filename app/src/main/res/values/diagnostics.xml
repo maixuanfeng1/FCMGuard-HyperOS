@@ -19,13 +19,12 @@
 <string name="request_note">Requests may be ignored. Confirm the result in diagnostics. Limited to once per minute.</string>
     <string name="request_time">Last request attempt: %1$s</string>
     <string name="network_settings">Network settings</string>
-    <string name="watch_title">My notification apps</string>
-    <string name="watch_summary">Choose your apps to review push components, permissions and background settings.</string>
+    <string name="watch_title">Watched app health</string>
     <string name="choose_apps">Choose apps</string>
     <string name="all_apps">Show all apps</string>
     <string name="watched_apps">Show chosen apps</string>
     <string name="scan_apps">Refresh app checks</string>
-    <string name="apps_counts">Apps scanned: %1$d · FCM/GCM: %2$d · Chosen: %3$d\nAutostart — Enabled: %4$d · Disabled: %5$d · Partial: %6$d · Unknown: %7$d\nApps with detected issues appear first. Tap a row for checks and settings.</string>
+    <string name="apps_counts">Scanned %1$d · FCM/GCM %2$d · Chosen %3$d\nAutostart — On %4$d · Off %5$d · Partial %6$d · Unknown %7$d</string>
     <string name="no_chosen">Choose the apps whose notifications matter to you.</string>
     <string name="fcm_detected">FCM/GCM components detected</string>
     <string name="fcm_not_detected">No FCM/GCM components detected; another push channel may be used</string>
@@ -133,4 +132,11 @@
     <string name="unwatch_this_app">Remove from chosen</string>
     <string name="badge_needs_attention">Needs review</string>
     <string name="badge_watched">Chosen</string>
+    <string name="nav_connection_title">Connection</string>
+    <string name="nav_apps_title">Apps</string>
+    <string name="nav_settings_title">Settings</string>
+    <string name="watched_health_counts">Chosen: %1$d · Checked: %2$d · Needs review: %3$d</string>
+    <string name="watched_attention_count">%1$d chosen app(s) need attention</string>
+    <string name="watched_attention_overflow">99+ chosen apps need attention</string>
+    <string name="settings_access_tile_title">Diagnostic access &amp; Quick Settings</string>
 </resources>

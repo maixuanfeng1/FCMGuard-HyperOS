@@ -16,6 +16,10 @@ Version 3 refocuses this HyperOS tool on the apps whose notifications matter to 
 4. Open the exact selected app’s notification, battery or app-details settings. Unsupported checks retain explanatory text and settings links without checkboxes or result recording.
 5. Add the Quick Settings tile. Visibility starts checks; tapping attempts a rate-limited heartbeat request and opens GMS diagnostics. A network probe or broadcast does not certify reconnection. With app diagnostic access (granted once through Shizuku or ADB), or optional running Shizuku, the tile reports current GMS service state: lit/Connected, grey disconnected icon/Disconnected, or a question mark/Unknown. Unknown stays clickable for diagnostics and never means off.
 
+## Version 3.6.0: three-tab Material 3 navigation
+
+Reorganizes the single scrolling screen into a Material 3 three-tab layout with bottom navigation (**Connection**, **Apps**, **Settings**). The Connection tab brings together the FCM status card, Google diagnostics entry, a tappable watched-app health summary card, and network probe/heartbeat actions; the Apps tab gives the watched/all app list a dedicated full-height view with a compact fixed filter header and an attention-count badge on the bottom navigation bar; the Settings tab places one-time Shizuku diagnostic authorization and Quick Settings tile setup at the top, followed by refresh/appearance preferences and collapsed Advanced options. Selected tab, list mode, advanced expansion, and list scroll position survive activity recreation, and snackbars anchor cleanly above the bottom bar.
+
 ## Version 3.5.0: searchable app picker, card layout and seamless one-time grant
 
 The notification-app picker adds live search by app name or package, app icons, and All / FCM-declared / Chosen filter chips over a recycled list, keeping rows steady while toggling checkboxes. The dashboard arranges actions into responsive rows that wrap cleanly on compact or large-font screens, presents watched apps as Material 3 cards with status badges, and adds a one-tap Chosen toggle inside the per-app details sheet.

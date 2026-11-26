@@ -45,15 +45,44 @@ def wait_for(probe, description, timeout=45):
     raise AssertionError(description + ' timed out')
 
 
+def tap(node):
+    bounds = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
+    assert len(bounds) == 4 and bounds[2] > bounds[0] and bounds[3] > bounds[1], node.attrib
+    adb('shell', 'input', 'tap', str((bounds[0] + bounds[2]) // 2), str((bounds[1] + bounds[3]) // 2))
+
+
+def swipe_small():
+    width, height = map(int, re.findall(r'(\d+)x(\d+)', adb('shell', 'wm', 'size'))[-1])
+    adb('shell', 'input', 'swipe', str(width // 2), str(height * 65 // 100),
+        str(width // 2), str(height * 35 // 100), '300')
+
+
+def ensure_connection_tab(current=None):
+    current = nodes() if current is None else current
+    if any(n.get('resource-id') == PACKAGE + ':id/statusHeadline' for n in current):
+        return current
+    tab = next((n for n in current if n.get('resource-id') == PACKAGE + ':id/nav_connection'), None)
+    if tab is not None:
+        tap(tab)
+        time.sleep(0.5)
+        return nodes()
+    return current
+
+
 def main():
     adb('shell', 'cmd', 'statusbar', 'collapse')
     adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
+    ensure_connection_tab()
 
 
 def dashboard(state, direct=True):
-    current = nodes()
+    current = ensure_connection_tab()
     headline = next((n.get('text', '') for n in current if n.get('resource-id') == PACKAGE + ':id/statusHeadline'), '')
     evidence = next((n.get('text', '') for n in current if n.get('resource-id') == PACKAGE + ':id/evidenceText'), '')
+    if headline.casefold() == ('FCM connection: ' + state).casefold() and direct and not evidence:
+        swipe_small()
+        current = nodes()
+        evidence = next((n.get('text', '') for n in current if n.get('resource-id') == PACKAGE + ':id/evidenceText'), '')
     return headline.casefold() == ('FCM connection: ' + state).casefold() and (not direct or 'Read source: app diagnostic permissions' in evidence)
 
 

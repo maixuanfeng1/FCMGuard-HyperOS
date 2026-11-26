@@ -39,6 +39,23 @@ def tap(node):
     adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2), str((bounds[1]+bounds[3])//2))
 
 
+def find_node(current, resource_id):
+    return next((n for n in current if n.get('resource-id') == resource_id), None)
+
+
+def switch_tab(tab_id, timeout=15):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        current = nodes()
+        tab = find_node(current, PACKAGE + ':id/' + tab_id)
+        if tab is not None:
+            tap(tab)
+            time.sleep(0.5)
+            return nodes()
+        time.sleep(0.5)
+    raise AssertionError(f'Bottom navigation tab {tab_id} was not found')
+
+
 def swipe(up=True):
     adb('shell', 'input', 'swipe', str(width//2), str(height*(80 if up else 25)//100),
         str(width//2), str(height*(25 if up else 80)//100), '400')
@@ -69,11 +86,14 @@ try:
     before = adb('shell', 'settings', 'get', 'system', 'MILLET_NO_RESTRICT_APP')
     adb('shell', 'am', 'start', '-W', '-n', PACKAGE+'/.MainActivity')
     width, height = map(int, re.findall(r'(\d+)x(\d+)', adb('shell', 'wm', 'size'))[-1])
-    # Daily UI has no persistent helper controls. Drive the one-time entry itself.
-    for _ in range(10):
-        current = nodes()
-        if any(n.get('resource-id') == PACKAGE+':id/shizukuGrantBtn' for n in current): break
+    # Navigate directly to the Settings tab where the one-time grant entry lives.
+    current = switch_tab('nav_settings')
+    for _ in range(3):
+        if find_node(current, PACKAGE+':id/shizukuGrantBtn') is not None:
+            break
         swipe()
+        current = nodes()
+    assert find_node(current, PACKAGE+':id/shizukuGrantBtn') is not None, 'shizukuGrantBtn not found in Settings tab'
     assert not any(n.get('resource-id') in {PACKAGE+':id/enhancedSwitch', PACKAGE+':id/helperText',
                     PACKAGE+':id/permissionBtn', PACKAGE+':id/runtimeInfoText'} for n in current), 'Legacy controls leaked into daily UI'
     allowed = False
@@ -141,11 +161,12 @@ try:
     lines.append('Consent cancel preserves permissions; confirmation grants them through real Shizuku; server stopped: OK')
     # Outlive the 15-second verdict cache; success must come from a new independent read.
     time.sleep(16)
-    for _ in range(10):
+    current = switch_tab('nav_connection')
+    for _ in range(3):
+        if find_node(current, PACKAGE+':id/statusHeadline') is not None:
+            break
         swipe(False)
         current = nodes()
-        if any(n.get('resource-id') == PACKAGE+':id/statusHeadline' for n in current):
-            break
     deadline = time.monotonic()+30
     while time.monotonic() < deadline:
         current = nodes()

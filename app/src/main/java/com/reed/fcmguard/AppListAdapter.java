@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.color.MaterialColors;
 import java.util.*;
 
-/** Recycles app rows while retaining the dashboard and preference sections. */
+/** Recycles app diagnostic rows on the Apps tab. */
 final class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.Holder> {
     private final MainActivity activity;
     private List<AppDiagnostics> rows = Collections.emptyList();
@@ -98,14 +98,5 @@ final class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.Holder> {
             list = view.findViewById(R.id.appSystemList); notifications = view.findViewById(R.id.appNotifications);
             view.setOnClickListener(v -> activity.showApp(bound));
         }
-    }
-    static RecyclerView.Adapter<RecyclerView.ViewHolder> section(View view) {
-        return new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-            @Override public int getItemCount() { return 1; }
-            @Override public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int type) {
-                return new RecyclerView.ViewHolder(view) { };
-            }
-            @Override public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) { }
-        };
     }
 }

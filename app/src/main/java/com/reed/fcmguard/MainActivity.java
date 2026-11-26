@@ -12,7 +12,10 @@ import android.view.*;
 import android.widget.*;
 import androidx.appcompat.app.*;
 import androidx.core.view.*;
+import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.*;
+import com.google.android.material.badge.BadgeDrawable;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
@@ -27,12 +30,18 @@ import java.util.concurrent.*;
 
 /** Permission-free checks first; optional read-only shell evidence is explicitly attributed. */
 public class MainActivity extends AppCompatActivity {
+    private static final String STATE_SELECTED_TAB = "selected_tab";
+    private static final String TAB_CONNECTION = "connection";
+    private static final String TAB_APPS = "apps";
+    private static final String TAB_SETTINGS = "settings";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private List<FcmAppScanner.AppEntry> apps = new ArrayList<>();
     private List<AppDiagnostics> rows = new ArrayList<>();
     private boolean showAll;
+    private boolean appsLoaded;
+    private int selectedTabId = R.id.nav_connection;
+    private boolean syncingBottomNav;
     private Parcelable restoredListState;
-    private View dashboardHeader, dashboardFooter;
     private RecyclerView list;
     AppListAdapter appAdapter;
     AlertDialog activePickerDialog;
@@ -66,12 +75,73 @@ public class MainActivity extends AppCompatActivity {
         if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)) refreshApps();
     };
 
-    // Header/footer views can be detached by RecyclerView; state updates still target their retained views.
     <T extends View> T ui(int id) {
-        T view = findViewById(id);
-        if (view == null && dashboardHeader != null) view = dashboardHeader.findViewById(id);
-        if (view == null && dashboardFooter != null) view = dashboardFooter.findViewById(id);
-        return view;
+        return findViewById(id);
+    }
+
+    int currentTab() {
+        return selectedTabId;
+    }
+
+    void selectTab(int itemId) {
+        int normalized = normalizeTabId(itemId);
+        selectedTabId = normalized;
+        applyTabVisibility(normalized);
+        BottomNavigationView nav = ui(R.id.bottomNav);
+        if (nav != null && nav.getSelectedItemId() != normalized) {
+            syncingBottomNav = true;
+            try {
+                nav.setSelectedItemId(normalized);
+            } finally {
+                syncingBottomNav = false;
+            }
+        }
+    }
+
+    private int normalizeTabId(int itemId) {
+        if (itemId == R.id.nav_apps || itemId == R.id.nav_settings) return itemId;
+        return R.id.nav_connection;
+    }
+
+    private String tabKey(int itemId) {
+        if (itemId == R.id.nav_apps) return TAB_APPS;
+        if (itemId == R.id.nav_settings) return TAB_SETTINGS;
+        return TAB_CONNECTION;
+    }
+
+    private int tabIdFromKey(String key) {
+        if (TAB_APPS.equals(key)) return R.id.nav_apps;
+        if (TAB_SETTINGS.equals(key)) return R.id.nav_settings;
+        return R.id.nav_connection;
+    }
+
+    private void applyTabVisibility(int tabId) {
+        ui(R.id.connectionScroll).setVisibility(tabId == R.id.nav_connection ? View.VISIBLE : View.GONE);
+        ui(R.id.pageApps).setVisibility(tabId == R.id.nav_apps ? View.VISIBLE : View.GONE);
+        ui(R.id.settingsScroll).setVisibility(tabId == R.id.nav_settings ? View.VISIBLE : View.GONE);
+        if (tabId == R.id.nav_apps) maybeRestoreListState();
+    }
+
+    private void scrollTabToTop(int tabId) {
+        if (tabId == R.id.nav_apps) {
+            list.scrollToPosition(0);
+        } else if (tabId == R.id.nav_settings) {
+            ((NestedScrollView) ui(R.id.settingsScroll)).scrollTo(0, 0);
+        } else {
+            ((NestedScrollView) ui(R.id.connectionScroll)).scrollTo(0, 0);
+        }
+    }
+
+    private void maybeRestoreListState() {
+        if (restoredListState == null) return;
+        if (!appsLoaded && rows.isEmpty()) return;
+        if (appAdapter.getItemCount() == 0) {
+            restoredListState = null;
+            return;
+        }
+        if (selectedTabId != R.id.nav_apps) return;
+        list.getLayoutManager().onRestoreInstanceState(restoredListState);
+        restoredListState = null;
     }
 
     @Override public void onCreate(Bundle state) {
@@ -85,32 +155,63 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         list = ui(R.id.scroll);
         list.setLayoutManager(new LinearLayoutManager(this));
-        dashboardHeader = getLayoutInflater().inflate(R.layout.dashboard_header, list, false);
-        dashboardFooter = getLayoutInflater().inflate(R.layout.dashboard_footer, list, false);
         list.setSaveEnabled(false); // Restore after asynchronous app discovery, not against an empty adapter.
         list.setItemAnimator(null);
         appAdapter = new AppListAdapter(this);
-        list.setAdapter(new ConcatAdapter(AppListAdapter.section(dashboardHeader), appAdapter,
-                AppListAdapter.section(dashboardFooter)));
+        list.setAdapter(appAdapter);
         if (state != null) {
+            if (state.containsKey(STATE_SELECTED_TAB)) {
+                selectedTabId = tabIdFromKey(state.getString(STATE_SELECTED_TAB));
+                restoredListState = androidx.core.os.BundleCompat.getParcelable(state, "list_state", Parcelable.class);
+            }
             showAll = state.getBoolean("show_all", false);
-            restoredListState = state.getParcelable("list_state");
             boolean expanded = state.getBoolean("advanced_expanded", false);
             ui(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
             ((MaterialButton) ui(R.id.advancedToggle)).setIconResource(
                     expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
         }
-        ViewCompat.setOnApplyWindowInsetsListener(ui(R.id.root), (v, insets) -> {
+        BottomNavigationView bottomNav = ui(R.id.bottomNav);
+        bottomNav.setOnItemSelectedListener(item -> {
+            if (syncingBottomNav) return true;
+            int next = normalizeTabId(item.getItemId());
+            selectedTabId = next;
+            applyTabVisibility(next);
+            return true;
+        });
+        bottomNav.setOnItemReselectedListener(item -> scrollTabToTop(item.getItemId()));
+        selectTab(selectedTabId);
+        View toolbarContainer = ui(R.id.toolbarContainer);
+        View pageContainer = ui(R.id.pageContainer);
+        ViewCompat.setOnApplyWindowInsetsListener(toolbarContainer, (v, insets) -> {
             androidx.core.graphics.Insets safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            v.setPadding(safe.left, safe.top, safe.right, Math.max(safe.bottom, insets.getInsets(WindowInsetsCompat.Type.ime()).bottom));
+            v.setPadding(safe.left, safe.top, safe.right, 0);
+            return insets;
+        });
+        ViewCompat.setOnApplyWindowInsetsListener(pageContainer, (v, insets) -> {
+            androidx.core.graphics.Insets safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            v.setPadding(safe.left, 0, safe.right, 0);
+            return insets;
+        });
+        final int navLeft = bottomNav.getPaddingLeft();
+        final int navTop = bottomNav.getPaddingTop();
+        final int navRight = bottomNav.getPaddingRight();
+        final int navBottom = bottomNav.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(bottomNav, (v, insets) -> {
+            androidx.core.graphics.Insets safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            androidx.core.graphics.Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            v.setPadding(navLeft + safe.left, navTop, navRight + safe.right, navBottom + Math.max(safe.bottom, ime.bottom));
             return insets;
         });
         ui(R.id.diagBtn).setOnClickListener(v -> openDiagnostics());
+        ui(R.id.appsSummaryCard).setOnClickListener(v -> {
+            if (DiagnosticPreferences.selected(this).isEmpty()) chooseApps();
+            else selectTab(R.id.nav_apps);
+        });
         ui(R.id.checkBtn).setOnClickListener(v -> check(false));
         ui(R.id.reconnectBtn).setOnClickListener(v -> check(true));
         ui(R.id.chooseAppsBtn).setOnClickListener(v -> chooseApps());
         ui(R.id.scanFcmAppsBtn).setOnClickListener(v -> { FcmAppScanner.invalidate(); refreshApps(); });
-        ui(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; renderApps(); });
+        ui(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; restoredListState = null; renderApps(); });
         ui(R.id.networkSettingsBtn).setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIRELESS_SETTINGS)));
         ui(R.id.addTileBtn).setOnClickListener(v -> addTile());
         ui(R.id.advancedToggle).setOnClickListener(v -> {
@@ -147,6 +248,7 @@ public class MainActivity extends AppCompatActivity {
         });
         PushRuntime.start(this);
         renderConnection();
+        renderWatchedSummary();
         handleLaunchActions();
     }
     private void handleLaunchActions() {
@@ -156,7 +258,9 @@ public class MainActivity extends AppCompatActivity {
         }
         if (getIntent().getBooleanExtra("open_diagnostics", false)) {
             getIntent().removeExtra("open_diagnostics");
-            ui(R.id.diagBtn).post(this::openDiagnostics);
+            selectTab(R.id.nav_connection);
+            scrollTabToTop(R.id.nav_connection);
+            ui(R.id.root).post(this::openDiagnostics);
         }
     }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleLaunchActions(); }
@@ -185,6 +289,7 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
     }
     @Override protected void onSaveInstanceState(Bundle state) {
+        state.putString(STATE_SELECTED_TAB, tabKey(selectedTabId));
         state.putBoolean("show_all", showAll);
         state.putBoolean("advanced_expanded", ui(R.id.advancedContent).getVisibility() == View.VISIBLE);
         state.putParcelable("list_state", restoredListState != null ? restoredListState : list.getLayoutManager().onSaveInstanceState());
@@ -259,7 +364,10 @@ public class MainActivity extends AppCompatActivity {
         if (PushRuntime.monitorError != null) extra += "\n" + getString(R.string.diagnostic_observer_unavailable);
         long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
         if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
-        set(R.id.evidenceText, extra.trim());
+        String evidence = extra.trim();
+        TextView evidenceView = ui(R.id.evidenceText);
+        evidenceView.setText(evidence);
+        evidenceView.setVisibility(evidence.isEmpty() ? View.GONE : View.VISIBLE);
         EnhancedStatus.Access helperAccess = direct ? ShizukuBridge.accessState(this) : status.access;
         MaterialButton permission = ui(R.id.permissionBtn);
         boolean connecting = helperAccess == EnhancedStatus.Access.CONNECTING && ShizukuBridge.isConnecting();
@@ -375,13 +483,16 @@ public class MainActivity extends AppCompatActivity {
                 }
                 finishShizukuSetup(ready);
                 renderConnection();
-                list.post(() -> {
-                    View grant = ui(R.id.shizukuGrantBtn);
-                    if (!isDestroyed() && grant != null && grant.isAttachedToWindow()) {
-                        grant.requestRectangleOnScreen(
-                                new android.graphics.Rect(0, 0, grant.getWidth(), grant.getHeight()), true);
-                    }
-                });
+                View settingsScroll = ui(R.id.settingsScroll);
+                if (settingsScroll != null && settingsScroll.getVisibility() == View.VISIBLE) {
+                    settingsScroll.post(() -> {
+                        View grant = ui(R.id.shizukuGrantBtn);
+                        if (!isDestroyed() && grant != null && grant.isShown()) {
+                            grant.requestRectangleOnScreen(
+                                    new android.graphics.Rect(0, 0, grant.getWidth(), grant.getHeight()), true);
+                        }
+                    });
+                }
                 message(getString(ready ? R.string.shizuku_grant_success : R.string.shizuku_grant_failed));
             });
         });
@@ -461,6 +572,7 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 scanning = false;
                 if (isDestroyed()) return;
+                appsLoaded = true;
                 apps = found; rows = result; lastWhitelist = list; renderApps();
                 // An event received during scanning must not be lost.
                 if (!Objects.equals(list, PushRuntime.whitelist)) PushRuntime.refresh(this);
@@ -492,9 +604,56 @@ public class MainActivity extends AppCompatActivity {
         ((MaterialButton) ui(R.id.showAllBtn)).setText(showAll ? R.string.watched_apps : R.string.all_apps);
         ui(R.id.noChosenText).setVisibility(visible.isEmpty() ? View.VISIBLE : View.GONE);
         appAdapter.submit(visible, chosen);
-        if (restoredListState != null) {
-            list.getLayoutManager().onRestoreInstanceState(restoredListState);
-            restoredListState = null;
+        maybeRestoreListState();
+        renderWatchedSummary(chosen);
+    }
+
+    private void renderWatchedSummary() {
+        renderWatchedSummary(DiagnosticPreferences.selected(this));
+    }
+
+    private void renderWatchedSummary(Set<String> chosen) {
+        int checkedWatched = 0, attentionCount = 0;
+        Set<String> seen = new HashSet<>();
+        for (AppDiagnostics row : rows) {
+            if (chosen.contains(row.app.packageName) && seen.add(row.app.packageName)) {
+                checkedWatched++;
+                if (row.needsAttention()) attentionCount++;
+            }
+        }
+        TextView action = ui(R.id.appsSummaryActionText);
+        TextView body = ui(R.id.appsSummaryBody);
+        TextView attention = ui(R.id.appsSummaryAttention);
+        if (!appsLoaded && rows.isEmpty()) {
+            body.setText(R.string.checking);
+            action.setText(chosen.isEmpty() ? R.string.choose_apps : R.string.nav_apps_title);
+            attention.setVisibility(View.GONE);
+        } else if (chosen.isEmpty()) {
+            body.setText(R.string.no_chosen);
+            action.setText(R.string.choose_apps);
+            attention.setVisibility(View.GONE);
+        } else {
+            body.setText(getString(R.string.watched_health_counts, chosen.size(), checkedWatched, attentionCount));
+            action.setText(R.string.nav_apps_title);
+            if (attentionCount > 0) {
+                attention.setVisibility(View.VISIBLE);
+                attention.setText(attentionCount > 99
+                        ? getString(R.string.watched_attention_overflow)
+                        : getString(R.string.watched_attention_count, attentionCount));
+            } else {
+                attention.setVisibility(View.GONE);
+            }
+        }
+        BottomNavigationView nav = ui(R.id.bottomNav);
+        if (nav != null) {
+            if (attentionCount > 0) {
+                BadgeDrawable badge = nav.getOrCreateBadge(R.id.nav_apps);
+                badge.setMaxCharacterCount(3);
+                badge.setNumber(attentionCount);
+                badge.setVisible(true);
+            } else {
+                nav.removeBadge(R.id.nav_apps);
+            }
         }
     }
 
@@ -671,5 +830,10 @@ public class MainActivity extends AppCompatActivity {
     }
     private void launch(Intent intent) { try { startActivity(intent); } catch (RuntimeException e) { message(getString(R.string.page_missing)); } }
     private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
-    private void message(String message) { Snackbar.make(ui(R.id.root), message, Snackbar.LENGTH_LONG).show(); }
+    private void message(String message) {
+        Snackbar snackbar = Snackbar.make(ui(R.id.root), message, Snackbar.LENGTH_LONG);
+        View nav = ui(R.id.bottomNav);
+        if (nav != null && nav.getVisibility() == View.VISIBLE) snackbar.setAnchorView(nav);
+        snackbar.show();
+    }
 }

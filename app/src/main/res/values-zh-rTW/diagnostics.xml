@@ -18,13 +18,12 @@
     <string name="request_note">系統可能忽略要求，請在診斷頁確認結果；每分鐘最多嘗試一次。</string>
     <string name="request_time">上次嘗試要求：%1$s</string>
     <string name="network_settings">網路設定</string>
-    <string name="watch_title">我關注的通知應用程式</string>
-    <string name="watch_summary">選擇關注的應用程式，檢查推播元件、通知權限和背景設定。</string>
+    <string name="watch_title">關注應用程式健康</string>
     <string name="choose_apps">選擇關注的應用程式</string>
     <string name="all_apps">查看所有應用程式</string>
     <string name="watched_apps">僅顯示關注的應用程式</string>
     <string name="scan_apps">重新整理應用程式檢查</string>
-    <string name="apps_counts">共掃描 %1$d 個應用程式 · %2$d 個宣告 FCM/GCM · 已關注 %3$d 個\n目前清單自動啟動：已開啟 %4$d · 未開啟 %5$d · 部分開啟 %6$d · 無法讀取 %7$d\n偵測到問題的應用程式會優先顯示，點選可查看檢查項目和設定入口。</string>
+    <string name="apps_counts">已掃描 %1$d · FCM/GCM %2$d · 已關注 %3$d\n自動啟動：已開啟 %4$d · 未開啟 %5$d · 部分 %6$d · 未知 %7$d</string>
     <string name="no_chosen">請選擇你希望即時接收通知的應用程式。</string>
     <string name="fcm_detected">偵測到 FCM/GCM 元件</string>
     <string name="fcm_not_detected">未偵測到 FCM/GCM 元件；可能使用其他推播管道</string>
@@ -132,4 +131,11 @@
     <string name="unwatch_this_app">取消關注</string>
     <string name="badge_needs_attention">需檢查</string>
     <string name="badge_watched">已關注</string>
+    <string name="nav_connection_title">連線</string>
+    <string name="nav_apps_title">應用程式</string>
+    <string name="nav_settings_title">設定</string>
+    <string name="watched_health_counts">已關注 %1$d 個 · 已檢查 %2$d 個 · 待查看 %3$d 個</string>
+    <string name="watched_attention_count">%1$d 個關注應用程式有待檢查項目</string>
+    <string name="watched_attention_overflow">99+ 個關注應用程式有待檢查項目</string>
+    <string name="settings_access_tile_title">獨立診斷權限與快速設定圖塊</string>
 </resources>
