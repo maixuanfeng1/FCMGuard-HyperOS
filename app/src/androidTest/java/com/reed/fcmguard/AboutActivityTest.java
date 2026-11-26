@@ -324,9 +324,12 @@ public class AboutActivityTest {
                         .getText().toString();
                 assertTrue(noNotesBody.contains(context.getString(R.string.about_update_no_notes)));
                 about.activeUpdateDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
-                assertEquals(1, viewed.size());
-                assertEquals(noApkRelease.releaseUrl, viewed.get(0).getDataString());
+            });
+            instrumentation.waitForIdleSync();
+            assertEquals(1, viewed.size());
+            assertEquals(noApkRelease.releaseUrl, viewed.get(0).getDataString());
 
+            instrumentation.runOnMainSync(() -> {
                 about.renderUpdateResult(new UpdateChecker.Result(UpdateChecker.Status.UPDATE_AVAILABLE, withApkRelease), true);
                 assertNotNull(about.activeUpdateDialog);
                 assertTrue(about.activeUpdateDialog.isShowing());
@@ -338,16 +341,20 @@ public class AboutActivityTest {
                 assertEquals(context.getString(R.string.about_update_open_release),
                         about.activeUpdateDialog.getButton(DialogInterface.BUTTON_NEUTRAL).getText().toString());
                 about.activeUpdateDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
-                assertEquals(2, viewed.size());
-                assertEquals(withApkRelease.apkDownloadUrl, viewed.get(1).getDataString());
+            });
+            instrumentation.waitForIdleSync();
+            assertEquals(2, viewed.size());
+            assertEquals(withApkRelease.apkDownloadUrl, viewed.get(1).getDataString());
 
-                detailsBtn.performClick();
+            instrumentation.runOnMainSync(() -> {
+                about.ui(R.id.viewUpdateDetailsBtn).performClick();
                 assertNotNull(about.activeUpdateDialog);
                 assertTrue(about.activeUpdateDialog.isShowing());
                 about.activeUpdateDialog.getButton(DialogInterface.BUTTON_NEUTRAL).performClick();
-                assertEquals(3, viewed.size());
-                assertEquals(withApkRelease.releaseUrl, viewed.get(2).getDataString());
             });
+            instrumentation.waitForIdleSync();
+            assertEquals(3, viewed.size());
+            assertEquals(withApkRelease.releaseUrl, viewed.get(2).getDataString());
 
             Instrumentation.ActivityMonitor recreateMonitor = instrumentation.addMonitor(
                     AboutActivity.class.getName(), null, false);
