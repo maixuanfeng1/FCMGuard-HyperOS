@@ -5,8 +5,8 @@ import android.content.*;
 import android.content.pm.*;
 import android.graphics.drawable.Icon;
 import android.os.*;
-import android.provider.Settings;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.*;
 import android.widget.*;
@@ -163,17 +163,16 @@ public class MainActivity extends AppCompatActivity {
         list.setItemAnimator(null);
         appAdapter = new AppListAdapter(this);
         list.setAdapter(appAdapter);
+        boolean advancedExpanded = false;
         if (state != null) {
             if (state.containsKey(STATE_SELECTED_TAB)) {
                 selectedTabId = tabIdFromKey(state.getString(STATE_SELECTED_TAB));
                 restoredListState = androidx.core.os.BundleCompat.getParcelable(state, "list_state", Parcelable.class);
             }
             showAll = state.getBoolean("show_all", false);
-            boolean expanded = state.getBoolean("advanced_expanded", false);
-            ui(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
-            ((MaterialButton) ui(R.id.advancedToggle)).setIconResource(
-                    expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
+            advancedExpanded = state.getBoolean("advanced_expanded", false);
         }
+        applyAdvancedExpanded(advancedExpanded);
         BottomNavigationView bottomNav = ui(R.id.bottomNav);
         bottomNav.setOnItemSelectedListener(item -> {
             if (syncingBottomNav) return true;
@@ -221,14 +220,9 @@ public class MainActivity extends AppCompatActivity {
             refreshApps();
         });
         ui(R.id.showAllBtn).setOnClickListener(v -> { showAll = !showAll; restoredListState = null; renderApps(); });
-        ui(R.id.networkSettingsBtn).setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIRELESS_SETTINGS)));
         ui(R.id.addTileBtn).setOnClickListener(v -> addTile());
-        ui(R.id.advancedToggle).setOnClickListener(v -> {
-            View content = ui(R.id.advancedContent);
-            boolean expanded = content.getVisibility() != View.VISIBLE;
-            content.setVisibility(expanded ? View.VISIBLE : View.GONE);
-            ((MaterialButton) v).setIconResource(expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
-        });
+        ui(R.id.advancedToggle).setOnClickListener(v ->
+                applyAdvancedExpanded(ui(R.id.advancedContent).getVisibility() != View.VISIBLE));
         MaterialSwitch enhanced = ui(R.id.enhancedSwitch);
         enhanced.setChecked(DiagnosticPreferences.enhanced(this));
         enhanced.setOnCheckedChangeListener((v, checked) -> {
@@ -241,7 +235,6 @@ public class MainActivity extends AppCompatActivity {
             if (ShizukuBridge.accessState(this) == EnhancedStatus.Access.NOT_RUNNING) openShizuku();
             else authorize();
         });
-        ui(R.id.directGrantBtn).setOnClickListener(v -> showDirectGrantHelp());
         ui(R.id.shizukuGrantBtn).setOnClickListener(v -> showShizukuGrant());
         MaterialSwitch observe = ui(R.id.observeSwitch);
         observe.setChecked(DiagnosticPreferences.observe(this));
@@ -349,19 +342,35 @@ public class MainActivity extends AppCompatActivity {
         else if (recovery) message(getString(R.string.request_started));
         renderConnection();
     }
+    private void applyAdvancedExpanded(boolean expanded) {
+        ui(R.id.advancedContent).setVisibility(expanded ? View.VISIBLE : View.GONE);
+        MaterialButton toggle = ui(R.id.advancedToggle);
+        toggle.setIconResource(expanded ? R.drawable.ic_expand_less : R.drawable.ic_expand_more);
+        ViewCompat.setStateDescription(toggle,
+                getString(expanded ? R.string.advanced_expanded_state : R.string.advanced_collapsed_state));
+    }
+
     private String time(long date) { return date <= 0 ? getString(R.string.network_none) : DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(date)); }
     private void set(int id, String value) { ((TextView) ui(id)).setText(value); }
     void renderConnection() {
-        set(R.id.statusHeadline, getString(R.string.connection_unknown));
         int network = PushRuntime.network == NetworkProbe.State.REACHABLE ? R.string.network_reachable :
                 PushRuntime.network == NetworkProbe.State.OFFLINE ? R.string.network_offline :
                 PushRuntime.network == NetworkProbe.State.UNREACHABLE ? R.string.network_failed :
                 PushRuntime.network == NetworkProbe.State.NOT_CHECKED ? R.string.network_none : R.string.network_unknown;
-        set(R.id.networkText, (PushRuntime.busy() ? getString(R.string.checking) + "\n" : "") + getString(network) + "\n" +
-                getString(R.string.last_check, time(PushRuntime.checkedAt)) + "\n" + getString(PushRuntime.gmsAvailable == null ? R.string.network_none : PushRuntime.gmsAvailable ? R.string.gms_present : R.string.gms_missing));
-        renderEnhanced(EnhancedRuntime.snapshot(this));
-        set(R.id.currentValueText, SettingsGuard.KEY + "\n\n" + (PushRuntime.whitelist == null ? getString(R.string.raw_unavailable) :
+        List<String> networkLines = new ArrayList<>();
+        if (PushRuntime.busy()) networkLines.add(getString(R.string.checking));
+        networkLines.add(getString(network));
+        if (PushRuntime.gmsAvailable != null) {
+            networkLines.add(getString(PushRuntime.gmsAvailable ? R.string.gms_present : R.string.gms_missing));
+        }
+        long checked = PushRuntime.checkedAt;
+        if (checked > 0) networkLines.add(getString(R.string.last_check, time(checked)));
+        long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
+        if (request > 0) networkLines.add(getString(R.string.request_time, time(request)));
+        set(R.id.networkText, TextUtils.join("\n", networkLines));
+        set(R.id.currentValueText, SettingsGuard.KEY + "\n" + (PushRuntime.whitelist == null ? getString(R.string.raw_unavailable) :
                 PushRuntime.whitelist.trim().isEmpty() ? getString(R.string.raw_empty) : PushRuntime.whitelist.replace(",", "\n")));
+        renderEnhanced(EnhancedRuntime.snapshot(this));
         continuePendingShizukuGrant();
     }
     void renderEnhanced(EnhancedStatus.Snapshot status) {
@@ -369,22 +378,39 @@ public class MainActivity extends AppCompatActivity {
         boolean verdict = current == EnhancedStatus.Result.CONNECTED || current == EnhancedStatus.Result.DISCONNECTED;
         set(R.id.statusHeadline, getString(current == EnhancedStatus.Result.CONNECTED ? R.string.gms_connected :
                 current == EnhancedStatus.Result.DISCONNECTED ? R.string.gms_disconnected : R.string.connection_unknown));
-        set(R.id.connectionSource, verdict ? getString(R.string.gms_state_source, time(status.checkedAt)) : getString(R.string.connection_summary));
+        TextView sourceView = ui(R.id.connectionSource);
+        if (status.access == EnhancedStatus.Access.READY && status.checkedAt > 0) {
+            sourceView.setText(getString(R.string.enhanced_checked_at, time(status.checkedAt)));
+            sourceView.setVisibility(View.VISIBLE);
+        } else if (status.access == EnhancedStatus.Access.DISABLED) {
+            sourceView.setText(R.string.connection_access_hint);
+            sourceView.setVisibility(View.VISIBLE);
+        } else {
+            sourceView.setText("");
+            sourceView.setVisibility(View.GONE);
+        }
         boolean direct = status.source == EnhancedStatus.Source.DIRECT;
         String access = getString(accessLabel(status.access));
-        String extra = direct ? getString(R.string.direct_evidence) :
-                status.access == EnhancedStatus.Access.DISABLED ? "" : getString(R.string.helper_evidence, access);
-        if (status.access == EnhancedStatus.Access.READY) {
-            extra += "\n" + getString(resultLabel(current));
-            if (status.checkedAt > 0) extra += "\n" + getString(R.string.enhanced_checked_at, time(status.checkedAt));
+        List<String> evidenceLines = new ArrayList<>();
+        if (direct) {
+            evidenceLines.add(getString(R.string.direct_evidence));
+        } else if (status.access != EnhancedStatus.Access.DISABLED) {
+            evidenceLines.add(getString(R.string.helper_evidence, access));
         }
-        if (PushRuntime.monitorError != null) extra += "\n" + getString(R.string.diagnostic_observer_unavailable);
-        long request = DiagnosticPreferences.prefs(this).getLong("request_time", 0);
-        if (request > 0) extra += "\n" + getString(R.string.request_time, time(request));
-        String evidence = extra.trim();
+        if (status.access == EnhancedStatus.Access.READY && !verdict) {
+            evidenceLines.add(getString(resultLabel(current)));
+        }
+        if (PushRuntime.monitorError != null) {
+            evidenceLines.add(getString(R.string.diagnostic_observer_unavailable));
+        }
         TextView evidenceView = ui(R.id.evidenceText);
-        evidenceView.setText(evidence);
-        evidenceView.setVisibility(evidence.isEmpty() ? View.GONE : View.VISIBLE);
+        if (evidenceLines.isEmpty()) {
+            evidenceView.setText("");
+            evidenceView.setVisibility(View.GONE);
+        } else {
+            evidenceView.setText(TextUtils.join("\n", evidenceLines));
+            evidenceView.setVisibility(View.VISIBLE);
+        }
         EnhancedStatus.Access helperAccess = direct ? ShizukuBridge.accessState(this) : status.access;
         MaterialButton permission = ui(R.id.permissionBtn);
         boolean connecting = helperAccess == EnhancedStatus.Access.CONNECTING && ShizukuBridge.isConnecting();
@@ -517,24 +543,6 @@ public class MainActivity extends AppCompatActivity {
             });
         });
     }
-    private void showDirectGrantHelp() {
-        String grant = DirectGmsAccess.commands(this, true);
-        String revoke = DirectGmsAccess.commands(this, false);
-        TextView text = new TextView(this);
-        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
-        text.setPadding(padding, padding / 2, padding, padding / 2);
-        text.setText(getString(R.string.direct_grant_help, grant, revoke));
-        text.setTextIsSelectable(true);
-        ScrollView scroll = new ScrollView(this); scroll.addView(text);
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.direct_grant_title).setView(scroll)
-                .setPositiveButton(R.string.copy_grant, (dialog, which) -> copyCommands(grant))
-                .setNeutralButton(R.string.copy_revoke, (dialog, which) -> copyCommands(revoke))
-                .setNegativeButton(R.string.done_action, null).show();
-    }
-    private void copyCommands(String commands) {
-        getSystemService(android.content.ClipboardManager.class).setPrimaryClip(
-                android.content.ClipData.newPlainText(getString(R.string.direct_grant_title), commands));
-    }
     private int accessLabel(EnhancedStatus.Access access) {
         switch (access) {
             case READY: return R.string.enhanced_ready;
@@ -623,7 +631,9 @@ public class MainActivity extends AppCompatActivity {
         }
         set(R.id.fcmAppsStatusText, getString(R.string.apps_counts, rows.size(), fcm, selected, enabled, disabled, partial, unknown));
         ((MaterialButton) ui(R.id.showAllBtn)).setText(showAll ? R.string.watched_apps : R.string.all_apps);
-        ui(R.id.noChosenText).setVisibility(visible.isEmpty() ? View.VISIBLE : View.GONE);
+        TextView empty = ui(R.id.noChosenText);
+        empty.setText(showAll ? R.string.apps_empty : R.string.no_chosen);
+        empty.setVisibility(visible.isEmpty() ? View.VISIBLE : View.GONE);
         appAdapter.submit(visible, chosen);
         maybeRestoreListState();
         renderWatchedSummary(chosen);
@@ -662,15 +672,15 @@ public class MainActivity extends AppCompatActivity {
         TextView attention = ui(R.id.appsSummaryAttention);
         if (!appsLoaded && rows.isEmpty()) {
             body.setText(R.string.checking);
-            action.setText(chosen.isEmpty() ? R.string.choose_apps : R.string.nav_apps_title);
+            action.setText(chosen.isEmpty() ? R.string.choose_apps : R.string.view_watched_apps);
             attention.setVisibility(View.GONE);
         } else if (chosen.isEmpty()) {
             body.setText(R.string.no_chosen);
             action.setText(R.string.choose_apps);
             attention.setVisibility(View.GONE);
         } else {
-            body.setText(getString(R.string.watched_health_counts, chosen.size(), checkedWatched, attentionCount));
-            action.setText(R.string.nav_apps_title);
+            body.setText(getString(R.string.watched_health_counts, chosen.size(), checkedWatched));
+            action.setText(R.string.view_watched_apps);
             if (attentionCount > 0) {
                 attention.setVisibility(View.VISIBLE);
                 attention.setText(attentionCount > 99
@@ -870,7 +880,7 @@ public class MainActivity extends AppCompatActivity {
                 getString(R.string.doze_label, flag(row.ignoresDoze, R.string.enabled_state, R.string.disabled_state)));
 
         TextView stopped = sheet.findViewById(R.id.detailStopped);
-        stopped.setText(row.stopped == null ? getString(R.string.unknown_state) :
+        stopped.setText(row.stopped == null ? getString(R.string.stopped_unknown) :
                 getString(row.stopped ? R.string.stopped_yes : R.string.stopped_no));
         stopped.setTextColor(Boolean.TRUE.equals(row.stopped) ? errorColor : bodyColor);
 
@@ -890,7 +900,6 @@ public class MainActivity extends AppCompatActivity {
         }
         new MaterialAlertDialogBuilder(this).setMessage(R.string.tile_setup_message).setPositiveButton(R.string.done_action, null).show();
     }
-    private void launch(Intent intent) { try { startActivity(intent); } catch (RuntimeException e) { message(getString(R.string.page_missing)); } }
     private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
     private void message(String message) {
         Snackbar snackbar = Snackbar.make(ui(R.id.root), message, Snackbar.LENGTH_LONG);
