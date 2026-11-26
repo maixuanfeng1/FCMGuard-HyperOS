@@ -55,6 +55,62 @@ public class PushDashboardTest {
    assertTrue(activity.ui(R.id.chooseAppsBtn).isShown());
   });
  }
+ @Test public void quickSettingsTileStatusFollowsSystemResultsAndRemoval() {
+  in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_settings);
+   MainActivity.onTileAddResult(c, StatusBarManager.TILE_ADD_REQUEST_ERROR_REQUEST_IN_PROGRESS);
+  });
+  awaitTileFeedback(R.string.tile_add_in_progress);
+  in.runOnMainSync(() -> {
+   MainActivity.onTileAddResult(c, StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED);
+   assertTrue(activity.ui(R.id.addTileBtn).isShown());
+   assertEquals(View.GONE, activity.ui(R.id.tileAddedStatus).getVisibility());
+  });
+  awaitTileFeedback(R.string.tile_add_failed);
+  in.runOnMainSync(() -> {
+   TextView status = activity.ui(R.id.tileAddedStatus);
+   MainActivity.onTileAddResult(c, StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED);
+   assertTrue(DiagnosticPreferences.isQuickSettingsTileAdded(c));
+   assertEquals(View.GONE, activity.ui(R.id.addTileBtn).getVisibility());
+   assertTrue(status.isShown());
+   assertFalse(status.isClickable());
+   assertEquals(c.getString(R.string.tile_added_to_quick_settings), status.getText().toString());
+  });
+  awaitTileFeedback(R.string.tile_added_to_quick_settings);
+  in.runOnMainSync(() -> {
+   DiagnosticPreferences.setQuickSettingsTileAdded(c, false);
+   assertTrue(activity.ui(R.id.addTileBtn).isShown());
+   assertEquals(View.GONE, activity.ui(R.id.tileAddedStatus).getVisibility());
+  });
+ }
+ @Test public void tileAddFeedbackSurvivesReplacingTheActivity() {
+  in.runOnMainSync(() -> {
+   activity.finish();
+   MainActivity.onTileAddResult(c, StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED);
+  });
+  activity = (MainActivity) in.startActivitySync(new Intent(c, MainActivity.class)
+      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+  in.runOnMainSync(() -> {
+   activity.selectTab(R.id.nav_settings);
+   assertTrue(activity.ui(R.id.tileAddedStatus).isShown());
+   assertEquals(View.GONE, activity.ui(R.id.addTileBtn).getVisibility());
+  });
+  awaitTileFeedback(R.string.tile_added_to_quick_settings);
+ }
+ private void awaitTileFeedback(int resourceId) {
+  String expected = c.getString(resourceId);
+  AtomicReference<String> actual = new AtomicReference<>();
+  long deadline = android.os.SystemClock.elapsedRealtime() + 3000L;
+  do {
+   in.runOnMainSync(() -> {
+    TextView feedback = activity.ui(com.google.android.material.R.id.snackbar_text);
+    actual.set(feedback == null ? null : feedback.getText().toString());
+   });
+   if (expected.equals(actual.get())) return;
+   android.os.SystemClock.sleep(20L);
+  } while (android.os.SystemClock.elapsedRealtime() < deadline);
+  assertEquals(expected, actual.get());
+ }
  @Test public void completedAndInterruptedSetupRetireLegacyModeWithoutLosingPreferences() {
   Set<String> chosen=new HashSet<>(Arrays.asList("com.example.chat"));
   DiagnosticPreferences.selected(c,chosen);

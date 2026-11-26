@@ -74,6 +74,9 @@
     <string name="no_auth_service">Start Shizuku first</string>
     <string name="appearance_title_v3">Appearance</string>
     <string name="tile_setup_message">Edit Quick Settings and add Vigil.\nTap Vigil to try a heartbeat and open FCM diagnostics.</string>
+    <string name="tile_added_to_quick_settings">Tile added to Quick Settings</string>
+    <string name="tile_add_failed">Tile wasn’t added. Edit Quick Settings to add Vigil.</string>
+    <string name="tile_add_in_progress">Waiting for system confirmation…</string>
     <string name="diagnostic_observer_unavailable">Auto-refresh is limited. Tap Check now.</string>
     <string name="helper_access_status">Shizuku: %1$s</string>
     <string name="helper_bits_unknown">Unknown</string>

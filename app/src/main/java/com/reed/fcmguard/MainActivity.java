@@ -24,6 +24,7 @@ import com.google.android.material.color.*;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.snackbar.Snackbar;
+import java.lang.ref.WeakReference;
 import java.text.DateFormat;
 import java.util.*;
 import java.util.concurrent.*;
@@ -34,6 +35,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAB_CONNECTION = "connection";
     private static final String TAB_APPS = "apps";
     private static final String TAB_SETTINGS = "settings";
+    // The system can return a tile result after the activity that requested it is gone.
+    private static WeakReference<MainActivity> tileFeedbackActivity = new WeakReference<>(null);
+    private static int pendingTileFeedback;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private List<FcmAppScanner.AppEntry> apps = new ArrayList<>();
     private List<AppDiagnostics> rows = new ArrayList<>();
@@ -77,6 +81,12 @@ public class MainActivity extends AppCompatActivity {
         renderConnection();
         if (!Objects.equals(lastWhitelist, PushRuntime.whitelist)
                 || !Objects.equals(lastLockedApps, PushRuntime.lockedApps)) refreshApps();
+    };
+
+    private final SharedPreferences.OnSharedPreferenceChangeListener tileSettingsListener = (preferences, key) -> {
+        if (!isDestroyed() && (key == null || DiagnosticPreferences.QUICK_SETTINGS_TILE_ADDED.equals(key))) {
+            renderTileSettings();
+        }
     };
 
     <T extends View> T ui(int id) {
@@ -266,11 +276,22 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); handleLaunchActions(); }
-    @Override protected void onStart() { super.onStart(); PushRuntime.add(stateListener); }
-    @Override protected void onStop() { PushRuntime.remove(stateListener); super.onStop(); }
+    @Override protected void onStart() {
+        super.onStart();
+        PushRuntime.add(stateListener);
+        DiagnosticPreferences.prefs(this).registerOnSharedPreferenceChangeListener(tileSettingsListener);
+        renderTileSettings();
+    }
+    @Override protected void onStop() {
+        DiagnosticPreferences.prefs(this).unregisterOnSharedPreferenceChangeListener(tileSettingsListener);
+        PushRuntime.remove(stateListener);
+        super.onStop();
+    }
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
+        tileFeedbackActivity = new WeakReference<>(this);
+        showPendingTileFeedback();
         WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this)); bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
         SettingsGuard.invalidateLockedAppsCache();
@@ -287,6 +308,7 @@ public class MainActivity extends AppCompatActivity {
     }
     @Override protected void onPause() {
         resumed = false;
+        if (tileFeedbackActivity.get() == this) tileFeedbackActivity.clear();
         connectionHandler.removeCallbacks(stalePermissionCheck);
         connectionHandler.removeCallbacks(connectionRefresh);
         super.onPause();
@@ -890,16 +912,58 @@ public class MainActivity extends AppCompatActivity {
         locked.setTextColor(titleColor);
     }
 
+    private void renderTileSettings() {
+        boolean added = DiagnosticPreferences.isQuickSettingsTileAdded(this);
+        ui(R.id.addTileBtn).setVisibility(added ? View.GONE : View.VISIBLE);
+        ui(R.id.tileAddedStatus).setVisibility(added ? View.VISIBLE : View.GONE);
+    }
+
     private void addTile() {
         if (Build.VERSION.SDK_INT >= 33) {
+            Context app = getApplicationContext();
             try {
-                getSystemService(StatusBarManager.class).requestAddTileService(new ComponentName(this, GuardTileService.class),
-                        getString(R.string.app_name), Icon.createWithResource(this, R.drawable.ic_guard_tile), getMainExecutor(), result -> { });
-                return;
+                StatusBarManager statusBar = app.getSystemService(StatusBarManager.class);
+                if (statusBar != null) {
+                    statusBar.requestAddTileService(new ComponentName(this, GuardTileService.class),
+                            getString(R.string.app_name), Icon.createWithResource(this, R.drawable.ic_guard_tile),
+                            app.getMainExecutor(), result -> onTileAddResult(app, result));
+                    return;
+                }
             } catch (RuntimeException ignored) { }
+            reportTileFeedback(R.string.tile_add_failed);
+            return;
         }
         new MaterialAlertDialogBuilder(this).setMessage(R.string.tile_setup_message).setPositiveButton(R.string.done_action, null).show();
     }
+
+    static void onTileAddResult(Context app, int result) {
+        int feedback;
+        if (result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ||
+                result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED) {
+            DiagnosticPreferences.setQuickSettingsTileAdded(app, true);
+            feedback = R.string.tile_added_to_quick_settings;
+        } else if (result == StatusBarManager.TILE_ADD_REQUEST_ERROR_REQUEST_IN_PROGRESS) {
+            feedback = R.string.tile_add_in_progress;
+        } else {
+            feedback = R.string.tile_add_failed;
+        }
+        reportTileFeedback(feedback);
+    }
+
+    private static void reportTileFeedback(int feedback) {
+        pendingTileFeedback = feedback;
+        MainActivity activity = tileFeedbackActivity.get();
+        if (activity != null) activity.showPendingTileFeedback();
+    }
+
+    private void showPendingTileFeedback() {
+        if (pendingTileFeedback == 0 || !resumed || isFinishing() || isDestroyed()) return;
+        int feedback = pendingTileFeedback;
+        pendingTileFeedback = 0;
+        renderTileSettings();
+        message(getString(feedback));
+    }
+
     private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
     private void message(String message) {
         Snackbar snackbar = Snackbar.make(ui(R.id.root), message, Snackbar.LENGTH_LONG);

@@ -73,6 +73,9 @@
     <string name="no_auth_service">请先启动 Shizuku</string>
     <string name="appearance_title_v3">外观</string>
     <string name="tile_setup_message">编辑快捷设置并添加 Vigil。\n点按 Vigil 可尝试发送心跳并打开 FCM 诊断。</string>
+    <string name="tile_added_to_quick_settings">磁贴已添加到快捷设置</string>
+    <string name="tile_add_failed">磁贴未添加。可在快捷设置的编辑页手动添加 Vigil。</string>
+    <string name="tile_add_in_progress">正在等待系统确认…</string>
     <string name="diagnostic_observer_unavailable">自动刷新受限，请点按「立即检查」。</string>
     <string name="helper_access_status">Shizuku：%1$s</string>
     <string name="helper_bits_unknown">未知</string>
