@@ -1,6 +1,6 @@
 # Building and signing
 
-Use JDK 21 (Java source level 17), Android SDK platform 37.2 and build-tools 37.0.0. The checked-in Gradle wrapper pins Gradle 9.9.1 and verifies its distribution SHA-256. Use the wrapper for release builds as well; do not substitute a machine-wide older Gradle.
+Use JDK 21 (Java source level 17), Android SDK platform 37.2 and build-tools 37.0.0. The app uses AGP 9.5.1, target SDK 37 and minimum SDK 24. Use the checked-in Gradle wrapper for both development and release builds. It pins Gradle 9.9.1 and verifies the distribution SHA-256.
 
 ```sh
 sdkmanager 'platforms;android-37.2' 'build-tools;37.0.0'
@@ -26,35 +26,27 @@ Keep a private, backed-up JKS/PKCS12 keystore. Never commit or attach the keysto
   app/build/outputs/apk/release/app-release.apk
 ```
 
-For GitHub Actions, configure repository Actions secrets with the last three variable names and `FCMGUARD_KEYSTORE_BASE64` (base64 of the same private keystore). Then manually run **Signed APK release** after checks pass. The workflow requires successful Android checks for its exact source SHA and the established release certificate (`d4efcc7a346e2b717b6da7d0a1dd730864686b525bd1fa005dacda01729f604a`, rotated in `v3.5.0`); key rotation must be reviewed separately. Releases can also be built locally with the same private key. If a connected credential cannot authenticate to uploads.github.com, a dedicated release branch can carry only the already signed APK and checksums to a verification/upload workflow using the repository GITHUB_TOKEN; never include the private signing key on that branch.
+For GitHub Actions, configure repository Actions secrets with the last three variable names and `FCMGUARD_KEYSTORE_BASE64` (base64 of the same private keystore). Run **Signed APK release** from `main` once Android checks pass for the exact source commit. The workflow verifies the APK uses the current certificate, is non-debuggable, and embeds that commit SHA.
 
-The signing backup for this fork is provided privately to the repository owner outside Git. Preserve it for future updates. Actions caches are not a safe signing-key backup and are no longer used for release identity.
+The signing backup for this fork is provided privately to the repository owner outside Git. Preserve it for future updates.
 
-Bump both `versionCode` and `versionName` for each immutable release. Attach only one signed `FCMGuard-HyperOS.apk`; put its SHA-256 in the release notes. Keep screenshots and test reports in CI. Never include signing material on an artifact branch.
+Bump both `versionCode` and `versionName` for each release. The workflow attaches a single signed `FCMGuard-HyperOS.apk` and records its SHA-256 in the release notes. Keep screenshots and test reports in CI.
+
+### Upgrade compatibility
+
+The package name is `com.reed.fcmguard`. The published `v3.5.0` through `v3.8.1` APKs share the current signing certificate, with SHA-256 `d4efcc7a346e2b717b6da7d0a1dd730864686b525bd1fa005dacda01729f604a`. In-place upgrades work between official releases with this certificate. The published `v3.4.1` uses the previous certificate. Moving from that APK to the current certificate requires uninstalling and installing again, which resets app data and diagnostic grants.
 
 ## Android 17 checks
 
-`bash tools/run_device_checks.sh` requires a disposable emulator before changing any settings, builds APKs, exercises the fixed read-only helper under real shell UID 2000, runs instrumentation and exports native screenshots. `FCMGUARD_REQUIRE_64BIT=true` checks the app and helper bitness. ATD covers functionality; the full Google APIs image also renders screenshots and runs `tools/check_quick_settings.py` against actual SystemUI after app-process reclamation. Device CI intentionally contains no Android 15/16 jobs.
+`bash tools/run_device_checks.sh` requires a disposable emulator before changing any settings. It builds the APKs, exercises the read-only helper as shell UID 2000, runs instrumentation, and exports native screenshots. `FCMGUARD_REQUIRE_64BIT=true` checks the app and helper bitness. Device CI runs on Android 17 using both ATD and Google APIs images. The Google APIs image additionally runs the GMS connection, native launcher, Shizuku grant, direct access, and SystemUI process-reclamation smoke tests.
 
 The emulator runner must use the pinned command-line tools through its `latest` path so AVD target metadata is `android-37.0`. Its software graphics configuration enables GLDirectMem and disables Vulkan to avoid the older tools’ Android 0 / SurfaceFlinger failure.
 
-Before claiming a physical-device result, verify on Android 17 / HyperOS 4:
+Use the [HyperOS 4 device checklist](HYPEROS_CHECKS.md) to verify upgrades, permissions, settings links, live connection states and locked-screen notification delivery on a physical phone.
 
-1. Start without Shizuku, including upgrading an old authorized installation. No permission prompt, foreground service, notification or settings write should occur.
-2. Change a target app’s battery policy in system settings; system-list membership should refresh if the ROM exports the setting/events. A read/observer failure remains unknown.
-3. Confirm optional Shizuku can connect only when explicitly enabled, reports current GMS service state or a specific unavailability reason accurately, and stops its helper when disabled. Authorization and query outcome must agree in both dashboard sections: a restricted query with an authorized 64-bit helper must never claim missing authorization. Disable/reconnect during a query to verify that stale replies are discarded.
-4. Compare automatic verdicts with Google diagnostics; never infer Diagnostics Connected from network reachability, an existing socket or a heartbeat request. Changing networks invalidates the automatic verdict. Verify fresh GMS current-state fields can light the tile, explicit disconnected state makes it inactive, and unknown/expired/lost-grant states show a question mark. Dashboard and panel refresh only while visible, expire after 15 monotonic seconds, and never schedule background wakeups.
-5. Check each exact-app settings route. Vendor routes may fail and must fall back to the same app’s Android details, not a broad application list.
-6. Review notification master switches/channels, app-internal mute rules and lock state. Verify returning from Google diagnostics never opens a recording dialog. Legacy records and pending flags must be removed on upgrade without losing selected apps, Shizuku settings or rate limits. App details retain settings links and have no confirmation checklist.
-7. Run real locked-screen notification tests for chosen apps. These results cannot be replaced by emulator checks.
+`python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit/unknown bundled ELF libraries. An APK with no native libraries is ABI-neutral and works on ARM64. The optional Shizuku section under **Settings → Advanced options** shows app and helper bitness when the section is available.
 
-`python3 tools/check_apk_abi.py PATH.apk` rejects 32-bit/unknown bundled ELF libraries. No native libraries means ABI-neutral DEX, compatible with ARM64; optional helper and app bitness are shown on the dashboard.
-
-Run `python3 -m unittest discover -s tools/tests -v` for APK ABI-validator cases. See [PROJECT_AUDIT](PROJECT_AUDIT.md) for review coverage and remaining decisions.
-
-The full Android 17 image also runs `tools/check_launcher_shortcut.py`: long-press the actual launcher icon, verify the diagnostic menu item, capture the native menu and click through to real Google Diagnostics. Platform ShortcutManager and cold/warm routing are covered by instrumentation. HyperOS launcher presentation must be checked on the actual phone.
-
-The owner-facing [HyperOS 4 checklist](HYPEROS_CHECKS.md) covers settings routes, authorization, fresh connection states and locked-screen notification delivery. It does not add manual recording to the application.
+Run `python3 -m unittest discover -s tools/tests -v` for APK ABI-validator cases.
 
 ## Dependency and CI updates
 
@@ -68,11 +60,10 @@ Review the resulting lock diff and run the Android 17 device checks before relea
 
 Backup remains disabled. `backup_rules.xml` and `data_extraction_rules.xml` explicitly exclude cloud backup and device transfer, including device-protected storage. Selected apps and themes remain on the current installation; a new phone starts with default preferences and requires its own optional authorization.
 
-
 ## Minified-release validation
 
 Release builds enable R8 and resource shrinking. `app/proguard-rules.pro` retains the externally loaded Shizuku helper name and both public constructors. Binder descriptors and transaction IDs remain stable; no catch-all keep rule disables optimization for the whole app.
 
-Android 17 device checks load both debug and the actual minified release APK via `app_process` as shell UID 2000. The probe uses reflection and raw Binder transactions rather than linking to names R8 may optimize. GMS online/offline/restored comparisons use that release helper. Full Google APIs checks install a CI-only debug-signed **non-debuggable minified** release to exercise the native launcher shortcut and actual Shizuku 13.6.0 authorization, 64-bit user-service binding and current GMS state. The upstream Shizuku test download is pinned by SHA-256. SystemUI reclamation testing retains the debug APK because its test uses `run-as` to kill only the app's own process.
+Android 17 device checks load the debug and minified release APK via `app_process` as shell UID 2000. The probe uses reflection and raw Binder transactions to exercise the helper's external ABI after R8. GMS online/offline/restored comparisons use the minified helper. Google APIs checks install a CI-only debug-signed **non-debuggable minified** APK to exercise the native launcher shortcut, actual Shizuku 13.6.0 authorization and binding, and direct GMS access under the app's UID. The Shizuku test download is pinned by SHA-256. The SystemUI reclamation test uses the debug APK because it kills the app's own process with `run-as`.
 
 These CI APKs are not production releases. Public APKs retain the established private release certificate. Test downloads and screenshots remain in CI. PR checks plus main-push checks replace duplicate feature-push/PR jobs; use workflow dispatch when testing a branch without a PR.

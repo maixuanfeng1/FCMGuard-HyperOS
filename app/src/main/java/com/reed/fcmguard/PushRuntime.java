@@ -13,15 +13,19 @@ import java.util.concurrent.CopyOnWriteArraySet;
 /** Event-driven read-only snapshots. No foreground service, alarms or whitelist writes. */
 final class PushRuntime {
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
-    private static final ExecutorService WORKER = Executors.newSingleThreadExecutor();
+    private static final ExecutorService SETTINGS_WORKER = Executors.newSingleThreadExecutor();
+    private static final ExecutorService NETWORK_WORKER = Executors.newSingleThreadExecutor();
     private static final CopyOnWriteArraySet<Runnable> LISTENERS = new CopyOnWriteArraySet<>();
-    private static boolean initialized, busy, pendingCheck, pendingRecovery, refreshing, refreshPending;
+    private static boolean initialized, busy, pendingCheck, pendingRecovery, refreshing;
+    private static int requestedPolicyRevision;
+    static volatile int completedPolicyRevision;
     private static volatile int networkRevision;
     private static SettingsChangeMonitor observer;
     private static SettingsChangeMonitor lockedAppsObserver;
     private static ConnectivityManager.NetworkCallback callback;
-    static volatile String whitelist, monitorError;
-    static volatile Set<String> lockedApps;
+    record AppPolicy(String whitelist, Set<String> lockedApps) { }
+    static volatile AppPolicy appPolicy = new AppPolicy(null, null);
+    static volatile String monitorError;
     static volatile NetworkProbe.State network = NetworkProbe.State.NOT_CHECKED;
     static volatile long checkedAt;
     static volatile Boolean gmsAvailable;
@@ -59,7 +63,8 @@ final class PushRuntime {
                             networkRevision++;
                             network = NetworkProbe.State.NOT_CHECKED;
                             EnhancedRuntime.invalidate(c);
-                            check(c, false);
+                            refresh(c);
+                            probeNetwork(c, false);
                           });
                         }
                         @Override public void onLost(Network net) {
@@ -77,28 +82,40 @@ final class PushRuntime {
                 } catch (RuntimeException e) { monitorError = "network"; }
             }
         }
-        refresh(c);
     }
-    static synchronized void refresh(Context context) {
-        if (refreshing) { refreshPending = true; return; }
+    static synchronized int refresh(Context context) {
+        int target = ++requestedPolicyRevision;
+        if (refreshing) return target;
         refreshing = true;
         Context c = context.getApplicationContext();
-        WORKER.execute(() -> {
-          try {
-            whitelist = SettingsGuard.read(c);
-            lockedApps = SettingsGuard.readLockedApps(c);
-            try { gmsAvailable = c.getPackageManager().getApplicationInfo("com.google.android.gms", 0).enabled; }
-            catch (Exception e) { gmsAvailable = false; }
-          } finally {
-            boolean again;
-            synchronized (PushRuntime.class) { refreshing = false; again = refreshPending; refreshPending = false; }
-            changed();
-            if (again) MAIN.post(() -> refresh(c));
-          }
+        SETTINGS_WORKER.execute(() -> {
+            while (true) {
+                int rev;
+                synchronized (PushRuntime.class) { rev = requestedPolicyRevision; }
+                try {
+                    appPolicy = new AppPolicy(SettingsGuard.read(c), SettingsGuard.readLockedApps(c));
+                    gmsAvailable = isGmsEnabled(c);
+                } catch (RuntimeException unavailable) {
+                    appPolicy = new AppPolicy(null, null);
+                }
+                boolean done;
+                synchronized (PushRuntime.class) {
+                    completedPolicyRevision = rev;
+                    done = completedPolicyRevision == requestedPolicyRevision;
+                    if (done) refreshing = false;
+                }
+                changed();
+                if (done) return;
+            }
         });
+        return target;
     }
-    static synchronized boolean check(Context context, boolean requestRecovery) {
-        EnhancedRuntime.request(context);
+    static boolean check(Context context, boolean requestRecovery) {
+        EnhancedRuntime.request(context, true);
+        refresh(context);
+        return probeNetwork(context, requestRecovery);
+    }
+    private static synchronized boolean probeNetwork(Context context, boolean requestRecovery) {
         if (busy) {
             pendingCheck = true;
             pendingRecovery |= requestRecovery;
@@ -107,12 +124,9 @@ final class PushRuntime {
         busy = true;
         Context c = context.getApplicationContext();
         int revision = networkRevision;
-        WORKER.execute(() -> {
+        NETWORK_WORKER.execute(() -> {
             try {
-                try { gmsAvailable = c.getPackageManager().getApplicationInfo("com.google.android.gms", 0).enabled; }
-                catch (Exception e) { gmsAvailable = false; }
-                whitelist = SettingsGuard.read(c);
-                if (requestRecovery && Boolean.TRUE.equals(gmsAvailable) && NetworkProbe.online(c) && DiagnosticPreferences.requestAllowed(c)) {
+                if (requestRecovery && isGmsEnabled(c) && NetworkProbe.online(c) && DiagnosticPreferences.requestAllowed(c)) {
                     FcmReconnect.requestHeartbeat(c);
                     DiagnosticPreferences.prefs(c).edit().putLong("request_time", System.currentTimeMillis()).apply();
                 }
@@ -129,10 +143,14 @@ final class PushRuntime {
                     pendingCheck = false; pendingRecovery = false;
                 }
                 changed();
-                if (again) { final boolean retry = recovery; MAIN.post(() -> check(c, retry)); }
+                if (again) MAIN.post(() -> probeNetwork(c, recovery));
             }
         });
         changed(); return true;
+    }
+    private static boolean isGmsEnabled(Context context) {
+        try { return context.getPackageManager().getApplicationInfo("com.google.android.gms", 0).enabled; }
+        catch (Exception e) { return false; }
     }
     static synchronized boolean busy() { return busy; }
     static synchronized void configure(Context context) {
@@ -146,5 +164,6 @@ final class PushRuntime {
         initialized = false; monitorError = null;
         SettingsGuard.invalidateLockedAppsCache();
         start(context);
+        refresh(context);
     }
 }

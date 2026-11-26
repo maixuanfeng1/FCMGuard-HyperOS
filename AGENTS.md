@@ -52,7 +52,7 @@
    - `direct_evidence`: 必须包含 `Read source: app diagnostic permissions`
    - `tile_connected` / `tile_disconnected` / `tile_unknown`: `FCM · Connected` / `FCM · Disconnected` / `FCM · Unknown`
    - `shizuku_grant_confirm`: `Grant diagnostic access` · `shizuku_grant_done`: `App diagnostic access is ready`
-   - 设备插桩测试总数下限（`tools/run_device_checks.sh`）：当前 `tests >= 50`，增删 `@Test` 时同步更新。
+   - 设备插桩测试总数下限（`tools/run_device_checks.sh`）：当前 `tests >= 52`，增删 `@Test` 时同步更新。
 
 ---
 

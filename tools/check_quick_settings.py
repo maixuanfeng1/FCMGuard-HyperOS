@@ -32,7 +32,7 @@ def wait_for(probe, description, timeout=20):
 
 def no_foreground_service():
     services = adb('shell', 'dumpsys', 'activity', 'services', PACKAGE)
-    assert not re.search(r'ServiceRecord[^\n]*com\.reed\.fcmguard/\.GuardService\b', services), services
+    assert 'isForeground=true' not in services, f'Unexpected foreground service:\n{services}'
     notifications = adb('shell', 'dumpsys', 'notification')
     assert not re.search(r'NotificationRecord[^\n]*pkg=com\.reed\.fcmguard\b', notifications)
 

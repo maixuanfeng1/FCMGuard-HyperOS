@@ -3,21 +3,22 @@ package com.reed.fcmguard;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
-import android.content.pm.ChangedPackages;
-import android.os.Build;
-import android.os.SystemClock;
-import java.util.concurrent.atomic.AtomicLong;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.ChangedPackages;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
-
+import android.os.Build;
+import android.os.SystemClock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Best-effort detector for installed apps that declare standard FCM/GCM receive
@@ -78,8 +79,7 @@ public final class FcmAppScanner {
     }
 
     private static List<AppEntry> discoverAll(Context context) {
-        Map<String, AppEntry> result = new LinkedHashMap<>();
-        for (AppEntry app : scan(context)) result.put(app.packageName, app);
+        Map<String, AppEntry> result = discoverFcm(context);
         PackageManager pm = context.getPackageManager();
         Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
         try {
@@ -96,15 +96,21 @@ public final class FcmAppScanner {
             }
         } catch (RuntimeException ignored) { }
         List<AppEntry> apps = new ArrayList<>(result.values());
-        Collections.sort(apps, (a, b) -> a.label.compareToIgnoreCase(b.label));
+        Collections.sort(apps, (a, b) -> {
+            int byLabel = a.label.compareToIgnoreCase(b.label);
+            if (byLabel != 0) return byLabel;
+            // For equal labels, keep FCM entries first and launcher entries in discovery order.
+            if (a.declaresFcm != b.declaresFcm) return a.declaresFcm ? -1 : 1;
+            return a.declaresFcm ? compareFcmEntries(a, b) : 0;
+        });
         return apps;
     }
 
-    public static List<AppEntry> scan(Context context) {
+    private static Map<String, AppEntry> discoverFcm(Context context) {
         PackageManager pm = context.getPackageManager();
         int flags = PackageManager.MATCH_ALL;
 
-        Map<String, Boolean> packages = new LinkedHashMap<>();
+        Set<String> packages = new LinkedHashSet<>();
 
         try {
             List<ResolveInfo> services = pm.queryIntentServices(new Intent(ACTION_FCM), flags);
@@ -112,7 +118,7 @@ public final class FcmAppScanner {
                 for (ResolveInfo resolveInfo : services) {
                     ServiceInfo info = resolveInfo.serviceInfo;
                     if (info != null && info.packageName != null) {
-                        packages.put(info.packageName, Boolean.TRUE);
+                        packages.add(info.packageName);
                     }
                 }
             }
@@ -126,15 +132,15 @@ public final class FcmAppScanner {
                 for (ResolveInfo resolveInfo : receivers) {
                     ActivityInfo info = resolveInfo.activityInfo;
                     if (info != null && info.packageName != null) {
-                        packages.put(info.packageName, Boolean.TRUE);
+                        packages.add(info.packageName);
                     }
                 }
             }
         } catch (RuntimeException ignored) {}
 
-        List<AppEntry> result = new ArrayList<>();
-        for (String packageName : packages.keySet()) {
-            if (packageName == null || packageName.equals(context.getPackageName()) ||
+        Map<String, AppEntry> result = new LinkedHashMap<>();
+        for (String packageName : packages) {
+            if (packageName.equals(context.getPackageName()) ||
                     "com.google.android.gms".equals(packageName) ||
                     "com.android.vending".equals(packageName)) {
                 continue;
@@ -148,16 +154,14 @@ public final class FcmAppScanner {
                 CharSequence labelCs = pm.getApplicationLabel(appInfo);
                 String label = labelCs == null ? packageName : labelCs.toString().trim();
                 if (label.isEmpty()) label = packageName;
-                result.add(new AppEntry(packageName, label));
+                result.put(packageName, new AppEntry(packageName, label));
             } catch (PackageManager.NameNotFoundException | RuntimeException ignored) {}
         }
-
-        Collections.sort(result, (a, b) -> {
-            int byLabel = a.label.toLowerCase(Locale.ROOT)
-                    .compareTo(b.label.toLowerCase(Locale.ROOT));
-            if (byLabel != 0) return byLabel;
-            return a.packageName.compareTo(b.packageName);
-        });
         return result;
+    }
+
+    private static int compareFcmEntries(AppEntry a, AppEntry b) {
+        int byLabel = a.label.toLowerCase(Locale.ROOT).compareTo(b.label.toLowerCase(Locale.ROOT));
+        return byLabel != 0 ? byLabel : a.packageName.compareTo(b.packageName);
     }
 }

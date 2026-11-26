@@ -2,9 +2,9 @@
 
 # Vigil · HyperOS 应用驻留保活与推送通知全链路诊断
 
-原名 **Push Sentinel / FCM Guard**。保留包名 `com.reed.fcmguard` 与正式签名证书，旧版本可直接无损覆盖升级，原有关注应用、独立诊断授权与偏好设置均完整保留。
+原名 **Push Sentinel / FCM Guard**，包名为 `com.reed.fcmguard`。从 `v3.5.0` 起，使用现行证书签名的正式版可覆盖升级，保留关注列表、偏好设置和诊断授权。已发布的 `v3.4.1` 使用旧证书，升级到当前版本需卸载后重新安装，应用数据和诊断授权会重置。
 
-[下载最新版 APK](https://github.com/maixuanfeng1/FCMGuard-HyperOS/releases/latest/download/FCMGuard-HyperOS.apk)
+[下载最新版 APK](https://github.com/maixuanfeng1/vigil/releases/latest/download/FCMGuard-HyperOS.apk)
 
 ---
 
@@ -67,6 +67,7 @@
 
 ## 近期版本演进
 
+- **`v3.8.1`**：补全设置页添加快捷设置磁贴的结果提示与状态跟踪，添加成功后显示「磁贴已添加到快捷设置」，移除磁贴后自动恢复添加按钮。
 - **`v3.8.0`**：全面重构 Material 3 按钮层级（统一主／次／折叠三层样式）与卡片边界，将设置页拆分为五大清晰功能分区、应用详情面板划分为推送／后台／系统设置三组，移除冗余说明与内嵌 ADB 弹窗，全面精简中英文与繁体文案（中文界面与磁贴统一显示 `已连接 / 已断开 / 未知`），并优化窄屏与大字号下的卡片排版及搜索清除图标。
 - **`v3.7.0`**：应用更名为 **Vigil**，明确定位为 HyperOS 应用驻留保活与推送诊断全链路工具；新增只读 HyperOS 后台任务锁定（`locked_apps`）检测、变化监听、详情面板实时刷新与手机管家锁定设置一键直达；全面重构中英文项目文档。
 - **`v3.6.0`**：重构为 Material 3 底部三栏导航架构（连接／应用／设置），新增关注应用健康摘要卡片与底栏待检查角标，页面重建完整保留标签页、筛选模式、展开状态与列表滚动位置。
@@ -83,6 +84,6 @@
   - [构建、签名与 Android 17 CI 验证指南](docs/BUILDING.md)
   - [一次性诊断授权、撤销与验证范围](docs/DIRECT_DIAGNOSTIC_ACCESS.md)
   - [HyperOS 4 实机核对清单](docs/HYPEROS_CHECKS.md)
-  - [项目审计记录与后续决策](docs/PROJECT_AUDIT.md)
+  - [历史项目审计记录（3.1.2–3.2.0）](docs/PROJECT_AUDIT.md)
 
 基于 [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS) 开发，系统策略研究参考 [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix)。采用 MIT 许可协议开源，详见 [LICENSE](LICENSE)。

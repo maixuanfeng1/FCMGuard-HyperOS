@@ -26,12 +26,5 @@ final class DirectGmsAccess {
     }
 
     static String query() { return SettingsUserService.readGcmState(Process.myUid() / 100000); }
-    static String commands(Context context, boolean grant) {
-        String user = Integer.toString(Process.myUid() / 100000);
-        String pkg = context.getPackageName();
-        String prefix = "adb shell pm " + (grant ? "grant" : "revoke") + " --user " + user + " " + pkg + " ";
-        return prefix + DUMP + "\n" + prefix + USAGE + "\n" +
-                "adb shell cmd appops set --user " + user + " " + pkg + " GET_USAGE_STATS " + (grant ? "allow" : "default");
-    }
     private DirectGmsAccess() { }
 }

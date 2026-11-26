@@ -1,4 +1,6 @@
-# Project audit — 3.1.2
+# Historical project audit (3.1.2–3.2.0)
+
+This record preserves the 3.1.2 findings and the 3.2.0 follow-up. See the [build guide](BUILDING.md) and [HyperOS device checklist](HYPEROS_CHECKS.md) for current practices.
 
 Baseline: released 3.1.1 (`1c2a751cbaf4feb6be7d081cf89b4a52ae43e867`). Reviewed the tracked application Java/AIDL, manifest, resources and translations, tests, Gradle configuration/wrapper settings, CI/release workflows, scripts, documentation and bundled license notices. Generated build outputs and private signing material are outside the source review. Third-party dependency internals were not audited or upgraded as part of this pass.
 
@@ -25,7 +27,7 @@ Baseline: released 3.1.1 (`1c2a751cbaf4feb6be7d081cf89b4a52ae43e867`). Reviewed 
 
 ## Review follow-up
 
-Follow-up status (3.2.0): [PR #2](https://github.com/maixuanfeng1/FCMGuard-HyperOS/pull/2) merged into `main` at `c9594fe0cc80722ad3102317f544621ca21f65ad`; its tree exactly matches the tested 3.1.3 source. The items below preserve the original findings. Follow-up implementation:
+Follow-up status (3.2.0): [PR #2](https://github.com/maixuanfeng1/vigil/pull/2) merged into `main` at `c9594fe0cc80722ad3102317f544621ca21f65ad`; its tree exactly matches the tested 3.1.3 source. The items below preserve the original findings. Follow-up implementation:
 
 - Enable R8 and resource shrinking with explicit retention of the Shizuku helper's externally loaded class and both constructors. Device checks load the actual minified release by reflection and raw Binder transactions under shell UID 2000; full-image checks additionally exercise actual Shizuku authorization and user-service binding with a CI-only signed, non-debuggable release build.
 - Replace eager app-row creation with a single RecyclerView and ConcatAdapter sections; apply row diffs, reset reused status colors and preserve list mode, advanced expansion and layout position across recreation. Add a 300-row virtualization regression. Cache component/label metadata until package/locale changes, explicit refresh or a five-minute maximum age checked on demand. Always reread mutable application policy/permissions on resume; the cache does not introduce a timer or wakeup.
@@ -37,7 +39,7 @@ Physical-device verification remains pending; use [the HyperOS checklist](HYPERO
 
 ### Original review findings (3.1.2 baseline; current decisions above)
 
-1. **Default branch/release mismatch (high operational priority).** At review time `main` was `ec75d56384e519cfd9d79be686a8c7b1ffd7a3cf`, while the released application was on the newer history in draft [PR #2](https://github.com/maixuanfeng1/FCMGuard-HyperOS/pull/2). Releases point to exact tested commits, but cloning `main` or dispatching its old release workflow does not build the current app. Review/merge that source history before treating `main` as current. This audit does not merge or rewrite `main`.
+1. **Default branch/release mismatch (high operational priority).** At review time `main` was `ec75d56384e519cfd9d79be686a8c7b1ffd7a3cf`, while the released application was on the newer history in draft [PR #2](https://github.com/maixuanfeng1/vigil/pull/2). Releases point to exact tested commits, but cloning `main` or dispatching its old release workflow does not build the current app. Review/merge that source history before treating `main` as current. This audit does not merge or rewrite `main`.
 2. **HyperOS/GMS compatibility (needs physical-device evidence).** `GmsConnectionState`, `AutostartStatusReader` and `HyperOsSettings` depend on private GMS fields/vendor AppOps/OEM component routes. A successful settings launch cannot prove the OEM page honored every extra. The tested GMS schema is 26.11; an unsupported version must stay unknown. Verify current HyperOS 4, app-specific settings routes, autostart status, VPN/split-routing and locked-screen delivery on the actual phone. Emulator success does not establish notification delivery.
 3. **Release size/R8 (medium).** `app/build.gradle` keeps shrinking disabled. Enabling R8 could reduce the APK substantially, but the Shizuku helper constructors and AIDL/reflection entry points need explicit retention and signed-release tests with actual Shizuku. Keep it disabled until that work is done; dead-resource cleanup alone is not a multi-megabyte optimization.
 4. **Large app lists/UI state (medium).** `MainActivity.renderApps` still rebuilds a `LinearLayout` with all visible rows, and resume performs a fresh scan. RecyclerView, package-change-driven caching, saved expansion/scroll state and preserving those states across theme recreation are possible improvements. Choose these if large lists feel slow; the fixes above remove repeated parsing/lookup work without changing navigation or scan freshness.

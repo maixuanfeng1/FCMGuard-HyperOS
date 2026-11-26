@@ -437,15 +437,22 @@ public class PushDashboardTest {
    assertEquals(View.GONE,activity.ui(R.id.permissionBtn).getVisibility());
   });
  }
- @Test public void adbInstructionsAreScopedToThisApplicationAndUser() {
-  String prefix="adb shell pm grant --user "+(android.os.Process.myUid()/100000)+" "+c.getPackageName()+" ";
-  String commands=DirectGmsAccess.commands(c,true);
-  assertTrue(commands.startsWith(prefix+"android.permission.DUMP\n"));
-  assertTrue(commands.contains(prefix+"android.permission.PACKAGE_USAGE_STATS\n"));
-  assertTrue(commands.endsWith(" "+c.getPackageName()+" GET_USAGE_STATS allow"));
-  String revoke=DirectGmsAccess.commands(c,false);
-  assertTrue(revoke.startsWith("adb shell pm revoke --user "));
-  assertTrue(revoke.endsWith(" GET_USAGE_STATS default"));
+ @Test public void openingTilePreservesInFlightShizukuSetup() {
+  in.runOnMainSync(() -> {
+   assertFalse(DirectGmsAccess.isReady(c));
+   activity.selectTab(R.id.nav_settings);
+   SharedPreferences prefs = DiagnosticPreferences.prefs(c);
+   prefs.edit().putBoolean("enhanced", true).putBoolean("shizuku_temporary_setup", true).apply();
+   Object tileSurface = new Object();
+   try {
+    GuardTileService.startDiagnostics(c, tileSurface);
+    assertTrue(DiagnosticPreferences.enhanced(c));
+    assertTrue(prefs.getBoolean("shizuku_temporary_setup", false));
+   } finally {
+    EnhancedRuntime.stopRefreshing(tileSurface);
+    prefs.edit().remove("enhanced").remove("shizuku_temporary_setup").apply();
+   }
+  });
  }
  @Test public void authorizedConnectingHelperDoesNotAskForGrantAgain() throws Exception {
   Field binding=ShizukuBridge.class.getDeclaredField("binding");binding.setAccessible(true);
@@ -905,10 +912,23 @@ public class PushDashboardTest {
   } finally { parcel.recycle(); }
  }
  static void awaitApps(MainActivity a) {
-  for (int i = 0; i < 100; i++) {
-   try { Field f=MainActivity.class.getDeclaredField("scanning"); f.setAccessible(true); if (!f.getBoolean(a)) return; } catch (Exception e) { throw new AssertionError(e); }
-   android.os.SystemClock.sleep(50);
-  } throw new AssertionError("App scan did not complete");
+  try {
+   Field awaiting = MainActivity.class.getDeclaredField("awaitingAppPolicy");
+   Field scanning = MainActivity.class.getDeclaredField("scanning");
+   awaiting.setAccessible(true);
+   scanning.setAccessible(true);
+   AtomicReference<Boolean> idle = new AtomicReference<>(false);
+   Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+   for (int i = 0; i < 100; i++) {
+    instrumentation.runOnMainSync(() -> {
+     try { idle.set(!awaiting.getBoolean(a) && !scanning.getBoolean(a)); }
+     catch (IllegalAccessException e) { throw new AssertionError(e); }
+    });
+    if (idle.get()) return;
+    android.os.SystemClock.sleep(50);
+   }
+  } catch (ReflectiveOperationException e) { throw new AssertionError(e); }
+  throw new AssertionError("App scan did not complete");
  }
  static void showExamples(MainActivity a) {
   try {

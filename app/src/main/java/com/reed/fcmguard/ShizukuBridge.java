@@ -73,7 +73,6 @@ public final class ShizukuBridge {
     }
 
     public static void addListener(Runnable listener) { LISTENERS.add(listener); }
-    public static void removeListener(Runnable listener) { LISTENERS.remove(listener); }
     private static void changed() { for (Runnable listener : LISTENERS) listener.run(); }
 
     private static void disconnected() {
