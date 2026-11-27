@@ -3,18 +3,27 @@ package com.vigil.app;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.LocaleList;
-import android.text.TextUtils;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.format.Formatter;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
 import android.view.View;
+import android.view.ViewParent;
+import android.view.ViewTreeObserver;
+import android.widget.Button;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -23,14 +32,13 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -274,23 +282,46 @@ public class AboutActivity extends AppCompatActivity {
         if (release == null || isFinishing() || isDestroyed()) return;
         dismissDialog(activeUpdateDialog);
 
-        List<String> sections = new ArrayList<>();
-        sections.add(getString(R.string.about_update_dialog_versions, BuildConfig.VERSION_NAME, release.tagName));
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        Context dialogContext = builder.getContext();
+
+        SpannableStringBuilder body = new SpannableStringBuilder();
+        int variantColor = MaterialColors.getColor(
+                dialogContext, com.google.android.material.R.attr.colorOnSurfaceVariant,
+                ContextCompat.getColor(dialogContext, R.color.md_on_surface_variant));
+
+        int metaStart = body.length();
+        body.append(getString(R.string.about_update_dialog_versions, BuildConfig.VERSION_NAME, release.tagName));
         if (release.apkSizeBytes > 0L) {
-            sections.add(getString(R.string.about_update_dialog_apk_size,
+            body.append('\n');
+            body.append(getString(R.string.about_update_dialog_apk_size,
                     Formatter.formatShortFileSize(this, release.apkSizeBytes)));
         }
-        String notes = release.notes != null && !release.notes.trim().isEmpty()
-                ? release.notes.trim()
-                : getString(R.string.about_update_no_notes);
-        sections.add(notes);
+        body.setSpan(new ForegroundColorSpan(variantColor), metaStart, body.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
-        View content = createScrollableTextView(TextUtils.join("\n\n", sections));
+        body.append('\n');
+        int spacerStart = body.length();
+        body.append('\n');
+        body.setSpan(new RelativeSizeSpan(0.55f), spacerStart, body.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        String rawNotes = release.notes != null ? release.notes.trim() : "";
+        if (!rawNotes.isEmpty()) {
+            CharSequence formattedNotes = ReleaseNotesMarkdown.render(dialogContext, rawNotes);
+            if (formattedNotes.length() > 0) {
+                body.append(formattedNotes);
+            } else {
+                body.append(getString(R.string.about_update_no_notes));
+            }
+        } else {
+            body.append(getString(R.string.about_update_no_notes));
+        }
+
+        View content = createScrollableTextView(body);
         final String releasePageUrl = UpdateChecker.isTrustedGitHubRepoUrl(release.releaseUrl)
                 ? release.releaseUrl : UpdateChecker.RELEASES_URL;
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                .setTitle(getString(R.string.about_update_dialog_title, release.tagName))
+        builder.setTitle(getString(R.string.about_update_dialog_title, release.tagName))
                 .setView(content)
                 .setNegativeButton(R.string.cancel_action, null);
 
@@ -310,6 +341,7 @@ public class AboutActivity extends AppCompatActivity {
         });
         activeUpdateDialog = dialog;
         dialog.show();
+        ensureDialogButtonsVisible(dialog);
     }
 
     private void showThirdPartyNoticesPicker() {
@@ -385,11 +417,70 @@ public class AboutActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private View createScrollableTextView(String text) {
+    private View createScrollableTextView(CharSequence text) {
         View view = getLayoutInflater().inflate(R.layout.dialog_scrollable_text, null);
         TextView textView = view.findViewById(R.id.dialogScrollText);
         textView.setText(text);
         return view;
+    }
+
+    /**
+     * Prevents AlertDialogLayout from starving stacked multi-button panels when custom scrollable
+     * content consumes the dialog's remaining vertical budget.
+     */
+    private static void ensureDialogButtonsVisible(AlertDialog dialog) {
+        if (dialog == null) return;
+        Button positive = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
+        if (positive == null) return;
+        ViewParent barParent = positive.getParent();
+        if (!(barParent instanceof View)) return;
+        View buttonBar = (View) barParent;
+        ViewParent panelParent = buttonBar.getParent();
+        if (!(panelParent instanceof ScrollView)) return;
+        ScrollView buttonPanel = (ScrollView) panelParent;
+        final int baseMinHeight = buttonPanel.getMinimumHeight();
+        final int[] adjustCount = {0};
+        final ViewTreeObserver.OnPreDrawListener preDrawListener = new ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                if (!dialog.isShowing() || !buttonPanel.isAttachedToWindow()) {
+                    ViewTreeObserver observer = buttonPanel.getViewTreeObserver();
+                    if (observer.isAlive()) observer.removeOnPreDrawListener(this);
+                    return true;
+                }
+                int desired = buttonBar.getMeasuredHeight()
+                        + buttonPanel.getPaddingTop()
+                        + buttonPanel.getPaddingBottom();
+                if (desired <= 0) return true;
+                View root = buttonPanel.getRootView();
+                int maxAllowed = root != null && root.getHeight() > 0
+                        ? root.getHeight() / 2
+                        : desired;
+                int targetMin = Math.max(baseMinHeight, Math.min(desired, maxAllowed));
+                int currentMin = buttonPanel.getMinimumHeight();
+                if (currentMin != targetMin
+                        && (buttonPanel.getHeight() < targetMin || currentMin > targetMin)
+                        && adjustCount[0] < 3) {
+                    adjustCount[0]++;
+                    buttonPanel.setMinimumHeight(targetMin);
+                    buttonPanel.requestLayout();
+                    return false;
+                }
+                return true;
+            }
+        };
+        buttonPanel.getViewTreeObserver().addOnPreDrawListener(preDrawListener);
+        buttonPanel.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) { }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                ViewTreeObserver observer = v.getViewTreeObserver();
+                if (observer.isAlive()) observer.removeOnPreDrawListener(preDrawListener);
+                v.removeOnAttachStateChangeListener(this);
+            }
+        });
     }
 
     private String readAssetText(String assetPath) {

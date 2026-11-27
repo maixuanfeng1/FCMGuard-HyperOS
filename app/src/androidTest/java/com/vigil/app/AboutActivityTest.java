@@ -7,10 +7,17 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.LocaleList;
 import android.provider.Settings;
+import android.text.Spanned;
+import android.text.style.LeadingMarginSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
+import android.text.style.TypefaceSpan;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import androidx.core.content.IntentCompat;
@@ -417,5 +424,76 @@ public class AboutActivityTest {
         } finally {
             instrumentation.removeMonitor(monitor);
         }
+    }
+
+    @Test
+    public void updateDialogRendersMarkdownAndKeepsAllButtonsVisible() {
+        AboutActivity about = launchAbout();
+        StringBuilder longMarkdown = new StringBuilder();
+        longMarkdown.append("## 更新内容\n\n")
+                .append("- **「选择关注应用」弹窗边界与交互优化**\n")
+                .append("  - 优化弹窗列表高度为自适应测量（上限 `360dp`），确保底部按钮始终可见。\n");
+        for (int i = 1; i <= 18; i++) {
+            longMarkdown.append("  - 第 ").append(i).append(" 项更新细节：确保长更新日志滚动时 `Vigil` 弹窗按钮完整可见。\n");
+        }
+        longMarkdown.append("\n## SHA-256 校验\n\n")
+                .append("```\n")
+                .append("1222758827b34b4f7bbbe1a8d5502b4a801daaa32c5c6de5680bf6a232bced95  Vigil.apk\n")
+                .append("```");
+
+        UpdateChecker.ReleaseInfo markdownRelease = new UpdateChecker.ReleaseInfo(
+                "v9.3.0",
+                "Vigil v9.3.0",
+                longMarkdown.toString(),
+                "https://github.com/maixuanfeng1/vigil/releases/tag/v9.3.0",
+                "https://github.com/maixuanfeng1/vigil/releases/download/v9.3.0/Vigil.apk",
+                1887436L);
+
+        instrumentation.runOnMainSync(() -> about.renderUpdateResult(
+                new UpdateChecker.Result(UpdateChecker.Status.UPDATE_AVAILABLE, markdownRelease), true));
+        instrumentation.waitForIdleSync();
+
+        instrumentation.runOnMainSync(() -> {
+            assertNotNull(about.activeUpdateDialog);
+            assertTrue(about.activeUpdateDialog.isShowing());
+
+            TextView bodyView = about.activeUpdateDialog.findViewById(R.id.dialogScrollText);
+            assertNotNull(bodyView);
+            CharSequence rendered = bodyView.getText();
+            assertTrue("Update notes should use Spanned Markdown formatting", rendered instanceof Spanned);
+            Spanned spanned = (Spanned) rendered;
+            assertTrue("Expected bold/heading StyleSpan",
+                    spanned.getSpans(0, spanned.length(), StyleSpan.class).length > 0);
+            assertTrue("Expected heading RelativeSizeSpan",
+                    spanned.getSpans(0, spanned.length(), RelativeSizeSpan.class).length > 0);
+            assertTrue("Expected code TypefaceSpan",
+                    spanned.getSpans(0, spanned.length(), TypefaceSpan.class).length > 0);
+            assertTrue("Expected bullet/code LeadingMarginSpan",
+                    spanned.getSpans(0, spanned.length(), LeadingMarginSpan.class).length > 0);
+
+            String text = rendered.toString();
+            assertTrue(text.contains("更新内容"));
+            assertTrue(text.contains("360dp"));
+            assertTrue(text.contains("Vigil.apk"));
+            assertFalse("Raw heading syntax should not appear", text.contains("## "));
+            assertFalse("Raw bold syntax should not appear", text.contains("**"));
+            assertFalse("Raw backtick syntax should not appear", text.contains("`"));
+
+            int[] buttonIds = {
+                    DialogInterface.BUTTON_POSITIVE,
+                    DialogInterface.BUTTON_NEGATIVE,
+                    DialogInterface.BUTTON_NEUTRAL
+            };
+            for (int id : buttonIds) {
+                Button button = about.activeUpdateDialog.getButton(id);
+                assertNotNull("Expected dialog button " + id, button);
+                assertTrue("Dialog button should be shown", button.isShown());
+                assertTrue("Dialog button should have non-zero height", button.getHeight() > 0);
+                Rect visible = new Rect();
+                assertTrue("Dialog button should be visible on screen", button.getGlobalVisibleRect(visible));
+                assertEquals("Dialog button must not be clipped vertically", button.getHeight(), visible.height());
+            }
+            about.activeUpdateDialog.dismiss();
+        });
     }
 }
