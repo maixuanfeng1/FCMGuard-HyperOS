@@ -66,8 +66,29 @@ public class MaterialUiScreenshotTest {
                 assertEquals("Bottom navigation must not be clipped horizontally", nav.getWidth(), visible.width());
                 assertEquals("Bottom navigation must not be clipped vertically", nav.getHeight(), visible.height());
             });
+            saveScreenshot(instrumentation, context, name);
+            ChooseAppsActivity compactPicker = (ChooseAppsActivity) instrumentation.startActivitySync(
+                    new Intent(context, ChooseAppsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            PushDashboardTest.awaitPickerCatalog(compactPicker);
+            SystemClock.sleep(400);
+            instrumentation.runOnMainSync(() -> {
+                android.view.View search = compactPicker.ui(R.id.pickerSearchInput);
+                android.view.View filterScroll = compactPicker.ui(R.id.pickerFilterScroll);
+                android.view.View recycler = compactPicker.ui(R.id.pickerRecycler);
+                android.graphics.Rect visible = new android.graphics.Rect();
+                assertTrue("Compact picker search input must be visible",
+                        search.isShown() && search.getGlobalVisibleRect(visible) && visible.height() == search.getHeight());
+                assertTrue("Compact picker filter bar must be visible",
+                        filterScroll.isShown() && filterScroll.getGlobalVisibleRect(visible) && visible.height() == filterScroll.getHeight());
+                assertTrue("Compact picker list must have usable height",
+                        recycler.isShown() && recycler.getHeight() > 0 && recycler.getGlobalVisibleRect(visible));
+            });
+            saveScreenshot(instrumentation, context, name + "-app-picker");
+            instrumentation.runOnMainSync(compactPicker::finish);
+            instrumentation.waitForIdleSync();
+        } else {
+            saveScreenshot(instrumentation, context, name);
         }
-        saveScreenshot(instrumentation, context, name);
         if ("01-light".equals(name) || "02-dark".equals(name)) {
             instrumentation.runOnMainSync(() -> {
                 PushDashboardTest.showExamples(activity);
@@ -78,12 +99,17 @@ public class MaterialUiScreenshotTest {
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-app-list-examples");
-            instrumentation.runOnMainSync(activity::chooseApps);
-            instrumentation.waitForIdleSync();
+            ChooseAppsActivity picker = (ChooseAppsActivity) instrumentation.startActivitySync(
+                    new Intent(context, ChooseAppsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            PushDashboardTest.awaitPickerCatalog(picker);
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-app-picker");
+            instrumentation.runOnMainSync(picker::finish);
+            instrumentation.waitForIdleSync();
+            PushDashboardTest.awaitApps(activity);
             instrumentation.runOnMainSync(() -> {
-                if (activity.activePickerDialog != null) activity.activePickerDialog.dismiss();
+                PushDashboardTest.showExamples(activity);
+                activity.selectTab(R.id.nav_apps);
                 activity.showApp(activity.appAdapter.row(0));
             });
             instrumentation.waitForIdleSync();
