@@ -8,7 +8,9 @@ import android.graphics.Typeface;
 import android.text.Layout;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
+import android.text.TextPaint;
 import android.text.style.BackgroundColorSpan;
+import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.LeadingMarginSpan;
 import android.text.style.LineBackgroundSpan;
@@ -16,7 +18,7 @@ import android.text.style.RelativeSizeSpan;
 import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
 import android.text.style.TypefaceSpan;
-import android.text.style.UnderlineSpan;
+import android.view.View;
 import androidx.core.content.ContextCompat;
 import com.google.android.material.color.MaterialColors;
 import java.util.ArrayList;
@@ -30,6 +32,11 @@ import java.util.List;
 final class ReleaseNotesMarkdown {
     private static final int MAX_LIST_DEPTH = 3;
     private static final int MAX_INLINE_DEPTH = 8;
+    private static final int MAX_LINK_SCAN_CHARS = 512;
+
+    interface LinkClickListener {
+        void onLinkClick(String url);
+    }
 
     enum BlockType {
         HEADING,
@@ -110,9 +117,11 @@ final class ReleaseNotesMarkdown {
             if (fence != null) {
                 i++;
                 StringBuilder code = new StringBuilder();
+                boolean hasLine = false;
                 while (i < lines.length && !isClosingFence(lines[i], fence)) {
-                    if (code.length() > 0) code.append('\n');
+                    if (hasLine) code.append('\n');
                     code.append(lines[i]);
+                    hasLine = true;
                     i++;
                 }
                 if (i < lines.length) i++; // consume closing fence
@@ -196,6 +205,7 @@ final class ReleaseNotesMarkdown {
         List<InlineNode> nodes = new ArrayList<>();
         StringBuilder literal = new StringBuilder();
         int len = text.length();
+        int lastCloseBracket = text.lastIndexOf(']');
         int i = 0;
 
         while (i < len) {
@@ -228,8 +238,8 @@ final class ReleaseNotesMarkdown {
             }
 
             // Markdown link: [label](url)
-            if (ch == '[') {
-                LinkMatch link = tryParseLink(text, i);
+            if (ch == '[' && i < lastCloseBracket) {
+                LinkMatch link = tryParseLink(text, i, lastCloseBracket);
                 if (link != null) {
                     flushLiteral(nodes, literal);
                     List<InlineNode> labelNodes = parseInlines(link.label, depth + 1);
@@ -341,6 +351,10 @@ final class ReleaseNotesMarkdown {
     }
 
     static SpannableStringBuilder render(Context context, String markdown) {
+        return render(context, markdown, null);
+    }
+
+    static SpannableStringBuilder render(Context context, String markdown, LinkClickListener linkClickListener) {
         SpannableStringBuilder out = new SpannableStringBuilder();
         List<Block> blocks = parse(markdown);
         if (blocks.isEmpty()) return out;
@@ -353,17 +367,20 @@ final class ReleaseNotesMarkdown {
                 context, com.google.android.material.R.attr.colorOnSurfaceVariant,
                 ContextCompat.getColor(context, R.color.md_on_surface_variant));
         int colorPrimary = MaterialColors.getColor(
-                context, com.google.android.material.R.attr.colorPrimary,
+                context, androidx.appcompat.R.attr.colorPrimary,
                 ContextCompat.getColor(context, R.color.md_primary));
+        // Material 3 dialogs use colorSurfaceContainerHigh as their background; use
+        // colorSurfaceContainerLow so inline code and fenced blocks maintain clear contrast.
         int colorCodeBg = MaterialColors.getColor(
-                context, com.google.android.material.R.attr.colorSurfaceContainerHigh,
-                ContextCompat.getColor(context, R.color.md_surface_container_high));
+                context, com.google.android.material.R.attr.colorSurfaceContainerLow,
+                ContextCompat.getColor(context, R.color.md_surface_container_low));
         int colorOutlineVariant = MaterialColors.getColor(
                 context, com.google.android.material.R.attr.colorOutlineVariant,
                 ContextCompat.getColor(context, R.color.md_outline_variant));
 
         RenderPalette palette = new RenderPalette(
-                density, colorOnSurface, colorOnSurfaceVariant, colorPrimary, colorCodeBg, colorOutlineVariant);
+                density, colorOnSurface, colorOnSurfaceVariant, colorPrimary,
+                colorCodeBg, colorOutlineVariant, linkClickListener);
 
         Block previous = null;
         for (Block block : blocks) {
@@ -543,11 +560,22 @@ final class ReleaseNotesMarkdown {
                     break;
                 case LINK:
                     renderInlines(out, node.children, palette);
-                    if (out.length() > start) {
-                        out.setSpan(new ForegroundColorSpan(palette.colorPrimary), start, out.length(),
-                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        out.setSpan(new UnderlineSpan(), start, out.length(),
-                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    if (out.length() > start && node.url != null && palette.linkClickListener != null) {
+                        final String targetUrl = node.url;
+                        final LinkClickListener clickListener = palette.linkClickListener;
+                        final int linkColor = palette.colorPrimary;
+                        out.setSpan(new ClickableSpan() {
+                            @Override
+                            public void onClick(View widget) {
+                                clickListener.onLinkClick(targetUrl);
+                            }
+
+                            @Override
+                            public void updateDrawState(TextPaint ds) {
+                                ds.setColor(linkColor);
+                                ds.setUnderlineText(true);
+                            }
+                        }, start, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                     break;
             }
@@ -561,15 +589,18 @@ final class ReleaseNotesMarkdown {
         final int colorPrimary;
         final int colorCodeBg;
         final int colorOutlineVariant;
+        final LinkClickListener linkClickListener;
 
         RenderPalette(float density, int colorOnSurface, int colorOnSurfaceVariant,
-                int colorPrimary, int colorCodeBg, int colorOutlineVariant) {
+                int colorPrimary, int colorCodeBg, int colorOutlineVariant,
+                LinkClickListener linkClickListener) {
             this.density = density;
             this.colorOnSurface = colorOnSurface;
             this.colorOnSurfaceVariant = colorOnSurfaceVariant;
             this.colorPrimary = colorPrimary;
             this.colorCodeBg = colorCodeBg;
             this.colorOutlineVariant = colorOutlineVariant;
+            this.linkClickListener = linkClickListener;
         }
 
         int dp(float value) {
@@ -764,13 +795,14 @@ final class ReleaseNotesMarkdown {
         return -1;
     }
 
-    private static LinkMatch tryParseLink(String text, int start) {
+    private static LinkMatch tryParseLink(String text, int start, int lastCloseBracket) {
         int len = text.length();
+        int bracketLimit = Math.min(lastCloseBracket + 1, Math.min(len, start + MAX_LINK_SCAN_CHARS));
         int bracketDepth = 0;
         int closeBracket = -1;
-        for (int i = start; i < len; i++) {
+        for (int i = start; i < bracketLimit; i++) {
             char c = text.charAt(i);
-            if (c == '\\' && i + 1 < len) {
+            if (c == '\\' && i + 1 < bracketLimit) {
                 i++;
                 continue;
             }
@@ -786,11 +818,12 @@ final class ReleaseNotesMarkdown {
         if (closeBracket <= start + 1 || closeBracket + 1 >= len || text.charAt(closeBracket + 1) != '(') {
             return null;
         }
+        int parenLimit = Math.min(len, closeBracket + 1 + MAX_LINK_SCAN_CHARS);
         int parenDepth = 0;
         int closeParen = -1;
-        for (int i = closeBracket + 1; i < len; i++) {
+        for (int i = closeBracket + 1; i < parenLimit; i++) {
             char c = text.charAt(i);
-            if (c == '\\' && i + 1 < len) {
+            if (c == '\\' && i + 1 < parenLimit) {
                 i++;
                 continue;
             }
@@ -816,6 +849,7 @@ final class ReleaseNotesMarkdown {
         int dLen = delim.length();
         int len = text.length();
         if (from >= len || Character.isWhitespace(text.charAt(from))) return -1;
+        char delimChar = delim.charAt(0);
 
         int i = from;
         while (i <= len - dLen) {
@@ -835,10 +869,19 @@ final class ReleaseNotesMarkdown {
             if (text.startsWith(delim, i)) {
                 char prev = text.charAt(i - 1);
                 boolean validPrev = !Character.isWhitespace(prev);
+                if (dLen == 2 && (delimChar == '*' || delimChar == '_')) {
+                    int run = countRun(text, i, delimChar);
+                    if (run == 3 && validPrev && hasUnclosedSingleDelimiter(text, from, i, delimChar, intrawordRestricted)) {
+                        int shifted = i + 1;
+                        if (!intrawordRestricted || canCloseUnderscore(text, shifted + dLen)) {
+                            return shifted;
+                        }
+                    }
+                }
                 boolean validNext = !intrawordRestricted || canCloseUnderscore(text, i + dLen);
                 // Avoid splitting a longer run of the exact same delimiter char inside single-char emphasis.
-                boolean extraSame = dLen == 1 && ((i + 1 < len && text.charAt(i + 1) == delim.charAt(0))
-                        || (i > from && text.charAt(i - 1) == delim.charAt(0)));
+                boolean extraSame = dLen == 1 && ((i + 1 < len && text.charAt(i + 1) == delimChar)
+                        || (i > from && text.charAt(i - 1) == delimChar));
                 if (validPrev && validNext && !extraSame) {
                     return i;
                 }
@@ -846,6 +889,37 @@ final class ReleaseNotesMarkdown {
             i++;
         }
         return -1;
+    }
+
+    private static boolean hasUnclosedSingleDelimiter(
+            String text, int start, int end, char delimChar, boolean intrawordRestricted) {
+        int singles = 0;
+        int i = start;
+        while (i < end) {
+            char c = text.charAt(i);
+            if (c == '\\' && i + 1 < end) {
+                i += 2;
+                continue;
+            }
+            if (c == '`') {
+                int ticks = countRun(text, i, '`');
+                int closeTicks = findClosingTicks(text, i + ticks, ticks);
+                if (closeTicks >= 0 && closeTicks < end) {
+                    i = closeTicks + ticks;
+                    continue;
+                }
+            }
+            if (c == delimChar) {
+                int run = countRun(text, i, delimChar);
+                if (run == 1 && (!intrawordRestricted || canOpenUnderscore(text, i) || canCloseUnderscore(text, i + 1))) {
+                    singles++;
+                }
+                i += run;
+                continue;
+            }
+            i++;
+        }
+        return (singles % 2) == 1;
     }
 
     private static boolean canOpenUnderscore(String text, int idx) {
@@ -900,6 +974,7 @@ final class ReleaseNotesMarkdown {
         public void drawLeadingMargin(Canvas c, Paint p, int x, int dir, int top, int baseline,
                 int bottom, CharSequence text, int start, int end, boolean first, Layout layout) {
             if (!first) return;
+            if (text instanceof Spanned && ((Spanned) text).getSpanStart(this) != start) return;
             Paint.Style oldStyle = p.getStyle();
             int oldColor = p.getColor();
             float oldStroke = p.getStrokeWidth();

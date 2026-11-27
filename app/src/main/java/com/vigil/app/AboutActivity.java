@@ -1,5 +1,6 @@
 package com.vigil.app;
 
+import android.annotation.SuppressLint;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -9,15 +10,21 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.LocaleList;
+import android.text.Layout;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.format.Formatter;
+import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
+import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.appcompat.app.AlertDialog;
@@ -307,7 +314,7 @@ public class AboutActivity extends AppCompatActivity {
 
         String rawNotes = release.notes != null ? release.notes.trim() : "";
         if (!rawNotes.isEmpty()) {
-            CharSequence formattedNotes = ReleaseNotesMarkdown.render(dialogContext, rawNotes);
+            CharSequence formattedNotes = ReleaseNotesMarkdown.render(dialogContext, rawNotes, this::openUrl);
             if (formattedNotes.length() > 0) {
                 body.append(formattedNotes);
             } else {
@@ -318,6 +325,10 @@ public class AboutActivity extends AppCompatActivity {
         }
 
         View content = createScrollableTextView(body);
+        TextView notesView = content.findViewById(R.id.dialogScrollText);
+        if (notesView != null) {
+            attachSelectableLinkTapHandler(notesView);
+        }
         final String releasePageUrl = UpdateChecker.isTrustedGitHubRepoUrl(release.releaseUrl)
                 ? release.releaseUrl : UpdateChecker.RELEASES_URL;
 
@@ -425,6 +436,55 @@ public class AboutActivity extends AppCompatActivity {
     }
 
     /**
+     * Handles single-tap ClickableSpan invocations without replacing the TextView's selection
+     * MovementMethod, so users can both tap Markdown links and long-press to copy SHA-256 hashes.
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    private static void attachSelectableLinkTapHandler(TextView textView) {
+        final int touchSlop = ViewConfiguration.get(textView.getContext()).getScaledTouchSlop();
+        final float[] downPos = new float[2];
+        final boolean[] trackingTap = {false};
+        textView.setOnTouchListener((v, event) -> {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                downPos[0] = event.getX();
+                downPos[1] = event.getY();
+                trackingTap[0] = true;
+                return false;
+            }
+            if (action == MotionEvent.ACTION_MOVE && trackingTap[0]) {
+                if (Math.hypot(event.getX() - downPos[0], event.getY() - downPos[1]) > touchSlop) {
+                    trackingTap[0] = false;
+                }
+                return false;
+            }
+            if (action == MotionEvent.ACTION_CANCEL) {
+                trackingTap[0] = false;
+                return false;
+            }
+            if (action == MotionEvent.ACTION_UP && trackingTap[0]) {
+                trackingTap[0] = false;
+                if (textView.hasSelection()) return false;
+                CharSequence text = textView.getText();
+                Layout layout = textView.getLayout();
+                if (!(text instanceof Spanned) || layout == null) return false;
+                int x = (int) event.getX() - textView.getTotalPaddingLeft() + textView.getScrollX();
+                int y = (int) event.getY() - textView.getTotalPaddingTop() + textView.getScrollY();
+                if (y < 0 || y >= layout.getHeight()) return false;
+                int line = layout.getLineForVertical(y);
+                if (x < layout.getLineLeft(line) || x > layout.getLineRight(line)) return false;
+                int offset = layout.getOffsetForHorizontal(line, x);
+                ClickableSpan[] spans = ((Spanned) text).getSpans(offset, offset, ClickableSpan.class);
+                if (spans.length > 0) {
+                    spans[0].onClick(textView);
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
+    /**
      * Prevents AlertDialogLayout from starving stacked multi-button panels when custom scrollable
      * content consumes the dialog's remaining vertical budget.
      */
@@ -439,6 +499,7 @@ public class AboutActivity extends AppCompatActivity {
         if (!(panelParent instanceof ScrollView)) return;
         ScrollView buttonPanel = (ScrollView) panelParent;
         final int baseMinHeight = buttonPanel.getMinimumHeight();
+        final int minContentPx = Math.round(112f * buttonPanel.getResources().getDisplayMetrics().density);
         final int[] adjustCount = {0};
         final ViewTreeObserver.OnPreDrawListener preDrawListener = new ViewTreeObserver.OnPreDrawListener() {
             @Override
@@ -448,14 +509,10 @@ public class AboutActivity extends AppCompatActivity {
                     if (observer.isAlive()) observer.removeOnPreDrawListener(this);
                     return true;
                 }
-                int desired = buttonBar.getMeasuredHeight()
-                        + buttonPanel.getPaddingTop()
-                        + buttonPanel.getPaddingBottom();
+                int naturalBar = naturalButtonBarHeight(buttonBar);
+                int desired = naturalBar + buttonPanel.getPaddingTop() + buttonPanel.getPaddingBottom();
                 if (desired <= 0) return true;
-                View root = buttonPanel.getRootView();
-                int maxAllowed = root != null && root.getHeight() > 0
-                        ? root.getHeight() / 2
-                        : desired;
+                int maxAllowed = computeMaxButtonPanelHeight(buttonPanel, baseMinHeight, minContentPx, desired);
                 int targetMin = Math.max(baseMinHeight, Math.min(desired, maxAllowed));
                 int currentMin = buttonPanel.getMinimumHeight();
                 if (currentMin != targetMin
@@ -481,6 +538,57 @@ public class AboutActivity extends AppCompatActivity {
                 v.removeOnAttachStateChangeListener(this);
             }
         });
+    }
+
+    private static int naturalButtonBarHeight(View buttonBar) {
+        if (!(buttonBar instanceof LinearLayout)) {
+            return buttonBar.getMeasuredHeight();
+        }
+        LinearLayout bar = (LinearLayout) buttonBar;
+        boolean vertical = bar.getOrientation() == LinearLayout.VERTICAL;
+        int childrenHeight = 0;
+        for (int i = 0, count = bar.getChildCount(); i < count; i++) {
+            View child = bar.getChildAt(i);
+            if (child.getVisibility() == View.GONE) continue;
+            int childHeight = child.getMeasuredHeight();
+            ViewGroup.LayoutParams rawLp = child.getLayoutParams();
+            if (rawLp instanceof ViewGroup.MarginLayoutParams) {
+                ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) rawLp;
+                childHeight += lp.topMargin + lp.bottomMargin;
+            }
+            if (vertical) {
+                childrenHeight += childHeight;
+            } else {
+                childrenHeight = Math.max(childrenHeight, childHeight);
+            }
+        }
+        if (childrenHeight <= 0) return bar.getMeasuredHeight();
+        return childrenHeight + bar.getPaddingTop() + bar.getPaddingBottom();
+    }
+
+    private static int computeMaxButtonPanelHeight(
+            ScrollView buttonPanel, int baseMinHeight, int minContentPx, int fallback) {
+        ViewParent dialogParent = buttonPanel.getParent();
+        if (dialogParent instanceof ViewGroup) {
+            ViewGroup container = (ViewGroup) dialogParent;
+            int available = container.getHeight() - container.getPaddingTop() - container.getPaddingBottom();
+            if (available > 0) {
+                int topUsed = 0;
+                for (int i = 0, count = container.getChildCount(); i < count; i++) {
+                    View sibling = container.getChildAt(i);
+                    if (sibling == buttonPanel || sibling.getVisibility() == View.GONE) continue;
+                    if (sibling.findViewById(R.id.dialogScrollText) != null) continue;
+                    topUsed += sibling.getMeasuredHeight();
+                }
+                int budget = available - topUsed - minContentPx;
+                return Math.max(baseMinHeight, budget);
+            }
+        }
+        View root = buttonPanel.getRootView();
+        if (root != null && root.getHeight() > 0) {
+            return Math.max(baseMinHeight, root.getHeight() - minContentPx);
+        }
+        return fallback;
     }
 
     private String readAssetText(String assetPath) {

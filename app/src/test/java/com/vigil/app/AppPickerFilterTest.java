@@ -57,6 +57,23 @@ public class AppPickerFilterTest {
     }
 
     @Test
+    public void uncheckingInSelectedModeKeepsPinnedRowVisibleForEasyUndo() {
+        Set<String> initialPinned = new HashSet<>(Arrays.asList("com.Slack", "com.twitter.android"));
+        Set<String> afterUncheck = new HashSet<>(Collections.singletonList("com.twitter.android"));
+
+        List<FcmAppScanner.AppEntry> stillVisible = AppPickerFilter.filter(
+                CATALOG, afterUncheck, initialPinned, AppPickerFilter.Mode.SELECTED_ONLY, "");
+        assertEquals(2, stillVisible.size());
+        assertEquals("com.Slack", stillVisible.get(0).packageName);
+        assertEquals("com.twitter.android", stillVisible.get(1).packageName);
+
+        List<FcmAppScanner.AppEntry> refreshed = AppPickerFilter.filter(
+                CATALOG, afterUncheck, afterUncheck, AppPickerFilter.Mode.SELECTED_ONLY, "");
+        assertEquals(1, refreshed.size());
+        assertEquals("com.twitter.android", refreshed.get(0).packageName);
+    }
+
+    @Test
     public void countsOnlyInstalledSelectedEntriesAndDeclaredFcm() {
         Set<String> selectedWithUninstalled = new HashSet<>(Arrays.asList("com.Slack", "com.removed.app"));
         assertEquals(3, AppPickerFilter.countFcm(CATALOG));

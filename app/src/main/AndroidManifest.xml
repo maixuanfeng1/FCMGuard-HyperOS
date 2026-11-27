@@ -66,6 +66,14 @@
             android:parentActivityName=".MainActivity"
             android:resizeableActivity="true" />
 
+        <activity
+            android:name=".ChooseAppsActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:parentActivityName=".MainActivity"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
         <service
             android:name=".GuardTileService"
             android:icon="@drawable/ic_guard_tile"

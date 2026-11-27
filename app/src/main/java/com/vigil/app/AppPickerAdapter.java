@@ -6,6 +6,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import androidx.core.view.AccessibilityDelegateCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.checkbox.MaterialCheckBox;
@@ -90,6 +93,14 @@ final class AppPickerAdapter extends RecyclerView.Adapter<AppPickerAdapter.Holde
             title = view.findViewById(R.id.pickerAppTitle);
             subtitle = view.findViewById(R.id.pickerAppSubtitle);
             checkBox = view.findViewById(R.id.pickerAppCheck);
+            ViewCompat.setAccessibilityDelegate(view, new AccessibilityDelegateCompat() {
+                @Override
+                public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfoCompat info) {
+                    super.onInitializeAccessibilityNodeInfo(host, info);
+                    info.setCheckable(true);
+                    info.setChecked(bound != null && selected.contains(bound.packageName));
+                }
+            });
             view.setOnClickListener(v -> {
                 if (bound == null) return;
                 boolean next = !selected.contains(bound.packageName);

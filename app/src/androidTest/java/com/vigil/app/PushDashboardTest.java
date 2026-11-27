@@ -560,48 +560,177 @@ public class PushDashboardTest {
   });
  }
  @Test public void appPickerFiltersByQueryAndFcmAndSavesSelection() {
-  in.runOnMainSync(() -> {
-   activity.selectTab(R.id.nav_apps);
-   showExamples(activity);
-   DiagnosticPreferences.selected(c, Collections.emptySet());
-   activity.renderApps();
-   assertEquals(0, activity.appAdapter.getItemCount());
-   assertNull(((BottomNavigationView)activity.ui(R.id.bottomNav)).getBadge(R.id.nav_apps));
-   activity.ui(R.id.chooseAppsBtn).performClick();
-   assertNotNull(activity.activePickerDialog);
-   assertTrue(activity.activePickerDialog.isShowing());
-  });
-  in.waitForIdleSync();
-  in.runOnMainSync(() -> {
-   androidx.recyclerview.widget.RecyclerView recycler = activity.activePickerDialog.findViewById(R.id.pickerRecycler);
-   com.google.android.material.chip.ChipGroup filters = activity.activePickerDialog.findViewById(R.id.pickerFilterGroup);
-   EditText search = activity.activePickerDialog.findViewById(R.id.pickerSearchInput);
-   View dialogRoot = (View) recycler.getParent();
-   assertTrue("Picker list should have non-zero height", recycler.getHeight() > 0);
-   assertTrue("Picker list must fit inside dialog content bounds", recycler.getBottom() <= dialogRoot.getHeight());
-   Button doneBtn = activity.activePickerDialog.getButton(DialogInterface.BUTTON_POSITIVE);
-   assertTrue("Positive action button must remain visible", doneBtn.isShown() && doneBtn.getGlobalVisibleRect(new Rect()));
-   AppPickerAdapter pickerAdapter = (AppPickerAdapter) recycler.getAdapter();
-   assertEquals(4, pickerAdapter.getItemCount());
-   filters.check(R.id.filterFcmChip);
-   assertEquals(3, pickerAdapter.getItemCount());
-   search.setText("disabled");
-   assertEquals(1, pickerAdapter.getItemCount());
-   AppPickerAdapter.Holder holder = pickerAdapter.onCreateViewHolder(recycler, 0);
-   pickerAdapter.onBindViewHolder(holder, 0);
-   holder.itemView.performClick();
-   assertTrue(DiagnosticPreferences.selected(c).isEmpty());
-   doneBtn.performClick();
-  });
-  in.waitForIdleSync();
-  in.runOnMainSync(() -> {
-   assertEquals(Collections.singleton("com.example.disabled"), DiagnosticPreferences.selected(c));
-   assertEquals(1, activity.appAdapter.getItemCount());
-   BadgeDrawable badge = ((BottomNavigationView)activity.ui(R.id.bottomNav)).getBadge(R.id.nav_apps);
-   assertNotNull(badge);
-   assertTrue(badge.isVisible());
-   assertEquals(1, badge.getNumber());
-  });
+  List<FcmAppScanner.AppEntry> installed = FcmAppScanner.scanAll(c);
+  assertFalse("Expected at least one installed app for picker test", installed.isEmpty());
+  final String realPkg = installed.get(0).packageName;
+
+  Instrumentation.ActivityMonitor monitor = in.addMonitor(ChooseAppsActivity.class.getName(), null, false);
+  ChooseAppsActivity picker = null;
+  try {
+   in.runOnMainSync(() -> {
+    activity.selectTab(R.id.nav_apps);
+    DiagnosticPreferences.selected(c, Collections.emptySet());
+    activity.renderApps();
+    assertEquals(0, activity.appAdapter.getItemCount());
+    assertNull(((BottomNavigationView)activity.ui(R.id.bottomNav)).getBadge(R.id.nav_apps));
+    activity.ui(R.id.chooseAppsBtn).performClick();
+   });
+   Activity launched = in.waitForMonitorWithTimeout(monitor, 10000);
+   assertTrue("Expected ChooseAppsActivity to open", launched instanceof ChooseAppsActivity);
+   picker = (ChooseAppsActivity) launched;
+   awaitPickerCatalog(picker);
+
+   // Part 1: Deterministic filtering and mounted-row click on injected sample catalog.
+   final ChooseAppsActivity firstPicker = picker;
+   List<FcmAppScanner.AppEntry> sampleCatalog = Arrays.asList(
+       new FcmAppScanner.AppEntry("com.example.disabled", "Example disabled", true),
+       new FcmAppScanner.AppEntry("com.example.partial", "Example partial", true),
+       new FcmAppScanner.AppEntry("com.example.unknown", "Example unknown", false),
+       new FcmAppScanner.AppEntry("com.example.enabled", "Example enabled", true));
+
+   in.runOnMainSync(() -> firstPicker.setCatalogForTest(sampleCatalog));
+   in.waitForIdleSync();
+   in.runOnMainSync(() -> {
+    androidx.recyclerview.widget.RecyclerView recycler = firstPicker.ui(R.id.pickerRecycler);
+    com.google.android.material.chip.ChipGroup filters = firstPicker.ui(R.id.pickerFilterGroup);
+    EditText search = firstPicker.ui(R.id.pickerSearchInput);
+    View root = firstPicker.ui(R.id.chooseAppsRoot);
+    assertTrue("Full-screen picker list should have non-zero height", recycler.getHeight() > 0);
+    assertEquals("Full-screen picker list should span screen width", root.getWidth(), recycler.getWidth());
+
+    AppPickerAdapter pickerAdapter = firstPicker.adapter;
+    assertEquals(4, pickerAdapter.getItemCount());
+    filters.check(R.id.filterFcmChip);
+    assertEquals(3, pickerAdapter.getItemCount());
+    search.setText("disabled");
+    assertEquals(1, pickerAdapter.getItemCount());
+   });
+   in.waitForIdleSync();
+   in.runOnMainSync(() -> {
+    androidx.recyclerview.widget.RecyclerView recycler = firstPicker.ui(R.id.pickerRecycler);
+    androidx.recyclerview.widget.RecyclerView.ViewHolder mounted = recycler.findViewHolderForAdapterPosition(0);
+    assertNotNull("Expected mounted picker row", mounted);
+    mounted.itemView.performClick();
+    assertEquals(Collections.singleton("com.example.disabled"), DiagnosticPreferences.selected(c));
+    firstPicker.finish();
+   });
+   picker = null;
+   in.waitForIdleSync();
+   awaitApps(activity);
+
+   // Part 2: Real catalog end-to-end toggle, SELECTED_ONLY pinned undo across recreate, and home sync.
+   in.runOnMainSync(() -> {
+    DiagnosticPreferences.selected(c, Collections.emptySet());
+    activity.renderApps();
+    assertEquals(0, activity.appAdapter.getItemCount());
+    activity.ui(R.id.chooseAppsBtn).performClick();
+   });
+   Activity realLaunched = in.waitForMonitorWithTimeout(monitor, 10000);
+   assertTrue("Expected ChooseAppsActivity to reopen", realLaunched instanceof ChooseAppsActivity);
+   picker = (ChooseAppsActivity) realLaunched;
+   awaitPickerCatalog(picker);
+
+   final ChooseAppsActivity livePicker = picker;
+   in.runOnMainSync(() -> {
+    EditText search = livePicker.ui(R.id.pickerSearchInput);
+    search.setText(realPkg);
+   });
+   in.waitForIdleSync();
+   in.runOnMainSync(() -> {
+    androidx.recyclerview.widget.RecyclerView recycler = livePicker.ui(R.id.pickerRecycler);
+    View mountedRow = recycler.findViewWithTag("picker:" + realPkg);
+    assertNotNull("Expected mounted row for real installed app", mountedRow);
+    mountedRow.performClick();
+    assertEquals(Collections.singleton(realPkg), DiagnosticPreferences.selected(c));
+
+    com.google.android.material.chip.ChipGroup filters = livePicker.ui(R.id.pickerFilterGroup);
+    filters.check(R.id.filterSelectedChip);
+   });
+   in.waitForIdleSync();
+   in.runOnMainSync(() -> {
+    androidx.recyclerview.widget.RecyclerView recycler = livePicker.ui(R.id.pickerRecycler);
+    assertEquals(1, livePicker.adapter.getItemCount());
+    androidx.recyclerview.widget.RecyclerView.ViewHolder mounted = recycler.findViewHolderForAdapterPosition(0);
+    assertNotNull(mounted);
+    // Uncheck the sole watched app: persisted immediately, yet row stays pinned for instant undo.
+    mounted.itemView.performClick();
+    assertTrue(DiagnosticPreferences.selected(c).isEmpty());
+    assertEquals(1, livePicker.adapter.getItemCount());
+   });
+
+   Instrumentation.ActivityMonitor recreateMonitor = in.addMonitor(ChooseAppsActivity.class.getName(), null, false);
+   try {
+    in.runOnMainSync(livePicker::recreate);
+    Activity recreated = in.waitForMonitorWithTimeout(recreateMonitor, 10000);
+    assertTrue("Recreated ChooseAppsActivity did not resume", recreated instanceof ChooseAppsActivity);
+    assertNotSame(livePicker, recreated);
+    picker = (ChooseAppsActivity) recreated;
+    awaitPickerCatalog(picker);
+   } finally {
+    in.removeMonitor(recreateMonitor);
+   }
+
+   final ChooseAppsActivity restoredPicker = picker;
+   in.runOnMainSync(() -> {
+    com.google.android.material.chip.ChipGroup filters = restoredPicker.ui(R.id.pickerFilterGroup);
+    EditText search = restoredPicker.ui(R.id.pickerSearchInput);
+    assertEquals(R.id.filterSelectedChip, filters.getCheckedChipId());
+    assertEquals(realPkg, search.getText().toString());
+    assertEquals("Unchecked pinned row should survive recreation", 1, restoredPicker.adapter.getItemCount());
+
+    androidx.recyclerview.widget.RecyclerView recycler = restoredPicker.ui(R.id.pickerRecycler);
+    androidx.recyclerview.widget.RecyclerView.ViewHolder mounted = recycler.findViewHolderForAdapterPosition(0);
+    assertNotNull(mounted);
+    mounted.itemView.performClick();
+    assertEquals(Collections.singleton(realPkg), DiagnosticPreferences.selected(c));
+
+    com.google.android.material.appbar.MaterialToolbar toolbar = restoredPicker.ui(R.id.pickerToolbar);
+    ArrayList<View> navButtons = new ArrayList<>();
+    toolbar.findViewsWithText(navButtons,
+        c.getString(R.string.about_navigate_up),
+        View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION);
+    assertFalse("Toolbar navigation button must exist", navButtons.isEmpty());
+    navButtons.get(0).performClick();
+    assertTrue("Toolbar back should finish ChooseAppsActivity", restoredPicker.isFinishing());
+   });
+   picker = null;
+   in.waitForIdleSync();
+   awaitApps(activity);
+
+   // Assert MainActivity synced the watched list and summary naturally on resume without test overrides.
+   in.runOnMainSync(() -> {
+    assertEquals(Collections.singleton(realPkg), DiagnosticPreferences.selected(c));
+    assertEquals(1, activity.appAdapter.getItemCount());
+    assertEquals(realPkg, activity.appAdapter.row(0).app.packageName);
+    assertEquals(c.getString(R.string.watched_health_counts, 1, 1),
+        ((TextView) activity.ui(R.id.appsSummaryBody)).getText().toString());
+    assertEquals(c.getString(R.string.view_watched_apps),
+        ((TextView) activity.ui(R.id.appsSummaryActionText)).getText().toString());
+   });
+  } finally {
+   in.removeMonitor(monitor);
+   if (picker != null) {
+    final ChooseAppsActivity toClose = picker;
+    in.runOnMainSync(() -> {
+     if (!toClose.isFinishing() && !toClose.isDestroyed()) toClose.finish();
+    });
+    in.waitForIdleSync();
+   }
+  }
+ }
+
+ static void awaitPickerCatalog(ChooseAppsActivity picker) {
+  Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+  final boolean[] loaded = {false};
+  for (int i = 0; i < 100; i++) {
+   instrumentation.runOnMainSync(() -> loaded[0] = picker.isCatalogLoaded());
+   if (loaded[0]) {
+    instrumentation.waitForIdleSync();
+    return;
+   }
+   android.os.SystemClock.sleep(50);
+  }
+  throw new AssertionError("ChooseAppsActivity did not finish loading catalog");
  }
  @Test public void appDetailsSheetTogglesWatchedSelection() {
   in.runOnMainSync(() -> {
@@ -631,46 +760,69 @@ public class PushDashboardTest {
   });
  }
  @Test public void bottomNavigationSwitchesPagesAndSummaryCardRoutesAndUpdatesBadge() {
-  in.runOnMainSync(() -> {
-   BottomNavigationView nav = activity.ui(R.id.bottomNav);
-   assertEquals(R.id.nav_connection, activity.currentTab());
-   assertTrue(activity.ui(R.id.connectionScroll).isShown());
-   assertFalse(activity.ui(R.id.pageApps).isShown());
-   assertFalse(activity.ui(R.id.settingsScroll).isShown());
-   assertNull(nav.getBadge(R.id.nav_apps));
-   activity.ui(R.id.appsSummaryCard).performClick();
-   assertNotNull(activity.activePickerDialog);
-   assertTrue(activity.activePickerDialog.isShowing());
-   activity.activePickerDialog.dismiss();
+  Instrumentation.ActivityMonitor pickerMonitor = in.addMonitor(ChooseAppsActivity.class.getName(), null, false);
+  ChooseAppsActivity openedPicker = null;
+  try {
+   in.runOnMainSync(() -> {
+    BottomNavigationView nav = activity.ui(R.id.bottomNav);
+    assertEquals(R.id.nav_connection, activity.currentTab());
+    assertTrue(activity.ui(R.id.connectionScroll).isShown());
+    assertFalse(activity.ui(R.id.pageApps).isShown());
+    assertFalse(activity.ui(R.id.settingsScroll).isShown());
+    assertNull(nav.getBadge(R.id.nav_apps));
+    activity.ui(R.id.appsSummaryCard).performClick();
+   });
+   Activity launched = in.waitForMonitorWithTimeout(pickerMonitor, 10000);
+   assertTrue("Expected empty watched summary card to open ChooseAppsActivity",
+       launched instanceof ChooseAppsActivity);
+   openedPicker = (ChooseAppsActivity) launched;
+   in.waitForIdleSync();
+   final ChooseAppsActivity toFinish = openedPicker;
+   in.runOnMainSync(toFinish::finish);
+   openedPicker = null;
+   in.waitForIdleSync();
+   awaitApps(activity);
 
-   showExamples(activity);
-   BadgeDrawable badge = nav.getBadge(R.id.nav_apps);
-   assertNotNull(badge);
-   assertTrue(badge.isVisible());
-   assertEquals(2, badge.getNumber());
-   assertEquals(c.getString(R.string.watched_health_counts, 4, 4),
-       ((TextView)activity.ui(R.id.appsSummaryBody)).getText().toString());
-   assertEquals(c.getString(R.string.view_watched_apps),
-       ((TextView)activity.ui(R.id.appsSummaryActionText)).getText().toString());
-   assertEquals(View.VISIBLE, activity.ui(R.id.appsSummaryAttention).getVisibility());
-   assertEquals(c.getString(R.string.watched_attention_count, 2),
-       ((TextView)activity.ui(R.id.appsSummaryAttention)).getText().toString());
+   in.runOnMainSync(() -> {
+    BottomNavigationView nav = activity.ui(R.id.bottomNav);
+    showExamples(activity);
+    BadgeDrawable badge = nav.getBadge(R.id.nav_apps);
+    assertNotNull(badge);
+    assertTrue(badge.isVisible());
+    assertEquals(2, badge.getNumber());
+    assertEquals(c.getString(R.string.watched_health_counts, 4, 4),
+        ((TextView)activity.ui(R.id.appsSummaryBody)).getText().toString());
+    assertEquals(c.getString(R.string.view_watched_apps),
+        ((TextView)activity.ui(R.id.appsSummaryActionText)).getText().toString());
+    assertEquals(View.VISIBLE, activity.ui(R.id.appsSummaryAttention).getVisibility());
+    assertEquals(c.getString(R.string.watched_attention_count, 2),
+        ((TextView)activity.ui(R.id.appsSummaryAttention)).getText().toString());
 
-   activity.ui(R.id.appsSummaryCard).performClick();
-   assertEquals(R.id.nav_apps, activity.currentTab());
-   assertTrue(activity.ui(R.id.pageApps).isShown());
-   assertFalse(activity.ui(R.id.connectionScroll).isShown());
+    activity.ui(R.id.appsSummaryCard).performClick();
+    assertEquals(R.id.nav_apps, activity.currentTab());
+    assertTrue(activity.ui(R.id.pageApps).isShown());
+    assertFalse(activity.ui(R.id.connectionScroll).isShown());
 
-   nav.setSelectedItemId(R.id.nav_settings);
-   assertEquals(R.id.nav_settings, activity.currentTab());
-   assertTrue(activity.ui(R.id.settingsScroll).isShown());
-   assertFalse(activity.ui(R.id.pageApps).isShown());
+    nav.setSelectedItemId(R.id.nav_settings);
+    assertEquals(R.id.nav_settings, activity.currentTab());
+    assertTrue(activity.ui(R.id.settingsScroll).isShown());
+    assertFalse(activity.ui(R.id.pageApps).isShown());
 
-   DiagnosticPreferences.selected(c, Collections.emptySet());
-   activity.renderApps();
-   assertNull(nav.getBadge(R.id.nav_apps));
-   assertEquals(View.GONE, activity.ui(R.id.appsSummaryAttention).getVisibility());
-  });
+    DiagnosticPreferences.selected(c, Collections.emptySet());
+    activity.renderApps();
+    assertNull(nav.getBadge(R.id.nav_apps));
+    assertEquals(View.GONE, activity.ui(R.id.appsSummaryAttention).getVisibility());
+   });
+  } finally {
+   in.removeMonitor(pickerMonitor);
+   if (openedPicker != null) {
+    final ChooseAppsActivity lingering = openedPicker;
+    in.runOnMainSync(() -> {
+     if (!lingering.isFinishing() && !lingering.isDestroyed()) lingering.finish();
+    });
+    in.waitForIdleSync();
+   }
+  }
  }
  @Test public void oneTimeShizukuSetupCleansUpWhenPermissionRequestIsDismissed() throws Exception {
   Field requesting = ShizukuBridge.class.getDeclaredField("requestingPermission");

@@ -101,6 +101,29 @@ public class ReleaseNotesMarkdownTest {
         assertEquals("echo **raw**", blocks.get(7).rawText);
     }
 
+    @Test public void preservesNestedEmphasisClosingTogetherAndCodeBlockLeadingBlankLine() {
+        List<ReleaseNotesMarkdown.InlineNode> nested = ReleaseNotesMarkdown.parseInlines("**foo *bar***");
+        assertEquals(1, nested.size());
+        assertEquals(ReleaseNotesMarkdown.InlineType.BOLD, nested.get(0).type);
+        assertEquals(2, nested.get(0).children.size());
+        assertEquals(ReleaseNotesMarkdown.InlineType.TEXT, nested.get(0).children.get(0).type);
+        assertEquals("foo ", nested.get(0).children.get(0).text);
+        assertEquals(ReleaseNotesMarkdown.InlineType.ITALIC, nested.get(0).children.get(1).type);
+        assertEquals("bar", nested.get(0).children.get(1).children.get(0).text);
+
+        List<ReleaseNotesMarkdown.InlineNode> adjacent = ReleaseNotesMarkdown.parseInlines("**foo***bar*");
+        assertEquals(2, adjacent.size());
+        assertEquals(ReleaseNotesMarkdown.InlineType.BOLD, adjacent.get(0).type);
+        assertEquals("foo", adjacent.get(0).children.get(0).text);
+        assertEquals(ReleaseNotesMarkdown.InlineType.ITALIC, adjacent.get(1).type);
+        assertEquals("bar", adjacent.get(1).children.get(0).text);
+
+        List<ReleaseNotesMarkdown.Block> blankLead = ReleaseNotesMarkdown.parse("```\n\nsecond line\n```");
+        assertEquals(1, blankLead.size());
+        assertEquals(ReleaseNotesMarkdown.BlockType.CODE_BLOCK, blankLead.get(0).type);
+        assertEquals("\nsecond line", blankLead.get(0).rawText);
+    }
+
     @Test public void parsesInlineStylesLinksEscapesAndPreservesIntrawordUnderscores() {
         List<ReleaseNotesMarkdown.InlineNode> nodes = ReleaseNotesMarkdown.parseInlines(
                 "Keep PACKAGE_USAGE_STATS and aosp_atd, use *italic*, ***both***, ~~old~~, "
@@ -177,6 +200,13 @@ public class ReleaseNotesMarkdownTest {
         for (int i = 0; i < 20; i++) deep.append(" x**");
         List<ReleaseNotesMarkdown.Block> deepBlocks = ReleaseNotesMarkdown.parse(deep.toString());
         assertEquals(1, deepBlocks.size());
+        assertEquals(ReleaseNotesMarkdown.BlockType.PARAGRAPH, deepBlocks.get(0).type);
         assertTrue(ReleaseNotesMarkdown.toPlainText(deepBlocks).contains("core"));
+
+        StringBuilder manyBrackets = new StringBuilder(UpdateChecker.MAX_NOTES_LENGTH);
+        for (int i = 0; i < UpdateChecker.MAX_NOTES_LENGTH; i++) manyBrackets.append('[');
+        List<ReleaseNotesMarkdown.InlineNode> bracketNodes = ReleaseNotesMarkdown.parseInlines(manyBrackets.toString());
+        assertEquals(1, bracketNodes.size());
+        assertEquals(UpdateChecker.MAX_NOTES_LENGTH, bracketNodes.get(0).text.length());
     }
 }

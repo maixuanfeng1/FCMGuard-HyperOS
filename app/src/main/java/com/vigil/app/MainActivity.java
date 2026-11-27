@@ -5,9 +5,7 @@ import android.content.*;
 import android.content.pm.*;
 import android.graphics.drawable.Icon;
 import android.os.*;
-import android.text.Editable;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.view.*;
 import android.widget.*;
 import androidx.appcompat.app.*;
@@ -18,8 +16,6 @@ import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.chip.Chip;
-import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.color.*;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
@@ -47,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
     private Parcelable restoredListState;
     private RecyclerView list;
     AppListAdapter appAdapter;
-    AlertDialog activePickerDialog;
     AlertDialog shizukuConsentDialog;
     AlertDialog activeLockHelpDialog;
     BottomSheetDialog activeAppSheet;
@@ -284,6 +279,7 @@ public class MainActivity extends AppCompatActivity {
         WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         bars.setAppearanceLightStatusBars(!ThemeHelper.isDark(this)); bars.setAppearanceLightNavigationBars(!ThemeHelper.isDark(this));
         SettingsGuard.invalidateLockedAppsCache();
+        if (appsLoaded || !rows.isEmpty()) renderApps();
         requestAppRefresh();
         if (DiagnosticPreferences.enhanced(this)) ShizukuBridge.connect();
         if (ShizukuBridge.isRequestingPermission()) {
@@ -311,10 +307,6 @@ public class MainActivity extends AppCompatActivity {
             shizukuConsentDialog.setOnDismissListener(null);
             shizukuConsentDialog.dismiss();
             shizukuConsentDialog = null;
-        }
-        if (activePickerDialog != null) {
-            activePickerDialog.dismiss();
-            activePickerDialog = null;
         }
         if (activeLockHelpDialog != null) {
             activeLockHelpDialog.setOnDismissListener(null);
@@ -705,86 +697,8 @@ public class MainActivity extends AppCompatActivity {
     String flag(Boolean value, int yes, int no) { return getString(value == null ? R.string.unknown_state : value ? yes : no); }
 
     void chooseApps() {
-        if (apps.isEmpty()) { refreshApps(); message(getString(R.string.checking)); return; }
-        if (activePickerDialog != null && activePickerDialog.isShowing()) return;
-        List<FcmAppScanner.AppEntry> snapshot = new ArrayList<>(apps);
-        Set<String> workingSelected = DiagnosticPreferences.selected(this);
-        Set<String> pinnedSelected = new HashSet<>(workingSelected);
-        int fcmCount = AppPickerFilter.countFcm(snapshot);
-
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
-        View content = LayoutInflater.from(builder.getContext()).inflate(R.layout.dialog_choose_apps, null);
-        TextView summaryText = content.findViewById(R.id.pickerSummaryText);
-        EditText searchInput = content.findViewById(R.id.pickerSearchInput);
-        View clearBtn = content.findViewById(R.id.pickerClearSearchBtn);
-        ChipGroup filterGroup = content.findViewById(R.id.pickerFilterGroup);
-        Chip allChip = content.findViewById(R.id.filterAllChip);
-        Chip fcmChip = content.findViewById(R.id.filterFcmChip);
-        Chip selectedChip = content.findViewById(R.id.filterSelectedChip);
-        TextView emptyText = content.findViewById(R.id.pickerEmptyText);
-        RecyclerView recycler = content.findViewById(R.id.pickerRecycler);
-
-        recycler.setLayoutManager(new LinearLayoutManager(builder.getContext()));
-        recycler.setItemAnimator(null);
-        recycler.addItemDecoration(edgeSpacingDecoration(dp(4), dp(4)));
-
-        final AppPickerFilter.Mode[] modeRef = {AppPickerFilter.Mode.ALL};
-        final AppPickerAdapter[] adapterRef = new AppPickerAdapter[1];
-        allChip.setText(getString(R.string.filter_all, snapshot.size()));
-        fcmChip.setText(getString(R.string.filter_fcm, fcmCount));
-
-        Runnable refreshPicker = () -> {
-            String query = searchInput.getText() == null ? "" : searchInput.getText().toString();
-            clearBtn.setVisibility(query.isEmpty() ? View.GONE : View.VISIBLE);
-            List<FcmAppScanner.AppEntry> filtered = AppPickerFilter.filter(
-                    snapshot, workingSelected, pinnedSelected, modeRef[0], query);
-            int chosenInCatalog = AppPickerFilter.countSelectedInCatalog(snapshot, workingSelected);
-            selectedChip.setText(getString(R.string.filter_selected, chosenInCatalog));
-            summaryText.setText(getString(R.string.picker_summary, chosenInCatalog, filtered.size()));
-            emptyText.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
-            recycler.setVisibility(filtered.isEmpty() ? View.GONE : View.VISIBLE);
-            adapterRef[0].submit(filtered, workingSelected);
-        };
-
-        adapterRef[0] = new AppPickerAdapter(builder.getContext(), (packageName, checked) -> {
-            if (checked) workingSelected.add(packageName);
-            else workingSelected.remove(packageName);
-            refreshPicker.run();
-        });
-        recycler.setAdapter(adapterRef[0]);
-
-        clearBtn.setOnClickListener(v -> searchInput.setText(""));
-        searchInput.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
-            @Override public void afterTextChanged(Editable s) { refreshPicker.run(); }
-        });
-        filterGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            int id = checkedIds.isEmpty() ? R.id.filterAllChip : checkedIds.get(0);
-            modeRef[0] = id == R.id.filterFcmChip ? AppPickerFilter.Mode.FCM_ONLY :
-                    id == R.id.filterSelectedChip ? AppPickerFilter.Mode.SELECTED_ONLY : AppPickerFilter.Mode.ALL;
-            pinnedSelected.clear();
-            pinnedSelected.addAll(workingSelected);
-            refreshPicker.run();
-            recycler.scrollToPosition(0);
-        });
-
-        refreshPicker.run();
-        activePickerDialog = builder
-                .setTitle(R.string.choose_apps)
-                .setView(content)
-                .setPositiveButton(R.string.done_action, (d, w) -> {
-                    DiagnosticPreferences.selected(this, workingSelected);
-                    renderApps();
-                })
-                .setNegativeButton(R.string.cancel_action, null)
-                .create();
-        activePickerDialog.setOnDismissListener(d -> activePickerDialog = null);
-        activePickerDialog.show();
-        Window window = activePickerDialog.getWindow();
-        if (window != null) {
-            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-        }
+        startActivity(new Intent(this, ChooseAppsActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP));
     }
 
     void showApp(AppDiagnostics row) {

@@ -31,7 +31,9 @@ final class AppPickerFilter {
         List<FcmAppScanner.AppEntry> matched = new ArrayList<>();
         for (FcmAppScanner.AppEntry app : apps) {
             if (effectiveMode == Mode.FCM_ONLY && !app.declaresFcm) continue;
-            if (effectiveMode == Mode.SELECTED_ONLY && !active.contains(app.packageName)) continue;
+            if (effectiveMode == Mode.SELECTED_ONLY
+                    && !active.contains(app.packageName)
+                    && !pinned.contains(app.packageName)) continue;
             if (!query.isEmpty() && !matches(app, query)) continue;
             matched.add(app);
         }
