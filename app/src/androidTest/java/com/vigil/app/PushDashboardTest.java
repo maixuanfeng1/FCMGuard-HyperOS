@@ -619,15 +619,20 @@ public class PushDashboardTest {
    awaitApps(activity);
 
    // Part 2: Real catalog end-to-end toggle, SELECTED_ONLY pinned undo across recreate, and home sync.
-   in.runOnMainSync(() -> {
-    DiagnosticPreferences.selected(c, Collections.emptySet());
-    activity.renderApps();
-    assertEquals(0, activity.appAdapter.getItemCount());
-    activity.ui(R.id.chooseAppsBtn).performClick();
-   });
-   Activity realLaunched = in.waitForMonitorWithTimeout(monitor, 10000);
-   assertTrue("Expected ChooseAppsActivity to reopen", realLaunched instanceof ChooseAppsActivity);
-   picker = (ChooseAppsActivity) realLaunched;
+   Instrumentation.ActivityMonitor secondMonitor = in.addMonitor(ChooseAppsActivity.class.getName(), null, false);
+   try {
+    in.runOnMainSync(() -> {
+     DiagnosticPreferences.selected(c, Collections.emptySet());
+     activity.renderApps();
+     assertEquals(0, activity.appAdapter.getItemCount());
+     activity.ui(R.id.chooseAppsBtn).performClick();
+    });
+    Activity realLaunched = in.waitForMonitorWithTimeout(secondMonitor, 10000);
+    assertTrue("Expected ChooseAppsActivity to reopen", realLaunched instanceof ChooseAppsActivity);
+    picker = (ChooseAppsActivity) realLaunched;
+   } finally {
+    in.removeMonitor(secondMonitor);
+   }
    awaitPickerCatalog(picker);
 
    final ChooseAppsActivity livePicker = picker;
