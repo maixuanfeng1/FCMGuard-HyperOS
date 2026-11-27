@@ -78,7 +78,14 @@ public class MaterialUiScreenshotTest {
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-app-list-examples");
-            instrumentation.runOnMainSync(() -> activity.showApp(activity.appAdapter.row(0)));
+            instrumentation.runOnMainSync(activity::chooseApps);
+            instrumentation.waitForIdleSync();
+            SystemClock.sleep(400);
+            saveScreenshot(instrumentation, context, name + "-app-picker");
+            instrumentation.runOnMainSync(() -> {
+                if (activity.activePickerDialog != null) activity.activePickerDialog.dismiss();
+                activity.showApp(activity.appAdapter.row(0));
+            });
             instrumentation.waitForIdleSync();
             SystemClock.sleep(400);
             saveScreenshot(instrumentation, context, name + "-app-checks");

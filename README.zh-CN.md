@@ -2,7 +2,7 @@
 
 # Vigil · HyperOS 应用驻留保活与推送通知全链路诊断
 
-应用包名为 `com.vigil.app`。从 **`v1.0.0`** 起，Vigil 以全新独立包名、扁平几何字标图标与现行正式签名证书发布，后续版本均支持无损覆盖升级并保留关注列表、偏好设置与诊断授权（若此前装过旧包名 `com.reed.fcmguard` 版本，直接安装新版并重新点一次授权后卸载旧版即可）。
+轻量、严格只读、零后台常驻的 HyperOS 应用保活与推送通知诊断工具（`com.vigil.app`）。
 
 [下载最新版 APK](https://github.com/maixuanfeng1/vigil/releases/latest/download/Vigil.apk)
 
@@ -36,7 +36,7 @@
 ## 底部三栏界面导览（Material 3）
 
 - **连接（Connection）**：清晰划分为三张独立 Material 3 卡片——FCM 实时连接状态与 Google 诊断主入口、可一键跳转至应用页的关注应用摘要卡片，以及网络检查与限频心跳尝试。
-- **应用（Apps）**：顶部固定「应用检查」控制区（全宽「选择关注应用」主按钮 +「刷新检查／查看全部」次要操作 + 统计概览），以明确分隔线衔接下方整屏 Material 3 卡片列表，紧凑展示自启动、通知权限、无限制名单、后台任务锁定与 FCM 组件声明；支持实时搜索与「全部／声明 FCM／已关注」筛选的应用选择器，底栏角标提示待检查数；点击卡片弹出分为「推送检查／后台检查／系统设置」三区的实时刷新详情面板。
+- **应用（Apps）**：顶部「应用检查」Material 3 卡片（全宽「选择关注应用」主按钮 +「刷新检查／查看全部」次要操作 + 统计概览）与下方柔和渐隐的 Material 3 应用卡片列表自然衔接，紧凑展示自启动、通知权限、无限制名单、后台任务锁定与 FCM 组件声明；支持实时搜索与「全部／声明 FCM／已关注」筛选的应用选择器，底栏角标提示待检查数；点击卡片弹出分为「推送检查／后台检查／系统设置」三区的实时刷新详情面板。
 - **设置（Settings）**：拆分为四张独立卡片分区——**诊断权限**（一键「通过 Shizuku 授权」）、**快捷设置**（添加磁贴）、**外观**（跟随系统／浅色／深色），以及**关于**（进入独立的「关于 Vigil」页面，支持手动按需从 GitHub Releases 检查更新、直达 GitHub 仓库／发行版／Issues／中英文文档、一键复制版本号与诊断环境信息、分享项目、跳转本应用系统详情、查阅开源许可与第三方组件声明，以及隐私和只读运行边界说明）。手动 ADB 授权与撤销命令统一维护在 [一次性诊断授权说明](docs/DIRECT_DIAGNOSTIC_ACCESS.md)。
 
 **快捷设置磁贴与桌面快捷方式**：
@@ -65,12 +65,6 @@
 
 ---
 
-## 版本说明
-
-- **`v1.0.0`**：Vigil 全新独立版本，正式启用独立包名 `com.vigil.app` 与扁平几何斜切字标新图标；完整包含 Material 3 底部三栏界面（连接／应用／设置）、独立「关于」页与手动 GitHub Releases 更新检查、前台门控的默认实时状态监听（移除多余自动刷新开关）、HyperOS 后台任务锁定（`locked_apps`）只读检测、快捷设置磁贴添加状态反馈，以及免电脑 Shizuku 一次性诊断授权。
-
----
-
 ## 构建、验证与许可
 
 - **构建环境**：AGP 9.5.1、官方 SHA-256 校验的 Gradle 9.9.1、JDK 21（Java 17 源码级别）、`compileSdk 37.2`、`targetSdk 37`、`minSdk 24`。
@@ -79,6 +73,5 @@
   - [构建、签名与 Android 17 CI 验证指南](docs/BUILDING.md)
   - [一次性诊断授权、撤销与验证范围](docs/DIRECT_DIAGNOSTIC_ACCESS.md)
   - [HyperOS 4 实机核对清单](docs/HYPEROS_CHECKS.md)
-  - [历史项目审计记录（3.1.2–3.2.0）](docs/PROJECT_AUDIT.md)
 
-基于 [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS) 开发，系统策略研究参考 [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix)。采用 MIT 许可协议开源，详见 [LICENSE](LICENSE)。
+采用 MIT 许可协议开源，详见 [LICENSE](LICENSE)。HyperOS 系统策略研究参考 [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix)。

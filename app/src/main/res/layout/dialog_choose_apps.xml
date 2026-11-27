@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.vigil.app.PickerDialogLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -65,10 +65,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:clipToPadding="false"
         android:fadingEdgeLength="16dp"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
         android:requiresFadingEdge="horizontal"
         android:scrollbars="none">
 
@@ -76,6 +73,8 @@
             android:id="@+id/pickerFilterGroup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
             app:selectionRequired="true"
             app:singleLine="true"
             app:singleSelection="true">
@@ -108,7 +107,9 @@
         style="@style/VigilDivider"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp" />
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp" />
 
     <TextView
         android:id="@+id/pickerEmptyText"
@@ -125,17 +126,9 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/pickerRecycler"
         android:layout_width="match_parent"
-        android:layout_height="320dp"
-        android:clipToPadding="false"
+        android:layout_height="wrap_content"
         android:fadingEdgeLength="16dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
         android:requiresFadingEdge="vertical"
-        android:scrollbarStyle="outsideOverlay"
+        android:scrollbarStyle="insideOverlay"
         android:scrollbars="vertical" />
-
-    <com.google.android.material.divider.MaterialDivider
-        style="@style/VigilDivider"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
-</LinearLayout>
+</com.vigil.app.PickerDialogLayout>

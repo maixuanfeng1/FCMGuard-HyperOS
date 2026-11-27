@@ -570,9 +570,17 @@ public class PushDashboardTest {
    activity.ui(R.id.chooseAppsBtn).performClick();
    assertNotNull(activity.activePickerDialog);
    assertTrue(activity.activePickerDialog.isShowing());
+  });
+  in.waitForIdleSync();
+  in.runOnMainSync(() -> {
    androidx.recyclerview.widget.RecyclerView recycler = activity.activePickerDialog.findViewById(R.id.pickerRecycler);
    com.google.android.material.chip.ChipGroup filters = activity.activePickerDialog.findViewById(R.id.pickerFilterGroup);
    EditText search = activity.activePickerDialog.findViewById(R.id.pickerSearchInput);
+   View dialogRoot = (View) recycler.getParent();
+   assertTrue("Picker list should have non-zero height", recycler.getHeight() > 0);
+   assertTrue("Picker list must fit inside dialog content bounds", recycler.getBottom() <= dialogRoot.getHeight());
+   Button doneBtn = activity.activePickerDialog.getButton(DialogInterface.BUTTON_POSITIVE);
+   assertTrue("Positive action button must remain visible", doneBtn.isShown() && doneBtn.getGlobalVisibleRect(new Rect()));
    AppPickerAdapter pickerAdapter = (AppPickerAdapter) recycler.getAdapter();
    assertEquals(4, pickerAdapter.getItemCount());
    filters.check(R.id.filterFcmChip);
@@ -583,7 +591,7 @@ public class PushDashboardTest {
    pickerAdapter.onBindViewHolder(holder, 0);
    holder.itemView.performClick();
    assertTrue(DiagnosticPreferences.selected(c).isEmpty());
-   activity.activePickerDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
+   doneBtn.performClick();
   });
   in.waitForIdleSync();
   in.runOnMainSync(() -> {
