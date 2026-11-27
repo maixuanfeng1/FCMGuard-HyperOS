@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+"""Actual Shizuku authorization and minified-helper binding on a disposable emulator."""
+from pathlib import Path
+import hashlib
+import re
+import shlex
+import subprocess
+import time
+import urllib.request
+import xml.etree.ElementTree as ET
+import zipfile
+
+PACKAGE = 'com.vigil.app'
+MANAGER = 'moe.shizuku.privileged.api'
+SHA256 = '6e273ab0e991c4e79bc8b1bbb9b9dd739ccac1a8712a541a214078886b7b790f'
+URL = 'https://github.com/RikkaApps/Shizuku/releases/download/v13.6.0/shizuku-v13.6.0.r1086.2650830c-release.apk'
+lines = []
+installed = False
+manager_installed = False
+
+
+def adb(*args):
+    if args and args[0] == 'shell':
+        args = ('shell', shlex.join(args[1:]))
+    return subprocess.check_output(['adb', *args], text=True, stderr=subprocess.STDOUT, timeout=25).strip()
+
+
+def nodes():
+    path = '/data/local/tmp/fcmguard-shizuku-ui.xml'
+    adb('shell', 'uiautomator', 'dump', path)
+    xml = adb('shell', 'cat', path)
+    Path('artifacts/shizuku-release-ui.xml').write_text(xml)
+    return list(ET.fromstring(xml).iter('node'))
+
+
+def tap(node):
+    bounds = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
+    assert len(bounds) == 4 and bounds[2] > bounds[0] and bounds[3] > bounds[1], node.attrib
+    adb('shell', 'input', 'tap', str((bounds[0]+bounds[2])//2), str((bounds[1]+bounds[3])//2))
+
+
+def find_node(current, resource_id):
+    return next((n for n in current if n.get('resource-id') == resource_id), None)
+
+
+def switch_tab(tab_id, timeout=15):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        current = nodes()
+        tab = find_node(current, PACKAGE + ':id/' + tab_id)
+        if tab is not None:
+            tap(tab)
+            time.sleep(0.5)
+            return nodes()
+        time.sleep(0.5)
+    raise AssertionError(f'Bottom navigation tab {tab_id} was not found')
+
+
+def swipe(up=True):
+    adb('shell', 'input', 'swipe', str(width//2), str(height*(80 if up else 25)//100),
+        str(width//2), str(height*(25 if up else 80)//100), '400')
+
+
+assert adb('shell', 'getprop', 'ro.kernel.qemu') == '1', 'Use a disposable emulator'
+assert adb('shell', 'getprop', 'ro.build.version.sdk') == '37', 'Expected Android 17'
+assert adb('shell', 'id', '-u') == '2000', 'Test the same shell identity as wireless debugging'
+Path('artifacts').mkdir(exist_ok=True)
+try:
+    apk = Path('artifacts/shizuku-testing-only.apk')
+    with urllib.request.urlopen(URL, timeout=60) as response:
+        apk.write_bytes(response.read())
+    assert hashlib.sha256(apk.read_bytes()).hexdigest() == SHA256, 'Shizuku test download changed'
+    with zipfile.ZipFile(apk) as archive:
+        starter = Path('artifacts/shizuku-starter')
+        starter.write_bytes(archive.read('lib/x86_64/libshizuku.so'))
+    adb('install', '-r', str(apk))
+    manager_installed = True
+    adb('push', str(starter), '/data/local/tmp/fcmguard-shizuku-starter')
+    adb('shell', 'chmod', '755', '/data/local/tmp/fcmguard-shizuku-starter')
+    output = adb('shell', '/data/local/tmp/fcmguard-shizuku-starter')
+    lines.append(output)
+    assert 'exit with 0' in output, output
+    time.sleep(3)
+    adb('install', '-r', 'artifacts/FCMGuard-release-testing-only.apk')
+    installed = True
+    before = adb('shell', 'settings', 'get', 'system', 'MILLET_NO_RESTRICT_APP')
+    adb('shell', 'am', 'start', '-W', '-n', PACKAGE+'/.MainActivity')
+    width, height = map(int, re.findall(r'(\d+)x(\d+)', adb('shell', 'wm', 'size'))[-1])
+    # Navigate directly to the Settings tab where the one-time grant entry lives.
+    current = switch_tab('nav_settings')
+    for _ in range(3):
+        if find_node(current, PACKAGE+':id/shizukuGrantBtn') is not None:
+            break
+        swipe()
+        current = nodes()
+    assert find_node(current, PACKAGE+':id/shizukuGrantBtn') is not None, 'shizukuGrantBtn not found in Settings tab'
+    assert not any(n.get('resource-id') in {PACKAGE+':id/enhancedSwitch', PACKAGE+':id/helperText',
+                    PACKAGE+':id/permissionBtn', PACKAGE+':id/runtimeInfoText',
+                    PACKAGE+':id/advancedToggle', PACKAGE+':id/currentValueText'} for n in current), 'Legacy controls leaked into daily UI'
+    allowed = False
+    def open_consent():
+        global allowed
+        deadline = time.monotonic()+60
+        while time.monotonic()<deadline:
+            current = nodes()
+            allow = next((n for n in current if n.get('package') == MANAGER and
+                          n.get('text') == 'Allow all the time' and n.get('clickable') == 'true'), None)
+            if allow is not None:
+                tap(allow); allowed = True; continue
+            if any(n.get('resource-id') == 'android:id/button1' and n.get('text') == 'Grant diagnostic access' for n in current):
+                return current
+            button = next((n for n in current if n.get('resource-id') == PACKAGE+':id/shizukuGrantBtn'), None)
+            if button is not None and button.get('enabled') == 'true': tap(button)
+            else: time.sleep(1)
+        raise AssertionError('One-time entry could not prepare Shizuku and show consent')
+    # The harness does not issue pm/appops grants: only the app's confirmed Shizuku flow may do so.
+    def own_permissions():
+        dump = adb('shell', 'dumpsys', 'package', PACKAGE)
+        return tuple(bool(re.search(re.escape('android.permission.'+p)+r':\s+granted=true', dump))
+                     for p in ('DUMP', 'PACKAGE_USAGE_STATS'))
+    assert own_permissions() == (False, False), 'Own diagnostic permissions were unexpectedly pregranted'
+    current = open_consent()
+    assert allowed, 'The one-time entry must request actual Shizuku authorization'
+    cancel = next((n for n in current if n.get('resource-id') == 'android:id/button2'), None)
+    assert cancel is not None, 'Diagnostic permission consent dialog is missing'
+    tap(cancel)
+    assert own_permissions() == (False, False), 'Canceling consent must leave permissions unchanged'
+    current = open_consent()
+    confirm = next((n for n in current if n.get('resource-id') == 'android:id/button1' and
+                    n.get('text') == 'Grant diagnostic access'), None)
+    assert confirm is not None, 'Explicit diagnostic permission confirmation is missing'
+    tap(confirm)
+    deadline = time.monotonic()+40
+    while time.monotonic()<deadline:
+        current = nodes()
+        done = next((n for n in current if n.get('resource-id') == PACKAGE+':id/shizukuGrantBtn'), None)
+        if done is not None and done.get('text') == 'App diagnostic access is ready' and done.get('enabled') == 'false':
+            break
+        if done is None:
+            swipe()
+        time.sleep(1)
+    else:
+        raise AssertionError('The actual app-to-helper grant did not produce independent diagnostic access')
+    assert own_permissions() == (True, True), 'The Shizuku flow did not grant both app permissions'
+    assert not any(n.get('resource-id') in {PACKAGE+':id/enhancedSwitch', PACKAGE+':id/helperText',
+                    PACKAGE+':id/permissionBtn', PACKAGE+':id/runtimeInfoText',
+                    PACKAGE+':id/advancedToggle', PACKAGE+':id/currentValueText'} for n in current), 'Legacy controls visible after independent authorization'
+    # Verify the app released its helper without stopping Shizuku used by other apps.
+    deadline = time.monotonic()+15
+    while time.monotonic()<deadline:
+        try: auxiliary = adb('shell','pidof',PACKAGE+':settings')
+        except subprocess.CalledProcessError: auxiliary = ''
+        if not auxiliary: break
+        time.sleep(1)
+    assert not auxiliary, 'The one-time helper is still running after authorization'
+    lines.append('SHIZUKU_SETUP_ONLY_OK: no daily legacy controls, cancel releases temporary mode, successful grant releases helper')
+    print(lines[-1])
+    Path('artifacts/screenshots/08-shizuku-one-time-grant.png').write_bytes(
+        subprocess.check_output(['adb','exec-out','screencap','-p'],timeout=15))
+    pid = adb('shell', 'pidof', 'shizuku_server')
+    assert pid, 'Shizuku must be running until the one-time grant finishes'
+    adb('shell', 'kill', *pid.split())
+    lines.append('Consent cancel preserves permissions; confirmation grants them through real Shizuku; server stopped: OK')
+    # Outlive the 15-second verdict cache; success must come from a new independent read.
+    time.sleep(16)
+    current = switch_tab('nav_connection')
+    for _ in range(3):
+        if find_node(current, PACKAGE+':id/statusHeadline') is not None:
+            break
+        swipe(False)
+        current = nodes()
+    deadline = time.monotonic()+30
+    while time.monotonic() < deadline:
+        current = nodes()
+        if (any(n.get('text') == 'FCM connection: Connected' for n in current) and
+                any('Read source: app diagnostic permissions' in n.get('text','') for n in current)):
+            break
+        time.sleep(1)
+    else:
+        raise AssertionError('Minified release did not read actual GMS Connected independently after Shizuku stopped')
+    lines.append('SHIZUKU_ONE_TIME_GRANT_OK: real app caller, explicit consent, app permissions verified, independent Connected after Shizuku stops')
+    print(lines[-1])
+    assert before == adb('shell', 'settings', 'get', 'system', 'MILLET_NO_RESTRICT_APP'), 'Read-only checks modified the system list'
+    Path('artifacts/screenshots/06-release-shizuku.png').write_bytes(
+        subprocess.check_output(['adb', 'exec-out', 'screencap', '-p'], timeout=15))
+    lines.append('SHIZUKU_RELEASE_OK: minified non-debuggable APK, real authorization, temporary user service, released helper and independent GMS Connected, no system-list write')
+    print(lines[-1])
+finally:
+    if not any('SHIZUKU_RELEASE_OK' in line for line in lines):
+        try: lines.append(adb('shell','logcat','-d','-s','FCMGuardGrant:W','AndroidRuntime:E','*:S')[-12000:])
+        except subprocess.SubprocessError: pass
+    Path('artifacts/shizuku-release-smoke.log').write_text('\n'.join(lines)+'\n')
+    if installed:
+        adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
+        adb('uninstall', PACKAGE)
+    if manager_installed:
+        try:
+            pid = adb('shell', 'pidof', 'shizuku_server')
+            if pid:
+                adb('shell', 'kill', *pid.split())
+        except subprocess.SubprocessError:
+            pass
+        adb('uninstall', MANAGER)
+    adb('shell', 'rm', '-f', '/data/local/tmp/fcmguard-shizuku-starter')

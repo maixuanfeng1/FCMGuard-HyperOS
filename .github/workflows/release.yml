@@ -1,0 +1,78 @@
+name: Signed APK release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require successful Android checks for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CHECK_RUN=$(gh run list --workflow build-apk.yml --commit "$GITHUB_SHA" --status success --limit 20 --json databaseId --jq '.[0].databaseId // empty')
+          test -n "$CHECK_RUN" || { echo 'Run Android checks successfully for this commit before releasing.' >&2; exit 1; }
+      - name: Require private release signing secrets
+        env:
+          KEYSTORE: ${{ secrets.FCMGUARD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.FCMGUARD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.FCMGUARD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.FCMGUARD_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || {
+            echo 'Configure the four FCMGUARD signing secrets; see docs/BUILDING.md.' >&2
+            exit 1
+          }
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/fcmguard-release.jks"
+          chmod 600 "$RUNNER_TEMP/fcmguard-release.jks"
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          cmdline-tools-version: '16111833'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'platforms;android-37.2' 'build-tools;37.0.0'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - name: Build and verify release
+        env:
+          FCMGUARD_KEYSTORE: ${{ runner.temp }}/fcmguard-release.jks
+          FCMGUARD_STORE_PASSWORD: ${{ secrets.FCMGUARD_STORE_PASSWORD }}
+          FCMGUARD_KEY_ALIAS: ${{ secrets.FCMGUARD_KEY_ALIAS }}
+          FCMGUARD_KEY_PASSWORD: ${{ secrets.FCMGUARD_KEY_PASSWORD }}
+        run: |
+          ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --stacktrace
+          python3 tools/check_apk_abi.py app/build/outputs/apk/release/*.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/fcmguard-certificate.txt"
+          grep -F 'certificate SHA-256 digest: d4efcc7a346e2b717b6da7d0a1dd730864686b525bd1fa005dacda01729f604a' "$RUNNER_TEMP/fcmguard-certificate.txt"
+          "$ANDROID_HOME/build-tools/37.0.0/aapt2" dump badging app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/fcmguard-package.txt"
+          if grep -q 'application-debuggable' "$RUNNER_TEMP/fcmguard-package.txt"; then exit 1; fi
+          unzip -p app/build/outputs/apk/release/app-release.apk META-INF/version-control-info.textproto | grep -F "$GITHUB_SHA"
+      - name: Publish immutable versioned release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle | head -n 1)
+          test -n "$VERSION"
+          TAG="v${VERSION}"
+          # Never replace an existing release with a different APK or signing key.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Bump versionCode and versionName first." >&2
+            exit 1
+          fi
+          cp app/build/outputs/apk/release/app-release.apk Vigil.apk
+          sha256sum Vigil.apk > release-notes.txt
+          gh release create "$TAG" Vigil.apk \
+            --target "$GITHUB_SHA" --title "Vigil ${TAG}" --notes-file release-notes.txt
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/fcmguard-release.jks"

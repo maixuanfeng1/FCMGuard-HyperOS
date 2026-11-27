@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local SDK
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Signing
+*.jks
+*.keystore
+
+# Generated Python bytecode
+__pycache__/
+*.pyc

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Vigil</string>
+<string name="open_fcm_diag">開啟 FCM 診斷</string>
+</resources>
