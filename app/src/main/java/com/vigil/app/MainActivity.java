@@ -180,6 +180,7 @@ public class MainActivity extends AppCompatActivity {
         list.setLayoutManager(new LinearLayoutManager(this));
         list.setSaveEnabled(false); // Restore after asynchronous app discovery, not against an empty adapter.
         list.setItemAnimator(null);
+        list.addItemDecoration(edgeSpacingDecoration(0, dp(10)));
         appAdapter = new AppListAdapter(this);
         list.setAdapter(appAdapter);
         if (state != null) {
@@ -711,7 +712,8 @@ public class MainActivity extends AppCompatActivity {
         Set<String> pinnedSelected = new HashSet<>(workingSelected);
         int fcmCount = AppPickerFilter.countFcm(snapshot);
 
-        View content = getLayoutInflater().inflate(R.layout.dialog_choose_apps, null);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        View content = LayoutInflater.from(builder.getContext()).inflate(R.layout.dialog_choose_apps, null);
         TextView summaryText = content.findViewById(R.id.pickerSummaryText);
         EditText searchInput = content.findViewById(R.id.pickerSearchInput);
         View clearBtn = content.findViewById(R.id.pickerClearSearchBtn);
@@ -722,13 +724,9 @@ public class MainActivity extends AppCompatActivity {
         TextView emptyText = content.findViewById(R.id.pickerEmptyText);
         RecyclerView recycler = content.findViewById(R.id.pickerRecycler);
 
-        int maxListHeight = Math.min(dp(360), Math.max(dp(180),
-                (int) (getResources().getDisplayMetrics().heightPixels * 0.45f)));
-        ViewGroup.LayoutParams lp = recycler.getLayoutParams();
-        lp.height = maxListHeight;
-        recycler.setLayoutParams(lp);
-        recycler.setLayoutManager(new LinearLayoutManager(this));
+        recycler.setLayoutManager(new LinearLayoutManager(builder.getContext()));
         recycler.setItemAnimator(null);
+        recycler.addItemDecoration(edgeSpacingDecoration(dp(4), dp(4)));
 
         final AppPickerFilter.Mode[] modeRef = {AppPickerFilter.Mode.ALL};
         final AppPickerAdapter[] adapterRef = new AppPickerAdapter[1];
@@ -748,7 +746,7 @@ public class MainActivity extends AppCompatActivity {
             adapterRef[0].submit(filtered, workingSelected);
         };
 
-        adapterRef[0] = new AppPickerAdapter(this, (packageName, checked) -> {
+        adapterRef[0] = new AppPickerAdapter(builder.getContext(), (packageName, checked) -> {
             if (checked) workingSelected.add(packageName);
             else workingSelected.remove(packageName);
             refreshPicker.run();
@@ -772,7 +770,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         refreshPicker.run();
-        activePickerDialog = new MaterialAlertDialogBuilder(this)
+        activePickerDialog = builder
                 .setTitle(R.string.choose_apps)
                 .setView(content)
                 .setPositiveButton(R.string.done_action, (d, w) -> {
@@ -783,6 +781,10 @@ public class MainActivity extends AppCompatActivity {
                 .create();
         activePickerDialog.setOnDismissListener(d -> activePickerDialog = null);
         activePickerDialog.show();
+        Window window = activePickerDialog.getWindow();
+        if (window != null) {
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
     }
 
     void showApp(AppDiagnostics row) {
@@ -929,6 +931,18 @@ public class MainActivity extends AppCompatActivity {
         pendingTileFeedback = 0;
         renderTileSettings();
         message(getString(feedback));
+    }
+
+    private RecyclerView.ItemDecoration edgeSpacingDecoration(int topPx, int bottomPx) {
+        return new RecyclerView.ItemDecoration() {
+            @Override
+            public void getItemOffsets(android.graphics.Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
+                int position = parent.getChildAdapterPosition(view);
+                if (position == RecyclerView.NO_POSITION) return;
+                if (position == 0 && topPx > 0) outRect.top = topPx;
+                if (position == state.getItemCount() - 1 && bottomPx > 0) outRect.bottom = bottomPx;
+            }
+        };
     }
 
     private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }

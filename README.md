@@ -2,7 +2,7 @@
 
 # Vigil · HyperOS App Keep-Alive & Push Diagnostics
 
-Package name: `com.vigil.app`. Starting with **`v1.0.0`**, Vigil ships as a standalone package with its own signing certificate and flat monogram icon, supporting seamless in-place upgrades that preserve watched apps, preferences, and diagnostic grants (users upgrading from older `com.reed.fcmguard` builds can install `v1.0.0` alongside, re-grant once, and uninstall the legacy build).
+A lightweight, strictly read-only, zero-background diagnostic console for HyperOS app keep-alive and push notifications (`com.vigil.app`).
 
 [Download Latest APK](https://github.com/maixuanfeng1/vigil/releases/latest/download/Vigil.apk)
 
@@ -36,7 +36,7 @@ For every watched app, Vigil also checks **Android notification permission (`POS
 ## Three-Tab Material 3 Interface
 
 - **Connection**: Organized into three distinct outlined Material 3 cards — the live FCM status hero card with its Google diagnostics primary action, a tappable **Watched apps** summary card, and a **Network check** card for manual probing and heartbeat attempts.
-- **Apps**: Fixed **App checks** header with a full-width **Choose apps** primary action, secondary **Refresh checks** / **Show all apps** buttons, and a full-width divider separating the full-height Material 3 card list; paired with a live-searchable app picker (`All` / `FCM/GCM` / `Watched`) and an attention-count badge on the bottom bar. Tapping any card opens a live-updating details sheet structured into **Push checks**, **Background checks**, and **System settings** cards.
+- **Apps**: Material 3 **App checks** card (full-width **Choose apps** primary action, secondary **Refresh checks** / **Show all apps** buttons, and live summary) above a softly fading Material 3 card list; paired with a live-searchable app picker (`All` / `FCM/GCM` / `Watched`) and an attention-count badge on the bottom bar. Tapping any card opens a live-updating details sheet structured into **Push checks**, **Background checks**, and **System settings** cards.
 - **Settings**: Separated into four focused cards — **Diagnostic access** (**Grant via Shizuku**), **Quick Settings** (**Add tile**), **Appearance** (`System` / `Light` / `Dark`), and **About** (opens the About Vigil screen with manual on-demand GitHub Releases update checking, direct links to the repository, releases, issues, and documentation, diagnostic environment copy, share action, system app settings shortcut, open-source licenses, and privacy/read-only boundaries). Manual ADB grant and revoke commands are documented in [One-Time Diagnostic Grants](docs/DIRECT_DIAGNOSTIC_ACCESS.md).
 
 **Quick Settings Tile & Launcher Shortcut**:
@@ -65,12 +65,6 @@ Once verified, Vigil executes its fixed read-only queries under **its own UID**,
 
 ---
 
-## Releases
-
-- **`v1.0.0`**: Initial standalone Vigil release under package `com.vigil.app` with a flat geometric monogram icon (`Option 01`), Material 3 three-tab layout (**Connection**, **Apps**, **Settings**), dedicated **About** screen with manual GitHub Releases update checking, always-on foreground-gated system/network observers (auto-refresh toggle removed), read-only HyperOS Recents lock (`locked_apps`) inspection, Quick Settings tile placement feedback, and one-time computer-free Shizuku diagnostic grants.
-
----
-
 ## Build, Verification & License
 
 - **Toolchain**: AGP 9.5.1, SHA-256-verified Gradle 9.9.1, JDK 21 / Java 17 source level, `compileSdk 37.2`, `targetSdk 37`, `minSdk 24`.
@@ -79,6 +73,5 @@ Once verified, Vigil executes its fixed read-only queries under **its own UID**,
   - [Building, Signing & Android 17 CI Validation](docs/BUILDING.md)
   - [One-Time Diagnostic Grants & Validation Scope](docs/DIRECT_DIAGNOSTIC_ACCESS.md)
   - [HyperOS 4 On-Device Verification Checklist](docs/HYPEROS_CHECKS.md)
-  - [Historical Project Audit (3.1.2–3.2.0)](docs/PROJECT_AUDIT.md)
 
-Based on [ReedGAOOO/FCMGuard-HyperOS](https://github.com/ReedGAOOO/FCMGuard-HyperOS), with HyperOS system-policy research informed by [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix). Licensed under MIT — see [LICENSE](LICENSE).
+Licensed under MIT — see [LICENSE](LICENSE). HyperOS system-policy research informed by [dingwen07/hyperos-fcm-fix](https://github.com/dingwen07/hyperos-fcm-fix).
